@@ -388,13 +388,13 @@ export default function PaymentGatewayPage() {
                     <label className="form-label">
                       Published Key <span className="req">*</span>
                     </label>
-                    <input type="text" className="form-control" id="stripe-pub" placeholder="your_publishable_key_here" />
+                    <input type="text" className="form-control" id="stripe-pub" placeholder="pk_test_S5yfSYEAL2bc9hTsXaZmoxAR" />
                   </div>
                   <div className="form-group">
                     <label className="form-label">
                       Secret Key <span className="req">*</span>
                     </label>
-                    <input type="text" className="form-control" id="stripe-sec" placeholder="your_secret_key_here" />
+                    <input type="text" className="form-control" id="stripe-sec" placeholder="sk_test_uz861KaR25IVeyIDYZMp6sFT" />
                   </div>
                   <button className="btn-validate" id="stripe-validate-btn" data-action="open-payment">
                     Validate Stripe Integration
