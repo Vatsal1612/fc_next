@@ -1,0 +1,253 @@
+/* ==========================================================================
+   GLOBAL BASE — shared design tokens + reset (extracted from index.html)
+   Page-specific styles live in each page's *.module.css.
+   ========================================================================== */
+
+:root {
+  --primary-color: #00a896;
+  --primary-dark: #008f7f;
+  --sidebar-bg: #ffffff;
+  --main-bg: #f5f7fa;
+  --text-dark: #333333;
+  --text-light: #666666;
+  --border-color: #e0e0e0;
+  --active-bg: #e6f7f5;
+  --teal: #0aa89e;
+  --teal-dark: #088c83;
+  --ink: #2d3748;
+
+  /* Typography Scale */
+  --font-family-base: "Inter", sans-serif;
+  --text-page-heading: 24px;
+  --text-section-heading: 20px;
+  --text-subheading: 18px;
+  --text-body: 16px;
+  --text-label: 14px;
+  --text-helper: 14px;
+  --text-input: 15px;
+  --text-button: 14px;
+  --text-table: 14px;
+  --text-nav: 14px;
+
+  /* Font Weights */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Line Heights */
+  --lh-page-heading: 29px;
+  --lh-section-heading: 24px;
+  --lh-subheading: 24px;
+  --lh-body: 24px;
+  --lh-label: 20px;
+  --lh-helper: 20px;
+  --lh-input: 22px;
+  --lh-button: 20px;
+  --lh-table: 20px;
+  --lh-nav: 20px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--main-bg);
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  font-family: var(--font-family-base);
+  color: var(--text-dark);
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+/* ==========================================================================
+   GLOBAL TYPOGRAPHY UTILITIES
+   ========================================================================== */
+
+.typ-page-heading {
+  font-family: var(--font-family-base);
+  font-size: var(--text-page-heading);
+  font-weight: var(--weight-semibold);
+  line-height: var(--lh-page-heading);
+  font-style: normal;
+  margin: 0;
+  margin-bottom: 15px;
+  color: var(--ink);
+}
+
+/* Ensure .typ-page-heading always wins regardless of which HTML element it is
+   applied to (div, h1, h2, h3, etc.) and cascade order */
+h1.typ-page-heading,
+h2.typ-page-heading,
+h3.typ-page-heading,
+h4.typ-page-heading,
+h5.typ-page-heading,
+h6.typ-page-heading {
+  font-family: var(--font-family-base) !important;
+  font-size: var(--text-page-heading) !important;
+  font-weight: var(--weight-semibold) !important;
+  line-height: var(--lh-page-heading) !important;
+  font-style: normal !important;
+}
+
+/* Standardize all page heading classes to use the same typography as Category page */
+.card-title,
+.report-title,
+.page-title,
+.deals-title,
+.apply-title,
+.taxes-title,
+.menu-title,
+.settings-title,
+.profile-title,
+.header-title,
+.hero-title,
+.promo-title,
+.ow-copy-heading,
+.plan-heading h2,
+.title {
+  font-family: var(--font-family-base) !important;
+  font-size: var(--text-page-heading) !important;
+  font-weight: var(--weight-semibold) !important;
+  line-height: var(--lh-page-heading) !important;
+  font-style: normal !important;
+}
+
+.typ-section-heading {
+  font-family: var(--font-family-base);
+  font-size: var(--text-section-heading);
+  font-weight: var(--weight-semibold);
+  line-height: var(--lh-section-heading);
+  font-style: normal;
+}
+
+.typ-subheading {
+  font-family: var(--font-family-base);
+  font-size: var(--text-subheading);
+  font-weight: var(--weight-medium);
+  line-height: var(--lh-subheading);
+  font-style: normal;
+}
+
+.typ-body {
+  font-family: var(--font-family-base);
+  font-size: var(--text-body);
+  font-weight: var(--weight-regular);
+  line-height: var(--lh-body);
+  font-style: normal;
+}
+
+.typ-label {
+  font-family: var(--font-family-base);
+  font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
+  line-height: var(--lh-label);
+  font-style: normal;
+}
+
+.typ-helper {
+  font-family: var(--font-family-base);
+  font-size: var(--text-helper);
+  font-weight: var(--weight-regular);
+  line-height: var(--lh-helper);
+  font-style: normal;
+}
+
+.typ-input {
+  font-family: var(--font-family-base);
+  font-size: var(--text-input);
+  font-weight: var(--weight-regular);
+  line-height: var(--lh-input);
+  font-style: normal;
+}
+
+.typ-button {
+  font-family: var(--font-family-base);
+  font-size: var(--text-button);
+  font-weight: var(--weight-semibold);
+  line-height: var(--lh-button);
+}
+
+.typ-table-header {
+  font-family: var(--font-family-base);
+  font-size: var(--text-table);
+  font-weight: var(--weight-semibold);
+  line-height: var(--lh-table);
+}
+
+.typ-table-body {
+  font-family: var(--font-family-base);
+  font-size: var(--text-table);
+  font-weight: var(--weight-regular);
+  line-height: var(--lh-table);
+}
+
+.typ-nav {
+  font-family: var(--font-family-base);
+  font-size: var(--text-nav);
+  font-weight: var(--weight-medium);
+  line-height: var(--lh-nav);
+}
+
+.typ-nav-active {
+  font-family: var(--font-family-base);
+  font-size: var(--text-nav);
+  font-weight: var(--weight-semibold);
+  line-height: var(--lh-nav);
+}
+
+/* Default Semantic Heading Maps (Overridable by page css if they change roles) */
+h1 {
+  font-family: var(--font-family-base);
+  font-size: var(--text-page-heading);
+  font-weight: var(--weight-semibold);
+  line-height: var(--lh-page-heading);
+}
+
+h2 {
+  font-family: var(--font-family-base);
+  font-size: var(--text-section-heading);
+  font-weight: var(--weight-semibold);
+  line-height: var(--lh-section-heading);
+}
+
+h3 {
+  font-family: var(--font-family-base);
+  font-size: var(--text-subheading);
+  font-weight: var(--weight-medium);
+  line-height: var(--lh-subheading);
+}
+
+h4 {
+  font-family: var(--font-family-base);
+  font-size: var(--text-subheading);
+  font-weight: var(--weight-medium);
+  line-height: var(--lh-subheading);
+}
+
+/* ==========================================================================
+   GLOBAL REPORT TABLE WRAPPER SPACING
+   ========================================================================== */
+.items-table-wrapper,
+.table-wrapper,
+.table-wrap,
+.report-table-wrap,
+.table-wrapper-outer,
+.table-card {
+  margin-bottom: 28px !important;
+}

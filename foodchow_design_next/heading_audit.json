@@ -1,0 +1,388 @@
+{
+  "app\\login\\page.css": [
+    {
+      "selector": "h1",
+      "body": "font-size: 38px;\n    line-height: 1.15;\n  font-weight: var(--weight-bold);\n    margin: 0 0 16px;\n    letter-spacing: -0.02em;"
+    }
+  ],
+  "app\\(admin)\\marketing\\marketing-material\\page.css": [
+    {
+      "selector": ".report-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-bold);\n    color: var(--text-dark)"
+    }
+  ],
+  "app\\(admin)\\marketing\\qr-binding\\page.css": [
+    {
+      "selector": ".report-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-bold);\n    color: var(--text-dark)"
+    }
+  ],
+  "app\\(admin)\\marketing\\whatsapp-notification-setting\\page.css": [
+    {
+      "selector": ".page-header",
+      "body": "display: flex;\n    justify-content: space-between;\n    align-items: center;\n    margin-bottom: 20px"
+    },
+    {
+      "selector": ".page-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-bold);\n    color: var(--text-dark)"
+    }
+  ],
+  "app\\(admin)\\menu\\additional-menu\\page.css": [
+    {
+      "selector": ".page-header",
+      "body": "display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--line); gap: 1rem;"
+    },
+    {
+      "selector": "h1",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading); font-weight: var(--weight-bold); color: var(--ink);"
+    },
+    {
+      "selector": ".page-header",
+      "body": "flex-direction: column; align-items: flex-start; gap: 1rem;"
+    },
+    {
+      "selector": ".page-header",
+      "body": "flex-direction: column; align-items: flex-start; gap: 1rem;"
+    }
+  ],
+  "app\\(admin)\\menu\\apply-tax\\page.css": [
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n    color: var(--ink);\n  font-weight: var(--weight-semibold);"
+    }
+  ],
+  "app\\(admin)\\menu\\category\\page.css": [
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-semibold);\n        color: var(--ink);\n        margin-bottom: 4px;"
+    }
+  ],
+  "app\\(admin)\\menu\\choice\\page.css": [
+    {
+      "selector": ".page-header",
+      "body": "display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; border-bottom: 1px solid var(--line); padding-bottom: 16px; gap: 1rem; flex-wrap: wrap;"
+    },
+    {
+      "selector": ".page-title",
+      "body": "flex: 1; min-width: 250px;"
+    },
+    {
+      "selector": "h1",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading); font-weight: var(--weight-bold); color: var(--ink); margin-bottom: 4px;"
+    },
+    {
+      "selector": ".page-header",
+      "body": "flex-direction: column; align-items: stretch;"
+    }
+  ],
+  "app\\(admin)\\menu\\extra\\page.css": [
+    {
+      "selector": "h1",
+      "body": "font-size: var(--text-page-heading); line-height: var(--lh-page-heading);\n  font-weight: var(--weight-semibold);\n        color: var(--text-dark);"
+    }
+  ],
+  "app\\(admin)\\menu\\item-code\\page.css": [
+    {
+      "selector": ".card-title",
+      "body": "font-weight: var(--weight-semibold);\n  font-size: var(--text-subheading); line-height: var(--lh-subheading);\n    color: var(--ink) !important;\n    letter-spacing: -0.01em;"
+    }
+  ],
+  "app\\(admin)\\menu\\item-deals\\page.css": [
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n    color: var(--ink);\n  font-weight: var(--weight-semibold);"
+    },
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-semibold);\n  color: var(--ink);\n  margin-bottom: 20px;"
+    },
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-semibold);\n  color: var(--ink);\n  margin-bottom: 20px;"
+    }
+  ],
+  "app\\(admin)\\menu\\my-plan\\page.css": [
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-semibold);\n        color: var(--ink);\n        margin-bottom: 4px;"
+    }
+  ],
+  "app\\(admin)\\menu\\tax\\page.css": [
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n    color: var(--ink);\n  font-weight: var(--weight-semibold);"
+    }
+  ],
+  "app\\(admin)\\menu\\upload-menu\\page.css": [
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-semibold);\n    color: var(--ink);\n    margin-bottom: 4px;"
+    }
+  ],
+  "app\\(admin)\\menu\\varient\\page.css": [
+    {
+      "selector": "h1",
+      "body": "font-size: var(--text-section-heading); line-height: var(--lh-section-heading);\n    font-weight: var(--weight-semibold);\n    color: var(--ink);"
+    }
+  ],
+  "app\\(admin)\\orders\\category-mapper\\page.css": [
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-semibold);\n    color: var(--ink);\n    margin-bottom: 1.25rem;\n    letter-spacing: -0.01em;"
+    }
+  ],
+  "app\\(admin)\\orders\\ordersetting\\page.css": [
+    {
+      "selector": ".report-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);font-weight: var(--weight-bold);color:var(--text-dark)"
+    },
+    {
+      "selector": ".page-header",
+      "body": "flex-direction:column; align-items:flex-start; gap:12px;"
+    }
+  ],
+  "app\\(admin)\\orders\\widget-setting\\page.css": [
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-semibold);\n    color: var(--ink);"
+    }
+  ],
+  "app\\(admin)\\reports\\comparisionbyyear\\page.css": [
+    {
+      "selector": ".report-title",
+      "body": "font-size: var(--text-section-heading); line-height: var(--lh-section-heading);\n  font-weight: var(--weight-semibold);\n        color: #111;"
+    }
+  ],
+  "app\\(admin)\\reports\\comparisionweek\\page.css": [
+    {
+      "selector": ".report-title",
+      "body": "font-size: var(--text-section-heading); line-height: var(--lh-section-heading); font-weight: var(--weight-semibold); color: #111;"
+    }
+  ],
+  "app\\(admin)\\reports\\comparison-by-product\\page.css": [
+    {
+      "selector": ".report-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-bold);\n    color: var(--text-dark);"
+    }
+  ],
+  "app\\(admin)\\reports\\comparisonbymonth\\page.css": [
+    {
+      "selector": "h1",
+      "body": "font-size: 1.25rem; font-weight: var(--weight-bold); color: #111827;"
+    }
+  ],
+  "app\\(admin)\\reports\\customer-list\\page.css": [
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-semibold);\n        color: var(--ink);\n        margin-bottom: 4px;"
+    }
+  ],
+  "app\\(admin)\\reports\\customerbyrevenue\\page.css": [
+    {
+      "selector": ".title",
+      "body": "font-size: 17px; font-weight: var(--weight-bold); color: var(--text-primary); letter-spacing: -0.2px;"
+    }
+  ],
+  "app\\(admin)\\reports\\daily-closing-report\\page.css": [
+    {
+      "selector": ".report-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading); font-weight: var(--weight-bold); color: var(--ink);"
+    }
+  ],
+  "app\\(admin)\\reports\\declined-order\\page.css": [
+    {
+      "selector": ".report-title",
+      "body": "font-size: var(--text-section-heading); line-height: var(--lh-section-heading);\n  font-weight: var(--weight-bold);\n    color: var(--text-dark);\n    margin-bottom: 24px;"
+    },
+    {
+      "selector": ".report-title",
+      "body": "font-size: var(--text-section-heading); line-height: var(--lh-section-heading);\n  font-weight: var(--weight-semibold);"
+    }
+  ],
+  "app\\(admin)\\reports\\incomplete-payment\\page.css": [
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-semibold);\n        color: var(--ink);\n        margin-bottom: 4px;"
+    }
+  ],
+  "app\\(admin)\\reports\\ingredients-reports\\page.css": [
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading); font-weight: var(--weight-semibold); color: var(--ink); margin-bottom: 4px;"
+    }
+  ],
+  "app\\(admin)\\reports\\online-order-report\\page.css": [
+    {
+      "selector": ".report-title",
+      "body": "font-size: var(--text-section-heading); line-height: var(--lh-section-heading); font-weight: var(--weight-bold); color: var(--text-dark); margin-bottom: 24px;"
+    },
+    {
+      "selector": ".report-title",
+      "body": "font-size: var(--text-section-heading); line-height: var(--lh-section-heading);\n  font-weight: var(--weight-semibold);"
+    }
+  ],
+  "app\\(admin)\\reports\\pos-end-day\\page.css": [
+    {
+      "selector": ".page-title",
+      "body": "font-size: var(--text-section-heading); line-height: var(--lh-section-heading);\n  font-weight: var(--weight-bold);\n    color: var(--ink);\n    margin-bottom: 28px;"
+    },
+    {
+      "selector": ".page-header",
+      "body": "display: flex;\n    justify-content: space-between;\n    align-items: center;\n    margin-bottom: 30px;"
+    },
+    {
+      "selector": ".page-title",
+      "body": "margin: 0;"
+    }
+  ],
+  "app\\(admin)\\reports\\pos-total-sales-report\\page.css": [
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-semibold);\n    color: var(--ink);"
+    }
+  ],
+  "app\\(admin)\\reports\\refund-history\\page.css": [
+    {
+      "selector": ".page-header",
+      "body": "display: flex;\n    justify-content: space-between;\n    align-items: center;\n    margin-bottom: 24px;"
+    },
+    {
+      "selector": ".page-title",
+      "body": "font-size: var(--text-section-heading); line-height: var(--lh-section-heading);\n  font-weight: var(--weight-bold);\n    color: var(--ink);"
+    }
+  ],
+  "app\\(admin)\\reports\\sales-by-hour\\page.css": [
+    {
+      "selector": ".report-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-semibold);\n    color: var(--ink);"
+    }
+  ],
+  "app\\(admin)\\reports\\sales-by-item-size-reports\\page.css": [
+    {
+      "selector": ".report-title",
+      "body": "font-size: var(--text-section-heading); line-height: var(--lh-section-heading);\n  font-weight: var(--weight-bold);\n            color: var(--text-dark);\n            margin-bottom: 24px;"
+    },
+    {
+      "selector": ".report-title",
+      "body": "font-size: var(--text-section-heading); line-height: var(--lh-section-heading);\n  font-weight: var(--weight-semibold);"
+    }
+  ],
+  "app\\(admin)\\reports\\sales-by-order-method-report\\page.css": [
+    {
+      "selector": ".report-title",
+      "body": "font-size: var(--text-section-heading); line-height: var(--lh-section-heading); font-weight: var(--weight-bold); color: var(--text-dark); margin-bottom: 28px;"
+    },
+    {
+      "selector": ".report-title",
+      "body": "font-size: var(--text-section-heading); line-height: var(--lh-section-heading);\n  font-weight: var(--weight-semibold);"
+    }
+  ],
+  "app\\(admin)\\reports\\sales-by-pos-user\\page.css": [
+    {
+      "selector": ".page-header",
+      "body": "display: flex;\n    justify-content: space-between;\n    align-items: center;\n    margin-bottom: 24px;"
+    },
+    {
+      "selector": ".page-title",
+      "body": "font-size: var(--text-section-heading); line-height: var(--lh-section-heading);\n  font-weight: var(--weight-bold);\n    color: var(--ink);\n    margin-bottom: 0;"
+    }
+  ],
+  "app\\(admin)\\reports\\sales-by-trading-session\\page.css": [
+    {
+      "selector": ".report-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-bold);\n    color: var(--text-dark);"
+    }
+  ],
+  "app\\(admin)\\reports\\salesby-category\\page.css": [
+    {
+      "selector": ".report-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);font-weight: var(--weight-bold);color:var(--text-dark)"
+    }
+  ],
+  "app\\(admin)\\reports\\salesby-item\\page.css": [
+    {
+      "selector": ".report-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading); font-weight: var(--weight-bold); color: var(--text-dark);"
+    }
+  ],
+  "app\\(admin)\\reports\\tax-summary\\page.css": [
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-semibold);\n        color: var(--ink);\n        margin-bottom: 4px;"
+    }
+  ],
+  "app\\(admin)\\reports\\top-selling-items\\page.css": [
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-semibold);\n    color: var(--ink);\n    margin-bottom: 4px;"
+    }
+  ],
+  "app\\(admin)\\reports\\weighted-average-transaction\\page.css": [
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-semibold);\n    color: var(--ink);\n    margin-bottom: 4px;"
+    }
+  ],
+  "app\\(admin)\\setup\\add-custom-domain\\page.css": [
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-semibold);\n    color: var(--ink);\n    margin-bottom: 4px;"
+    }
+  ],
+  "app\\(admin)\\setup\\add-table\\page.css": [
+    {
+      "selector": ".page-title",
+      "body": "text-align: center;\n  font-size: var(--text-page-heading); line-height: var(--lh-page-heading);\n  font-weight: var(--weight-semibold);\n    color: var(--ink);\n    margin-bottom: 20px;"
+    }
+  ],
+  "app\\(admin)\\setup\\ambience\\page.css": [
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-semibold);"
+    }
+  ],
+  "app\\(admin)\\setup\\delivery\\page.css": [
+    {
+      "selector": ".page-header",
+      "body": "display: flex;\n    justify-content: space-between;\n    align-items: center;\n    margin-bottom: 22px;\n    gap: 15px;\n    flex-wrap: wrap;"
+    },
+    {
+      "selector": ".header-title",
+      "body": "font-size: var(--text-body);\n  font-weight: var(--weight-bold);\n    color: var(--ink);"
+    }
+  ],
+  "app\\(admin)\\setup\\facility\\page.css": [
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-semibold);\n    color: var(--ink);"
+    }
+  ],
+  "app\\(admin)\\setup\\gallery\\page.css": [
+    {
+      "selector": ".card-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-semibold);"
+    }
+  ],
+  "app\\(admin)\\setup\\restaurantimgae\\page.css": [
+    {
+      "selector": ".report-title",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-bold);\n    color: var(--text-dark);"
+    }
+  ],
+  "app\\(admin)\\setup\\restaurantlogo\\page.css": [
+    {
+      "selector": "h1",
+      "body": "font-size: var(--text-page-heading); line-height: var(--lh-page-heading);\n  font-weight: var(--weight-bold);\n    color: var(--ink);\n    display: flex;\n    align-items: center;\n    gap: 10px;"
+    }
+  ],
+  "app\\(admin)\\setup\\timmings\\page.css": [
+    {
+      "selector": ".page-header",
+      "body": "display: flex;\n    justify-content: space-between;\n    align-items: center;\n    margin-bottom: 24px;\n    padding-bottom: 16px;\n    border-bottom: 1px solid var(--line);\n    gap: 1rem;"
+    },
+    {
+      "selector": "h1",
+      "body": "font-size: var(--text-subheading); line-height: var(--lh-subheading);\n  font-weight: var(--weight-bold);\n    color: var(--ink);"
+    }
+  ]
+}

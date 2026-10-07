@@ -1,0 +1,128 @@
+/* ==========================================================================
+   FOODCHOW - STANDARDIZED UI COMPONENTS 
+   ========================================================================== */
+
+/* 1. Help Button Standard */
+.btn-common-help {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    background: #ffffff;
+    border: 1.5px solid var(--teal, #0AA89E);
+    border-radius: 6px;
+    color: var(--teal, #0AA89E);
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+    height: 38px;
+    text-transform: uppercase;
+}
+
+.btn-common-help:hover {
+    background: var(--active-bg, #e6f7f5);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(10, 168, 158, 0.15);
+}
+
+.btn-common-help i, .btn-common-help svg {
+  font-size: var(--text-button); line-height: var(--lh-button);
+    color: currentColor;
+}
+
+/* 2. Wizard Navigation Buttons (Previous/Next) */
+.btn-common-prev, .btn-common-next {
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
+    color: #ffffff;
+    background: var(--teal, #0AA89E);
+    border: none;
+    padding: 13px 28px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    transition: all 0.2s ease;
+    gap: 10px;
+}
+
+.btn-common-prev:hover, .btn-common-next:hover {
+    background: var(--teal-dark, #088c83);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(10, 168, 158, 0.25);
+}
+
+/* 3. Edit / Delete Action Buttons */
+.btn-common-edit, .btn-common-delete {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  font-size: var(--text-button); line-height: var(--lh-button);
+}
+
+.btn-common-edit {
+    background: #e6f7f5; /* Light teal/green */
+    color: var(--teal, #0AA89E);
+}
+
+.btn-common-edit:hover {
+    background: var(--teal, #0AA89E);
+    color: #ffffff;
+    transform: scale(1.05);
+}
+
+.btn-common-delete {
+    background: #ffebe6; /* Light red */
+    color: #ff4d4f; /* Red */
+}
+
+.btn-common-delete:hover {
+    background: #ff4d4f;
+    color: #ffffff;
+    transform: scale(1.05);
+}
+
+/* 4. List / Grid Toggle Group */
+.btn-toggle-group {
+    display: inline-flex;
+    background: #f1f5f9;
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.btn-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  font-size: var(--text-button); line-height: var(--lh-button);
+}
+
+.btn-toggle:hover {
+    color: var(--teal, #0AA89E);
+}
+
+.btn-toggle.active {
+    background: #ffffff;
+    color: var(--teal, #0AA89E);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}

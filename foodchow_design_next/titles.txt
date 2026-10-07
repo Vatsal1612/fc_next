@@ -1,0 +1,62 @@
+src\app\(admin)\marketing\coupon\page.tsx -> NO TITLE
+src\app\(admin)\marketing\marketing-material\page.tsx -> <h1 className="report-title">Marketing Material</h1>
+src\app\(admin)\marketing\qr-binding\page.tsx -> <h1 className="report-title">QR Binding</h1>
+src\app\(admin)\marketing\real-time-offer\page.tsx -> <h1 className="promo-title"> Manage Your Restaurant <br /> <span>On The Go</span> </h1>
+src\app\(admin)\marketing\whatsapp-marketing\page.tsx -> <h1 className="hero-title"> Boost Your Orders with <br /> <span>WhatsApp Automation</span> </h1>
+src\app\(admin)\marketing\whatsapp-notification-setting\page.tsx -> <h1 className="page-title">WhatsApp Notification Setting</h1>
+src\app\(admin)\menu\additional-menu\page.tsx -> <div className="page-title"> <h1 className="typ-page-heading" style={{ margin: 0 }}>Shop Menu</h1> </div>
+src\app\(admin)\menu\apply-tax\page.tsx -> <h1 className="apply-title typ-page-heading" style={{ margin: 0 }} > {pageTitle} </h1>
+src\app\(admin)\menu\category\page.tsx -> <div className="card-title">Category</div>
+src\app\(admin)\menu\choice\page.tsx -> <div className="page-title"> <h1 className="typ-page-heading" style={{ margin: 0, color: "var(--ink)" }}>Choices Management</h1> <p> Setup item attrib
+src\app\(admin)\menu\extra\page.tsx -> <h1 className="typ-page-heading" style={{ margin: 0 }}>Extras</h1>
+src\app\(admin)\menu\item-code\page.tsx -> <h1 className="card-title typ-page-heading" style={{ margin: 0 }}>Item Code</h1>
+src\app\(admin)\menu\item-deals\page.tsx -> <h2 className="deals-title typ-page-heading" style={{ margin: 0 }}>Deals</h2>
+src\app\(admin)\menu\items\page.tsx -> <h1 className="typ-page-heading" style={{ margin: 0 }}>Items</h1>
+src\app\(admin)\menu\menu-language-page\page.tsx -> <h1 className="typ-page-heading" style={{ margin: 0 }}>Menu Language</h1>
+src\app\(admin)\menu\my-plan\page.tsx -> <div className="card-title">My Plan</div>
+src\app\(admin)\menu\pricing-plan\page.tsx -> <div className="plan-heading"> <h2>Everything You Get in the Growth Package</h2> <p>A complete, done-for-you system to maximize revenue.</p> </div>
+src\app\(admin)\menu\tax\page.tsx -> <h2 className="taxes-title">Taxes</h2>
+src\app\(admin)\menu\upload-menu\page.tsx -> <h1 className="card-title typ-page-heading" style={{ margin: 0 }}>Upload Excel</h1>
+src\app\(admin)\menu\varient\page.tsx -> <h1 className="typ-page-heading" style={{ margin: 0 }}>Variants</h1>
+src\app\(admin)\orders\category-mapper\page.tsx -> <h2 className="card-title">Categories List</h2>
+src\app\(admin)\orders\delivery-integration\page.tsx -> NO TITLE
+src\app\(admin)\orders\ordering-widget\page.tsx -> <div className="ow-copy-heading">Just Copy Below Code and Paste On your new File</div>
+src\app\(admin)\orders\ordersetting\page.tsx -> <h1 className="report-title">Order Settings</h1>
+src\app\(admin)\orders\payment-gateway\page.tsx -> NO TITLE
+src\app\(admin)\orders\widget-setting\page.tsx -> <div className="card-title">Ordering Widget Setting</div>
+src\app\(admin)\reports\comparisionbyyear\page.tsx -> <h1 className="report-title typ-page-heading" style={{ margin: 0, marginBottom: "15px" }}>Item Report</h1>
+src\app\(admin)\reports\comparisionweek\page.tsx -> <h1 className="report-title typ-page-heading" style={{ margin: 0, marginBottom: "15px" }}>Item report</h1>
+src\app\(admin)\reports\comparison-by-product\page.tsx -> <h1 className="report-title typ-page-heading" style={{ margin: 0, marginBottom: "15px" }}>Item Report</h1>
+src\app\(admin)\reports\comparisonbymonth\page.tsx -> <h1>Item report</h1>
+src\app\(admin)\reports\customer-list\page.tsx -> <div className="card-title">CRM Report</div>
+src\app\(admin)\reports\customerbyrevenue\page.tsx -> <div className="title">CRM report by revenue</div>
+src\app\(admin)\reports\daily-closing-report\page.tsx -> <h1 className="report-title typ-page-heading" style={{ margin: 0, marginBottom: "15px" }}>Daily Closing Report</h1>
+src\app\(admin)\reports\declined-order\page.tsx -> <div className="report-title">Total Declined Order Reports</div>
+src\app\(admin)\reports\incomplete-payment\page.tsx -> <div className="card-title">Total Incomplete Payment Reports</div>
+src\app\(admin)\reports\ingredients-reports\page.tsx -> <div className="card-title">Ingredients Reports</div>
+src\app\(admin)\reports\online-order-report\page.tsx -> <div className="report-title">Online Order Reports</div>
+src\app\(admin)\reports\pos-end-day\page.tsx -> <h2 className="page-title">End Day Report</h2>
+src\app\(admin)\reports\pos-total-sales-report\page.tsx -> <div className="card-title">POS Total Sales Reports</div>
+src\app\(admin)\reports\refund-history\page.tsx -> <h1 className="page-title">Refund History</h1>
+src\app\(admin)\reports\sales-by-hour\page.tsx -> <h2 className="report-title">Sales by hour</h2>
+src\app\(admin)\reports\sales-by-item-size-reports\page.tsx -> <div className="report-title">Sales By Item Size Reports</div>
+src\app\(admin)\reports\sales-by-order-method-report\page.tsx -> <div className="report-title">// Total Sales by Order Method Reports// </div>
+src\app\(admin)\reports\sales-by-pos-user\page.tsx -> <h2 className="page-title">Total Sales</h2>
+src\app\(admin)\reports\sales-by-trading-session\page.tsx -> <h2 className="report-title">Sales by trading session</h2>
+src\app\(admin)\reports\salesby-category\page.tsx -> <h1 className="report-title typ-page-heading" style={{ margin: 0, marginBottom: "15px" }}>Sales by Categories</h1>
+src\app\(admin)\reports\salesby-item\page.tsx -> <h1 className="report-title typ-page-heading" style={{ margin: 0, marginBottom: "15px" }}>Sales by Items</h1>
+src\app\(admin)\reports\tax-summary\page.tsx -> <div className="card-title">Total Sales Tax Summary Reports</div>
+src\app\(admin)\reports\top-selling-items\page.tsx -> <div className="card-title">Top selling items</div>
+src\app\(admin)\reports\total-sales\page.tsx -> NO TITLE
+src\app\(admin)\reports\total-stripe-connect\page.tsx -> NO TITLE
+src\app\(admin)\reports\weighted-average-transaction\page.tsx -> <div className="card-title">Weighted average transaction</div>
+src\app\(admin)\setup\add-custom-domain\page.tsx -> <div className="card-title">Add Custom Domain</div>
+src\app\(admin)\setup\add-table\page.tsx -> <h1 className="page-title">Download Our POS App to Manage Tables</h1>
+src\app\(admin)\setup\ambience\page.tsx -> <div className="card-title"> Ambience Images{" "} <span style={{ color: "var(--muted)", fontWeight: 500, fontSize: "14px" }} > [For APP Only] </span> 
+src\app\(admin)\setup\delivery\page.tsx -> <h1 className="header-title typ-page-heading" style={{ margin: 0 }}>How would you like to Setup Delivery?</h1>
+src\app\(admin)\setup\facility\page.tsx -> <div className="card-title">Facility List</div>
+src\app\(admin)\setup\gallery\page.tsx -> <div className="card-title"> Slider Images{" "} <span style={{ color: "#6b7280", fontWeight: 500, fontSize: "14px" }}> [For APP Only] </span> </div>
+src\app\(admin)\setup\my-profile\page.tsx -> <h1 className="typ-page-heading" style={{ margin: 0 }}>Owner Information</h1>
+src\app\(admin)\setup\restaurantimgae\page.tsx -> <h1 className="report-title typ-page-heading" style={{ margin: 0 }}>Restaurant Image</h1>
+src\app\(admin)\setup\restaurantlogo\page.tsx -> <h1 className="typ-page-heading" style={{ color: "var(--ink)", margin: 0 }}> Restaurant Logo </h1>
+src\app\(admin)\setup\timmings\page.tsx -> <div className="page-title"> <h1 className="typ-page-heading" style={{ margin: 0 }}>Restaurant Timings</h1> </div>

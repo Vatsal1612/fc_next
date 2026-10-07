@@ -1,0 +1,397 @@
+/* ============================================================================
+   reports/comparison-by-product.html — page styles, scoped to
+   #pg-reports-comparison-by-product. Original <style> nested under the wrapper
+   id via native CSS nesting. :root custom-props and @keyframes stay top level.
+   Header/sidebar-only rules (display:none shells) dropped.
+   ============================================================================ */
+
+:root {
+  --primary-color: #0aa89e;
+  --primary-dark: #088f86;
+  --sidebar-bg: #ffffff;
+  --main-bg: #f5f7fa;
+  --text-dark: #333333;
+  --text-light: #666666;
+  --border-color: #e0e0e0;
+  --active-bg: #e6f7f5;
+}
+
+@keyframes dropdownFade {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+#pg-reports-comparison-by-product {
+  /* base, lifted from the original body rule onto the page wrapper */
+  background-color: var(--main-bg);
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  .btn-solid {
+    background: linear-gradient(
+      135deg,
+      var(--primary-color) 0%,
+      var(--primary-dark) 100%
+    );
+    border: none;
+    color: white;
+    padding: 10px 18px;
+    border-radius: 6px;
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 2px 6px rgba(0, 168, 150, 0.15);
+  }
+
+  .btn-solid:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 168, 150, 0.3);
+  }
+
+  .topbar-dropdown {
+    position: relative;
+    display: inline-block;
+  }
+
+  .btn-outline-teal {
+    background: white;
+    border: 1.5px solid var(--primary-color);
+    color: var(--primary-color);
+    padding: 9px 18px;
+    border-radius: 6px;
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 38px;
+    outline: none;
+  }
+
+  .btn-outline-teal:hover {
+    background: var(--active-bg);
+  }
+
+  .dropdown-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: #ffffff;
+    border: 1.5px solid var(--primary-color);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    min-width: 180px;
+    z-index: 1000;
+    overflow: hidden;
+  }
+
+  .dropdown-menu.show {
+    display: block;
+    animation: dropdownFade 0.2s ease;
+  }
+
+  .dropdown-menu a {
+    display: block;
+    padding: 10px 16px;
+  font-size: var(--text-helper); line-height: var(--lh-helper);
+    color: var(--text-dark);
+    text-decoration: none;
+  }
+
+  .dropdown-menu a:hover {
+    background: var(--active-bg);
+    color: var(--primary-color);
+    padding-left: 20px;
+  }
+
+  /* HELP button — exact match from sidebar-header.html */
+  .btn-help {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    background: #ffffff;
+    border: 1.5px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-light);
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+    height: 38px;
+  }
+
+  .btn-help:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background: var(--active-bg);
+    transform: translateY(-1px);
+  }
+
+  .btn-help svg {
+    width: 15px;
+    height: 15px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* ── LAYOUT ── */
+  .app-container {
+    display: flex;
+    width: 100%;
+    height: calc(100vh - 60px);
+    /* margin-top: 60px; */
+  }
+
+  /* ── MAIN CONTENT ── */
+  .main-content {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto;
+  }
+
+  /* ── REPORT CARD ── */
+  .report-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    padding: 28px;
+  }
+
+  .report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .report-title {
+    color: var(--text-dark);
+  }
+
+  /* Item Report HELP button — teal filled with heart icon (same as screenshots) */
+  .btn-help-report {
+    background: var(--primary-color);
+    border: none;
+    color: white;
+    padding: 9px 18px;
+    border-radius: 6px;
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 38px;
+  }
+
+  .btn-help-report:hover {
+    background: var(--primary-dark);
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+
+  .tab-btn {
+    padding: 9px 22px;
+    border-radius: 8px;
+  font-size: var(--text-helper); line-height: var(--lh-helper);
+  font-weight: var(--weight-medium);
+    cursor: pointer;
+    border: 1.5px solid var(--primary-color);
+    transition: all 0.2s;
+    background: white;
+    color: var(--primary-color);
+  }
+
+  .tab-btn:hover {
+    background: var(--active-bg);
+  }
+  .tab-btn.active {
+    background: var(--primary-color);
+    color: white;
+  }
+
+  /* Description heading */
+  .description-title {
+    font-size: 17px;
+  font-weight: var(--weight-bold);
+    color: var(--text-dark);
+    margin-bottom: 18px;
+  }
+
+  /* Export button */
+  .btn-export {
+    background: var(--primary-color);
+    border: none;
+    color: white;
+    padding: 10px 22px;
+    border-radius: 6px;
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .btn-export:hover {
+    background: var(--primary-dark);
+  }
+
+  /* Table — paid commission coupon style */
+  .table-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  font-size: var(--text-helper); line-height: var(--lh-helper);
+  }
+
+  thead tr {
+    background: #f0faf9;
+    border-bottom: 2px solid #9dd4d0;
+  }
+
+  thead th {
+    padding: 13px 18px;
+  font-size: var(--text-table);
+  font-weight: var(--weight-semibold); line-height: var(--lh-table);
+    color: var(--primary-dark);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid #e9f0f0;
+    transition: background 0.1s;
+  }
+  tbody tr:last-child {
+    border-bottom: none;
+  }
+  tbody tr:hover {
+    background: #f8fafb;
+  }
+
+  tbody td {
+    padding: 13px 18px;
+    color: var(--text-dark);
+    text-align: left;
+  }
+
+  /* quantity pill — dashed coupon style */
+  .qty-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 14px;
+    border: 1.5px dashed #9dd4d0;
+    border-radius: 6px;
+  font-size: var(--text-helper); line-height: var(--lh-helper);
+  font-weight: var(--weight-bold);
+    color: var(--primary-dark);
+    background: #e6f7f5;
+    letter-spacing: 0.03em;
+    min-width: 36px;
+    justify-content: center;
+  }
+  .qty-pill.zero {
+    border-color: #d1d5db;
+    color: #9ca3af;
+    background: #f3f4f6;
+  }
+
+  .no-data {
+    text-align: center;
+    color: var(--text-light);
+  font-weight: var(--weight-semibold);
+    padding: 40px 16px;
+  font-size: var(--text-label); line-height: var(--lh-label);
+  }
+
+  /* ── STEP FOOTER ── */
+  .step-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 0 8px;
+    margin-top: 24px;
+    flex-shrink: 0;
+    background: transparent;
+  }
+
+  .btn-prev,
+  .btn-next {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #00a896;
+    color: #fff;
+    border: none;
+    padding: 10px 22px;
+    border-radius: 6px;
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
+    cursor: pointer;
+  }
+
+  .btn-prev:hover,
+  .btn-next:hover {
+    background: var(--primary-dark);
+  }
+
+  .step-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    border: 2px dashed #ccc;
+    border-radius: 10px;
+    padding: 6px 22px;
+  }
+
+  .step-label {
+  font-size: var(--text-helper); line-height: var(--lh-helper);
+  font-weight: var(--weight-semibold);
+    color: #aaa;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .step-value {
+    font-size: 17px;
+  font-weight: var(--weight-bold);
+    color: var(--teal);
+  }
+}

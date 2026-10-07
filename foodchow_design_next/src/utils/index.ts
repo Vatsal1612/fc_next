@@ -1,0 +1,7 @@
+/** Join class names, skipping falsy values. Mirrors the classic `clsx` helper. */
+export function cn(...classes: Array<string | false | null | undefined>): string {
+  return classes.filter(Boolean).join(" ");
+}
+
+export * from "./shop";
+

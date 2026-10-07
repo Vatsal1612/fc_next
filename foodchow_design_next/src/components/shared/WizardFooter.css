@@ -1,0 +1,130 @@
+/* Reusable WizardFooter CSS matching existing Previous/Next buttons design system */
+
+div.wizard-footer-root.step-footer.wizard-footer-container {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 24px 0 12px 0 !important;
+  margin-top: 24px !important;
+  margin-bottom: 12px !important;
+  flex-shrink: 0 !important;
+  background: transparent !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+  z-index: 5 !important;
+  float: none !important;
+  clear: both !important;
+}
+
+/* Prevent parent flex containers from pushing WizardFooter to the side or down with space-between */
+*:has(> div.wizard-footer-root) {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+}
+
+div.wizard-footer-root.step-footer.wizard-footer-container button.btn-prev,
+div.wizard-footer-root.step-footer.wizard-footer-container button.btn-next {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  background: #00a896 !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 10px 22px !important;
+  height: 42px !important;
+  min-width: 125px !important;
+  font-size: var(--text-button);
+  line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  cursor: pointer !important;
+  transition: background 0.2s ease, opacity 0.2s ease, transform 0.15s ease !important;
+  text-decoration: none !important;
+  line-height: 1.2 !important;
+  box-shadow: 0 2px 6px rgba(0, 168, 150, 0.2) !important;
+  margin: 0 !important;
+  outline: none !important;
+  vertical-align: middle !important;
+}
+
+div.wizard-footer-root.step-footer.wizard-footer-container button.btn-prev:hover:not(:disabled),
+div.wizard-footer-root.step-footer.wizard-footer-container button.btn-next:hover:not(:disabled) {
+  background: #008f7f !important;
+  box-shadow: 0 4px 10px rgba(0, 168, 150, 0.35) !important;
+  transform: translateY(-1px) !important;
+}
+
+div.wizard-footer-root.step-footer.wizard-footer-container button.btn-prev:disabled,
+div.wizard-footer-root.step-footer.wizard-footer-container button.btn-next:disabled {
+  background: #00a896 !important;
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+div.wizard-footer-root.step-footer.wizard-footer-container button.btn-prev i,
+div.wizard-footer-root.step-footer.wizard-footer-container button.btn-next i,
+div.wizard-footer-root.step-footer.wizard-footer-container button.btn-prev svg.footer-btn-icon,
+div.wizard-footer-root.step-footer.wizard-footer-container button.btn-next svg.footer-btn-icon {
+  font-size: var(--text-button);
+  line-height: var(--lh-button);
+  width: 12px !important;
+  height: 12px !important;
+  stroke: #ffffff !important;
+  stroke-width: 3.5px !important;
+  fill: none !important;
+  display: inline-block !important;
+  color: #ffffff !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+  vertical-align: middle !important;
+}
+
+div.wizard-footer-root.step-footer.wizard-footer-container button.btn-prev span,
+div.wizard-footer-root.step-footer.wizard-footer-container button.btn-next span {
+  font-size: var(--text-button);
+  line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
+  color: #ffffff !important;
+  letter-spacing: 0.06em !important;
+}
+
+div.wizard-footer-root.step-footer.wizard-footer-container div.step-indicator {
+  display: inline-flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  border: 2px dashed #00a896 !important;
+  border-radius: 10px !important;
+  padding: 6px 24px !important;
+  min-width: 90px !important;
+  background: #ffffff !important;
+  user-select: none !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+}
+
+div.wizard-footer-root.step-footer.wizard-footer-container span.step-label {
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  color: #888888 !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+  line-height: 1.2 !important;
+}
+
+div.wizard-footer-root.step-footer.wizard-footer-container span.step-value {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: #00a896 !important;
+  line-height: 1.2 !important;
+}
