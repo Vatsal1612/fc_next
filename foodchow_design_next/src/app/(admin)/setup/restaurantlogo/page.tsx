@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import Script from "next/script";
 import { restaurantService } from "@/api/services/setup.service";
 import { WizardFooter } from "@/components/shared/WizardFooter";
+import Swal from "sweetalert2";
 import "./page.css";
 
 /**
@@ -50,39 +51,42 @@ declare global {
 }
 
 export default function RestaurantLogoPage() {
- const [logo, setLogo] = useState("");
-const logoRef = useRef("");
-const [, setLoading] = useState(true);
+  const [logo, setLogo] = useState("");
+  const logoRef = useRef("");
+  const pendingActionRef = useRef<string | null>(null);
+  const [, setLoading] = useState(true);
 
-const logoUrl = logo
-  ? `https://admin.foodchow.com/LogoImages/${logo}`
-  : "";
+  const logoUrl = logo.startsWith("data:image")
+    ? logo
+    : logo
+      ? `https://admin.foodchow.com/LogoImages/${logo}`
+      : "";
 
   useEffect(() => {
-  const fetchRestaurant = async () => {
-    try {
-      const sessionShopId = sessionStorage.getItem("shop_id");
-      if (!sessionShopId) {
-        console.error("Shop ID not found.");
-        return;
+    const fetchRestaurant = async () => {
+      try {
+        const sessionShopId = sessionStorage.getItem("shop_id");
+        if (!sessionShopId) {
+          console.error("Shop ID not found.");
+          return;
+        }
+        const info = await restaurantService.getRestaurantInformation(Number(sessionShopId));
+        console.log(info);
+
+        // if (info?.shoplogo) {
+        //   setLogo(info.shoplogo);
+        // }
+        if (info?.shoplogo) {
+          setLogo(info.shoplogo);
+          logoRef.current = info.shoplogo;
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
       }
-      const info = await restaurantService.getRestaurantInformation(Number(sessionShopId));
-      console.log(info);
-      
-      // if (info?.shoplogo) {
-      //   setLogo(info.shoplogo);
-      // }
-      if (info?.shoplogo) {
-    setLogo(info.shoplogo);
-    logoRef.current = info.shoplogo;
-}
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  fetchRestaurant();
+    };
+    fetchRestaurant();
 
     const globalOverlay = document.getElementById("global-modal-overlay");
     const deleteBox = document.getElementById("popup-confirm-delete");
@@ -202,7 +206,12 @@ const logoUrl = logo
         cropperInstance.zoomTo(Number((e.target as HTMLInputElement).value));
     };
 
-    const onYes = (): void => {
+    const onYes = async (): Promise<void> => {
+      pendingActionRef.current = "";
+      setLogo("");
+      
+      Swal.fire({ icon: "info", title: "Logo Removed", text: "Click 'Save Changes' to update the restaurant logo.", confirmButtonColor: "#00a896" });
+
       dynamicStateWithLogo = false;
       closeAllModals();
       logoClickableZone?.classList.add("empty-state");
@@ -219,41 +228,19 @@ const logoUrl = logo
           '<i class="fas fa-upload" style="font-size:12px;"></i> Upload New Logo';
     };
     const onCropAndUpload = async (): Promise<void> => {
-  if (!cropperInstance) return;
+      if (!cropperInstance) return;
 
-  const croppedCanvas = cropperInstance.getCroppedCanvas({
-    width: 400,
-    height: 250,
-  });
+      const croppedCanvas = cropperInstance.getCroppedCanvas({
+        width: 400,
+        height: 250,
+      });
 
-  // const finalCroppedImageBase64 =
-  //   croppedCanvas.toDataURL("image/jpeg");
+      const base64 = croppedCanvas
+        .toDataURL("image/png")
+        .replace(/^data:image\/png;base64,/, "");
 
-  const base64 = croppedCanvas
-    .toDataURL("image/png")
-    .replace(/^data:image\/png;base64,/, "");
-  try {
-    const sessionShopId = sessionStorage.getItem("shop_id");
-    if (!sessionShopId) {
-      alert("Shop ID not found.");
-      return;
-    }
-    const response = await restaurantService.updateShopLogo({
-      // new_logo: finalCroppedImageBase64,
-      // old_logo_name: logoRef.current,
-       shop_id: String(sessionShopId),
-    new_logo: base64,
-    old_logo_name: logoRef.current,
-    });
-
-    console.log("Update Logo Response:", response);
-
-    if (response.success) {
-      const info = await restaurantService.getRestaurantInformation(Number(sessionShopId));
-
-      if (info?.shoplogo) {
-        setLogo(info.shoplogo);
-      }
+      pendingActionRef.current = base64;
+      setLogo(`data:image/png;base64,${base64}`);
 
       if (logoFileInput) {
         logoFileInput.value = "";
@@ -261,15 +248,8 @@ const logoUrl = logo
 
       closeAllModals();
 
-      alert("Logo updated successfully.");
-    } else {
-      alert(response.message ?? "Failed to update logo.");
-    }
-  } catch (err) {
-    console.error(err);
-    alert("Failed to update logo.");
-  }
-};
+      Swal.fire({ icon: "info", title: "Image Cropped", text: "Click 'Save Changes' to update the restaurant logo.", confirmButtonColor: "#00a896" });
+    };
 
     dynamicActionBtn?.addEventListener("click", onDynamicAction);
     triggerBadge?.addEventListener("click", onTriggerBadge);
@@ -340,7 +320,31 @@ const logoUrl = logo
                     Restaurant Logo
                   </h1>
                 </div>
-                <button className="btn-help">
+                <button 
+                  className="btn-help"
+                  onClick={() => {
+                    Swal.fire({
+                      title: "How to set up Restaurant Logo",
+                      html: `
+                        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px;">
+                          <iframe 
+                            src="https://www.youtube.com/embed/dQw4w9WgXcQ" 
+                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
+                            frameborder="0" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                            allowfullscreen>
+                          </iframe>
+                        </div>
+                        <p style="margin-top: 15px; font-size: 14px; color: #475569;">
+                          Follow these steps to upload and position your restaurant's logo perfectly.
+                        </p>
+                      `,
+                      width: 700,
+                      showCloseButton: true,
+                      showConfirmButton: false,
+                    });
+                  }}
+                >
                   <svg
                     width="15"
                     height="15"
@@ -364,22 +368,23 @@ const logoUrl = logo
                 <div className="logo-section-layout">
                   <div className="logo-left-col">
                     <div className="logo-col-label">Current Logo</div>
-                    <div className="logo-display-frame" id="logo-clickable-zone">
-                     <button
-  className="badge-dismiss-trigger"
-  id="trigger-remove-badge"
-  title="Remove logo"
->
-  <i className="fas fa-times"></i>
-</button>
+                    <div className="logo-display-frame" id="logo-clickable-zone" style={{ border: logo ? "none" : "" }}>
+                      <button
+                        className="badge-dismiss-trigger"
+                        id="trigger-remove-badge"
+                        title="Remove logo"
+                        style={{ display: logo ? "block" : "none" }}
+                      >
+                        <i className="fas fa-times"></i>
+                      </button>
                       {logo ? (
-  <img
-  src={logoUrl}
-  alt="Restaurant Logo"
-  className="vector-logo-asset"
-/>
-) : null}
-                      <div className="upload-placeholder-ui" id="upload-placeholder">
+                        <img
+                          src={logoUrl}
+                          alt="Restaurant Logo"
+                          className="vector-logo-asset"
+                        />
+                      ) : null}
+                      <div className="upload-placeholder-ui" id="upload-placeholder" style={{ display: logo ? "none" : "flex" }}>
                         <svg
                           width="40"
                           height="40"
@@ -453,11 +458,53 @@ const logoUrl = logo
                     className="fas fa-info-circle"
                     style={{ color: "#b0c4d8", fontSize: "14px" }}
                   />
-                  Changes are saved to your restaurant profile immediately
+                  Click Save Changes to update the restaurant logo
                 </div>
                 <button
                   className="action-button-base btn-action-primary"
                   style={{ padding: "12px 32px", fontSize: "14px" }}
+                  onClick={async () => {
+                    if (pendingActionRef.current === null) {
+                      Swal.fire({ icon: "info", title: "No Changes", text: "You haven't made any changes to the logo.", confirmButtonColor: "#00a896" });
+                      return;
+                    }
+                    try {
+                      const sessionShopId = sessionStorage.getItem("shop_id");
+                      if (!sessionShopId) return;
+
+                      const response = await restaurantService.updateShopLogo({
+                        shop_id: String(sessionShopId),
+                        new_logo: pendingActionRef.current,
+                        old_logo_name: logoRef.current,
+                      });
+
+                      if (response.success) {
+                        const wasRemove = pendingActionRef.current === "";
+                        pendingActionRef.current = null;
+                        
+                        const info = await restaurantService.getRestaurantInformation(Number(sessionShopId));
+                        if (info?.shoplogo) {
+                          setLogo(info.shoplogo);
+                          logoRef.current = info.shoplogo;
+                        } else if (wasRemove) {
+                          setLogo("");
+                          logoRef.current = "";
+                        }
+                        
+                        Swal.fire({
+                          icon: "success",
+                          title: "Saved Successfully!",
+                          text: "Your restaurant logo has been saved and is now live.",
+                          confirmButtonColor: "#00a896",
+                        });
+                      } else {
+                        Swal.fire({ icon: "error", title: "Error", text: response.message || "Failed to save logo.", confirmButtonColor: "#00a896" });
+                      }
+                    } catch (err) {
+                      console.error(err);
+                      Swal.fire({ icon: "error", title: "Error", text: "Failed to save logo.", confirmButtonColor: "#00a896" });
+                    }
+                  }}
                 >
                   <i className="fas fa-save" style={{ fontSize: "13px" }} />
                   Save Changes
@@ -492,7 +539,7 @@ const logoUrl = logo
           <div className="crop-title">Upload &amp; Crop Image</div>
           <div className="crop-workspace-split">
             <div className="crop-canvas-viewport">
-              <img id="crop-image-render-node"  alt="Source Image Preview" />
+              <img id="crop-image-render-node" alt="Source Image Preview" />
             </div>
             <div className="crop-controls-sidebar">
               <div className="crop-zoom-slider-container">

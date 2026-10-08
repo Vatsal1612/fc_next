@@ -33,7 +33,7 @@ const cuisineSelectStyles = {
     padding: "6px 8px",
     display: "flex",
     flexWrap: "wrap",
-    gap: "4px",
+    gap: "6px",
   }),
 
   placeholder: (base: any) => ({
@@ -45,33 +45,74 @@ const cuisineSelectStyles = {
   menu: (base: any) => ({
     ...base,
     zIndex: 9999,
-    borderRadius: "6px",
-    border: "1px solid #ccc",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-    marginTop: "6px",
+    borderRadius: "10px",
+    border: "1px solid #e6eaee",
+    boxShadow: "0 10px 30px rgba(15, 40, 50, 0.14)",
+    marginTop: "8px",
+    padding: "6px",
+    overflow: "hidden",
   }),
 
   menuList: (base: any) => ({
     ...base,
-    padding: "6px",
-    maxHeight: "260px",
+    padding: "2px 6px 2px 2px",
+    maxHeight: "220px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "2px",
+    "&::-webkit-scrollbar": { width: "6px" },
+    "&::-webkit-scrollbar-thumb": {
+      background: "#cfd8dc",
+      borderRadius: "6px",
+    },
+    "&::-webkit-scrollbar-track": { background: "transparent" },
   }),
 
   option: (base: any, state: any) => ({
     ...base,
     backgroundColor: state.isSelected
-      ? "#00a896"
+      ? "#e6f7f5"
       : state.isFocused
-        ? "#e6f7f5"
+        ? "#f4f7f9"
         : "transparent",
-    color: state.isSelected ? "#fff" : "#1f3a37",
+    color: state.isSelected ? "#00a896" : "#1f3a37",
+    fontWeight: state.isSelected ? 600 : 400,
     cursor: "pointer",
     fontSize: "14px",
     fontFamily: '"Poppins", sans-serif',
-    padding: "8px 12px",
+    padding: "10px 14px",
+    borderRadius: "8px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    "&::after": state.isSelected
+      ? { content: '"✓"', fontSize: "13px", color: "#00a896" }
+      : {},
+    ":active": { backgroundColor: "#d1ebe8" },
+  }),
+
+  multiValue: (base: any) => ({
+    ...base,
+    backgroundColor: "#00a896",
     borderRadius: "6px",
-    marginBottom: "4px",
-    ":active": {
+    display: "flex",
+    alignItems: "center",
+    padding: "2px",
+  }),
+  
+  multiValueLabel: (base: any) => ({
+    ...base,
+    color: "#fff",
+    fontSize: "13px",
+    padding: "2px 6px",
+  }),
+  
+  multiValueRemove: (base: any) => ({
+    ...base,
+    color: "#fff",
+    cursor: "pointer",
+    borderRadius: "4px",
+    ":hover": {
       backgroundColor: "#008f7f",
       color: "#fff",
     },
@@ -823,7 +864,7 @@ export default function MyProfilePage() {
                     ))}
                   </div>
                 </div>
-                <div className="field">
+                <div className="field" style={{ marginBottom: "20px" }}>
                   <span className="lab2">
                     Select Your Restaurant Cuisines <span className="req">*</span>
                   </span>
@@ -834,8 +875,14 @@ export default function MyProfilePage() {
                     closeMenuOnSelect={false}
                     hideSelectedOptions={false}
                     menuPlacement="auto"
-                    maxMenuHeight={260}
-                    styles={cuisineSelectStyles}
+                    menuPosition="fixed"
+                    menuPortalTarget={typeof document !== "undefined" ? document.body : null}
+                    menuShouldScrollIntoView={false}
+                    maxMenuHeight={220}
+                    styles={{
+                      ...cuisineSelectStyles,
+                      menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
+                    }}
                     classNamePrefix="fc-cuisine"
                     options={cuisineOptions}
                     value={cuisineOptions.filter(option =>
@@ -848,26 +895,6 @@ export default function MyProfilePage() {
                       });
                     }}
                   />
-                  {/* <div className="tag-wrap">
-                    <div className="tag">
-                      Pizza <button type="button">×</button>
-                    </div>
-                    <div className="tag">
-                      Wraps <button type="button">×</button>
-                    </div>
-                    <div className="tag">
-                      Chinese <button type="button">×</button>
-                    </div>
-                    <input
-                      className="tag-inp"
-                      id="taginp"
-                      type="text"
-                      placeholder="Type and press Enter…"
-                    />
-                  </div> */}
-                  <span className="helper">
-                    Type a cuisine and press Enter to add it.
-                  </span>
                 </div>
                 <div className="field">
                   <span className="lab2">

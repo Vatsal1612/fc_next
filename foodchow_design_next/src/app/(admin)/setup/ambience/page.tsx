@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import Swal from "sweetalert2";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import "./page.css";
 
@@ -24,6 +25,30 @@ interface CropState {
 }
 
 export default function AmbiencePage() {
+  const [images, setImages] = useState<string[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const saved = localStorage.getItem("ambience_images");
+    if (saved) {
+      setImages(JSON.parse(saved));
+    } else {
+      setImages([
+        "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80",
+        "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&q=80",
+        "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80",
+        "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80",
+      ]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem("ambience_images", JSON.stringify(images));
+    }
+  }, [images, mounted]);
+
   useEffect(() => {
     const fileInput = document.getElementById("fileInput") as HTMLInputElement | null;
     const addTile = document.querySelector<HTMLElement>(
@@ -193,12 +218,25 @@ export default function AmbiencePage() {
           cropCanvas.height,
         );
       const src = cropCanvas.toDataURL("image/jpeg", 0.92);
-      const tile = galleryGrid.querySelector(".add-tile");
-      const item = document.createElement("div");
-      item.className = "gallery-item";
-      item.innerHTML = `<img src="${src}" alt="gallery"><button class="del-btn">✕</button>`;
-      galleryGrid.insertBefore(item, tile);
       closeCropModal();
+
+      Swal.fire({
+        title: "Uploading Image...",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
+
+      setTimeout(() => {
+        setImages((prev) => [...prev, src]);
+        Swal.fire({
+          icon: "success",
+          title: "Saved Successfully!",
+          text: "Ambience image added successfully.",
+          confirmButtonColor: "#00a896",
+        });
+      }, 800);
     };
 
     const onFileSelected = (e: Event): void => {
@@ -206,7 +244,7 @@ export default function AmbiencePage() {
       const f = target.files?.[0];
       if (!f) return;
       if (f.size > 3 * 1024 * 1024) {
-        alert("Max 3 MB");
+        Swal.fire("Error", "Maximum file size is 3 MB", "error");
         return;
       }
       const r = new FileReader();
@@ -223,7 +261,40 @@ export default function AmbiencePage() {
     // Delegate delete buttons (existing + dynamically added).
     const onGridClick = (e: Event): void => {
       const btn = (e.target as HTMLElement).closest(".del-btn");
-      if (btn) btn.closest(".gallery-item")?.remove();
+      if (btn) {
+        const indexStr = btn.getAttribute("data-index");
+        if (indexStr === null) return;
+        const index = parseInt(indexStr, 10);
+
+        Swal.fire({
+          title: "Remove Image?",
+          text: "Are you sure you want to remove this ambience image?",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonColor: "#e63946",
+          cancelButtonColor: "#8e9ba8",
+          confirmButtonText: "Yes, remove it",
+        }).then((result) => {
+          if (result.isConfirmed) {
+            Swal.fire({
+              title: "Removing...",
+              allowOutsideClick: false,
+              didOpen: () => {
+                Swal.showLoading();
+              },
+            });
+            setTimeout(() => {
+              setImages((prev) => prev.filter((_, i) => i !== index));
+              Swal.fire({
+                icon: "success",
+                title: "Removed!",
+                text: "Image has been removed successfully.",
+                confirmButtonColor: "#00a896",
+              });
+            }, 600);
+          }
+        });
+      }
     };
     galleryGrid?.addEventListener("click", onGridClick);
 
@@ -304,34 +375,15 @@ export default function AmbiencePage() {
               </div>
 
               <div className="slider-row" id="galleryGrid">
-                <div className="gallery-item">
-                  <img
-                    src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80"
-                    alt="food"
-                  />
-                  <button className="del-btn">✕</button>
-                </div>
-                <div className="gallery-item">
-                  <img
-                    src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&q=80"
-                    alt="food"
-                  />
-                  <button className="del-btn">✕</button>
-                </div>
-                <div className="gallery-item">
-                  <img
-                    src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80"
-                    alt="restaurant"
-                  />
-                  <button className="del-btn">✕</button>
-                </div>
-                <div className="gallery-item">
-                  <img
-                    src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80"
-                    alt="restaurant interior"
-                  />
-                  <button className="del-btn">✕</button>
-                </div>
+                {mounted &&
+                  images.map((src, i) => (
+                    <div className="gallery-item" key={i}>
+                      <img src={src} alt="ambience" />
+                      <button className="del-btn" data-index={i}>
+                        ✕
+                      </button>
+                    </div>
+                  ))}
                 {/* Add Photo tile */}
                 <div className="add-tile">
                   <svg viewBox="0 0 24 24">
