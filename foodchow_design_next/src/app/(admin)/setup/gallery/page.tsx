@@ -302,9 +302,46 @@ export default function GalleryPage() {
     fileInput?.addEventListener("change", onFileSelected);
 
     // Delegate delete buttons (existing + dynamically added).
-    const onGridClick = (e: Event): void => {
+    const onGridClick = async (e: Event): Promise<void> => {
       const btn = (e.target as HTMLElement).closest(".del-btn");
-      if (btn) btn.closest(".gallery-item")?.remove();
+      if (btn) {
+        const idStr = btn.getAttribute("data-id");
+        if (!idStr) return;
+        const galleryId = parseInt(idStr, 10);
+
+        const { default: Swal } = await import("sweetalert2");
+
+        const result = await Swal.fire({
+          title: "Remove Image?",
+          text: "Are you sure you want to remove this gallery image?",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonColor: "#e63946",
+          cancelButtonColor: "#8e9ba8",
+          confirmButtonText: "Yes, remove it",
+        });
+
+        if (result.isConfirmed) {
+          Swal.fire({
+            title: "Removing...",
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading(),
+          });
+          try {
+            await setupService.deleteGalleryPhoto(galleryId);
+            await loadGalleryImages();
+            Swal.fire({
+              icon: "success",
+              title: "Removed!",
+              text: "Image has been removed successfully.",
+              confirmButtonColor: "#00a896",
+            });
+          } catch (err) {
+            console.error(err);
+            Swal.fire("Error", "Failed to remove image.", "error");
+          }
+        }
+      }
     };
     galleryGrid?.addEventListener("click", onGridClick);
 
@@ -385,7 +422,7 @@ export default function GalleryPage() {
                       alt="gallery"
                       onError={(e) => console.log("Image failed:", e.currentTarget.src)}
                     />
-                    <button className="del-btn">✕</button>
+                    <button className="del-btn" data-id={item.gallery_id}>✕</button>
                   </div>
                 ))}
                 <div className="add-tile">

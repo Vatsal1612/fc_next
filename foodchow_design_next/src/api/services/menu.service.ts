@@ -254,6 +254,26 @@ export interface AddItemPayload {
   open_price: number;
 }
 
+export interface AddStoreCategoryPayload {
+  id: number;         // 0 = insert, >0 = update
+  shop_id: number;
+  cate_name: string;
+  cate_image: string; // base64 string or existing URL, empty string = no image
+  description: string;
+  parent_id: number;
+}
+
+export interface EditStoreItemPayload {
+  Item_Id: number;
+  Cate_Id: number;
+  Item_Name: string;
+  Description: string;
+  Is_Veg: number;
+  barcode: string;
+  base64Image: string; // base64 without data URI prefix, or empty string
+  Item_Image: string;  // existing image filename/path (used when base64Image is empty)
+}
+
 export interface MenuItem {
   item_Id: number;
   cate_Id: number;
@@ -1209,6 +1229,51 @@ export const menuService = {
       }
     );
 
+    return data;
+  },
+
+  /** Add a new store category (id=0) or update an existing one (id>0) */
+  async addStoreCategory(payload: AddStoreCategoryPayload): Promise<any> {
+    const { data } = await foodchowClient.post(
+      ENDPOINTS.menu.addStoreCategory,
+      payload
+    );
+    return data;
+  },
+
+  /** Delete a store category by id */
+  async deleteCategory(cateId: number): Promise<any> {
+    const { data } = await foodchowClient.get(
+      ENDPOINTS.menu.deleteCategory,
+      { params: { CateID: cateId } }
+    );
+    return data;
+  },
+
+  /** Activate (status=1) or deactivate (status=0) a store category */
+  async changeStoreCategoryStatus(cateId: number, status: number): Promise<any> {
+    const { data } = await foodchowClient.get(
+      ENDPOINTS.menu.changeStoreCategoryStatus,
+      { params: { cate_id: cateId, status } }
+    );
+    return data;
+  },
+
+  /** Edit an existing store item */
+  async editStoreItem(payload: EditStoreItemPayload): Promise<any> {
+    const { data } = await foodchowClient.post(
+      ENDPOINTS.menu.editStoreItem,
+      payload
+    );
+    return data;
+  },
+
+  /** Activate (status=1) or deactivate (status=0) a store item */
+  async changeStoreItemStatus(itemId: number, status: number): Promise<any> {
+    const { data } = await foodchowClient.get(
+      ENDPOINTS.menu.changeStoreItemStatus,
+      { params: { ItemId: itemId, status } }
+    );
     return data;
   },
 

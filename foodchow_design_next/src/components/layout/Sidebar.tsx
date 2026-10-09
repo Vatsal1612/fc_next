@@ -193,6 +193,10 @@ export function Sidebar() {
                   <a href="#" className={className} onClick={(e) => e.preventDefault()}>
                     <i className={item.icon} /> {item.label}
                   </a>
+                ) : item.href.startsWith("http") ? (
+                  <a href={item.href} className={className} target="_blank" rel="noopener noreferrer">
+                    <i className={item.icon} /> {item.label}
+                  </a>
                 ) : (
                   <Link href={item.href} className={className}>
                     <i className={item.icon} /> {item.label}

@@ -77,7 +77,7 @@ export function Header({ onToggleSidebar }: HeaderProps) {
         </div>
       </div>
       <div className={styles.headerRight} style={{ gap: "12px" }}>
-        <button className={styles.btnSolid} onClick={() => window.open('mailto:support@foodchow.com', '_blank')}>
+        <button className={styles.btnSolid} onClick={() => router.push('/support/ticket')}>
           <i className="fas fa-headset" />
         </button>
 

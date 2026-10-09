@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Swal from "sweetalert2";
 import { WizardFooter } from "@/components/shared/WizardFooter";
+import { setupService } from "@/api/services/setup.service";
 import "./page.css";
 
 /**
@@ -24,30 +25,45 @@ interface CropState {
   zoom: number;
 }
 
+export interface AmbienceImage {
+  gallery_Id: number;
+  gallery_Image: string;
+}
+
 export default function AmbiencePage() {
-  const [images, setImages] = useState<string[]>([]);
+  const [images, setImages] = useState<AmbienceImage[]>([]);
   const [mounted, setMounted] = useState(false);
+  const subdomainRef = useRef<string>("");
+
+  const fetchImages = async () => {
+    try {
+      const sessionShopId = sessionStorage.getItem("shop_id");
+      if (!sessionShopId) return;
+      const info = await setupService.getRestaurantInformation(Number(sessionShopId));
+      if (info?.subdomain) {
+        subdomainRef.current = info.subdomain;
+      }
+      
+      const res = await setupService.getGalleryImages(Number(sessionShopId), 4);
+      if (res && res.data) {
+        const parsedImages = JSON.parse(res.data);
+        if (parsedImages && Array.isArray(parsedImages)) {
+          setImages(parsedImages);
+        } else {
+          setImages([]);
+        }
+      } else {
+        setImages([]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch gallery images:", err);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
-    const saved = localStorage.getItem("ambience_images");
-    if (saved) {
-      setImages(JSON.parse(saved));
-    } else {
-      setImages([
-        "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80",
-        "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&q=80",
-        "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80",
-        "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80",
-      ]);
-    }
+    fetchImages();
   }, []);
-
-  useEffect(() => {
-    if (mounted) {
-      localStorage.setItem("ambience_images", JSON.stringify(images));
-    }
-  }, [images, mounted]);
 
   useEffect(() => {
     const fileInput = document.getElementById("fileInput") as HTMLInputElement | null;
@@ -198,7 +214,7 @@ export default function AmbiencePage() {
       if (cropImg) cropImg.style.transform = `scale(${cs.zoom})`;
     };
 
-    const applyCrop = (): void => {
+    const applyCrop = async (): Promise<void> => {
       if (!cropImg || !cropWrapper || !cropCanvas || !galleryGrid) return;
       const sx2 = cropImg.naturalWidth / cropWrapper.offsetWidth;
       const sy2 = cropImg.naturalHeight / cropWrapper.offsetHeight;
@@ -228,15 +244,38 @@ export default function AmbiencePage() {
         },
       });
 
-      setTimeout(() => {
-        setImages((prev) => [...prev, src]);
+      try {
+        const base64Data = src.replace(/^data:image\/[a-z]+;base64,/, "");
+        const shopId = sessionStorage.getItem("shop_id");
+        if (!shopId) throw new Error("No Shop ID");
+
+        // Upload to external PHP endpoint which also handles DB insertion
+        const payload = {
+          shop_id: shopId,
+          device_type: "1",
+          imageflag: "4", // 4 = Ambience Image
+          user_type: "4",
+          photo_count: "1",
+          photo_0: base64Data,
+          user_type_id: shopId,
+          caption: "gallery_image.jpg",
+        };
+        
+        await setupService.uploadGalleryImage(payload);
+
+        // Refetch the updated gallery list
+        await fetchImages();
+
         Swal.fire({
           icon: "success",
           title: "Saved Successfully!",
           text: "Ambience image added successfully.",
           confirmButtonColor: "#00a896",
         });
-      }, 800);
+      } catch (err) {
+        console.error(err);
+        Swal.fire("Error", "Failed to upload image", "error");
+      }
     };
 
     const onFileSelected = (e: Event): void => {
@@ -259,14 +298,14 @@ export default function AmbiencePage() {
     fileInput?.addEventListener("change", onFileSelected);
 
     // Delegate delete buttons (existing + dynamically added).
-    const onGridClick = (e: Event): void => {
+    const onGridClick = async (e: Event): Promise<void> => {
       const btn = (e.target as HTMLElement).closest(".del-btn");
       if (btn) {
-        const indexStr = btn.getAttribute("data-index");
-        if (indexStr === null) return;
-        const index = parseInt(indexStr, 10);
+        const idStr = btn.getAttribute("data-id");
+        if (!idStr) return;
+        const galleryId = parseInt(idStr, 10);
 
-        Swal.fire({
+        const result = await Swal.fire({
           title: "Remove Image?",
           text: "Are you sure you want to remove this ambience image?",
           icon: "warning",
@@ -274,26 +313,30 @@ export default function AmbiencePage() {
           confirmButtonColor: "#e63946",
           cancelButtonColor: "#8e9ba8",
           confirmButtonText: "Yes, remove it",
-        }).then((result) => {
-          if (result.isConfirmed) {
-            Swal.fire({
-              title: "Removing...",
-              allowOutsideClick: false,
-              didOpen: () => {
-                Swal.showLoading();
-              },
-            });
-            setTimeout(() => {
-              setImages((prev) => prev.filter((_, i) => i !== index));
-              Swal.fire({
-                icon: "success",
-                title: "Removed!",
-                text: "Image has been removed successfully.",
-                confirmButtonColor: "#00a896",
-              });
-            }, 600);
-          }
         });
+
+        if (result.isConfirmed) {
+          Swal.fire({
+            title: "Removing...",
+            allowOutsideClick: false,
+            didOpen: () => {
+              Swal.showLoading();
+            },
+          });
+          try {
+            await setupService.deleteGalleryPhoto(galleryId);
+            await fetchImages();
+            Swal.fire({
+              icon: "success",
+              title: "Removed!",
+              text: "Image has been removed successfully.",
+              confirmButtonColor: "#00a896",
+            });
+          } catch (err) {
+            console.error(err);
+            Swal.fire("Error", "Failed to remove image.", "error");
+          }
+        }
       }
     };
     galleryGrid?.addEventListener("click", onGridClick);
@@ -376,14 +419,21 @@ export default function AmbiencePage() {
 
               <div className="slider-row" id="galleryGrid">
                 {mounted &&
-                  images.map((src, i) => (
-                    <div className="gallery-item" key={i}>
-                      <img src={src} alt="ambience" />
-                      <button className="del-btn" data-index={i}>
-                        ✕
-                      </button>
-                    </div>
-                  ))}
+                  images.map((img: any, i) => {
+                    const imgPath = img.gallery_image || img.gallery_Image || "";
+                    const fullUrl = imgPath.startsWith("http")
+                      ? imgPath
+                      : `https://admin.foodchow.com/GalleryImages/${sessionStorage.getItem("shop_id")}/${imgPath}`;
+                    
+                    return (
+                      <div className="gallery-item" key={i}>
+                        <img src={fullUrl} alt="ambience" />
+                        <button className="del-btn" data-id={img.gallery_id || img.gallery_Id}>
+                          ✕
+                        </button>
+                      </div>
+                    );
+                  })}
                 {/* Add Photo tile */}
                 <div className="add-tile">
                   <svg viewBox="0 0 24 24">

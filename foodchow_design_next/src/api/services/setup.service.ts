@@ -286,18 +286,42 @@ export const setupService = {
     return data;
   },
 
-  async getGalleryImages(shopId: number) {
+  async getGalleryImages(shopId: number, imageFlag: number = 2) {
     const { data } = await foodchowWDClient.get(
       ENDPOINTS.setup.getGalleryImages,
       {
         params: {
           ShopId: shopId,
-          ImageFlag: 2,
+          ImageFlag: imageFlag,
           LastId: 0,
         },
       }
     );
 
+    return data;
+  },
+
+  async getFoodGallery(subdomain: string, flag: string = 'gallery') {
+    const { data } = await foodchowWDClient.get(
+      ENDPOINTS.setup.getFoodGallery,
+      { params: { subdomain, flag } }
+    );
+    return data;
+  },
+
+  async addToFoodGallery(payload: any[]) {
+    const { data } = await foodchowWDClient.post(
+      ENDPOINTS.setup.addToFoodGallery,
+      payload
+    );
+    return data;
+  },
+
+  async deleteGalleryPhoto(galleryId: number) {
+    const { data } = await foodchowWDClient.delete(
+      ENDPOINTS.setup.deleteGalleryPhoto,
+      { params: { galleryid: galleryId } }
+    );
     return data;
   },
 

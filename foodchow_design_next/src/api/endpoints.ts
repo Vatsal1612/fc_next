@@ -83,6 +83,15 @@ export const ENDPOINTS = {
     getItems: "/MenuMaster/GetItemDetailsByShopIdMasterWithSoldOUtNew",
     deleteItem: "/MenuMaster/DeleteStoreItem",
 
+    // Store Category CRUD
+    addStoreCategory: "/MenuMaster/AddStoreCategory",
+    deleteCategory: "/MenuMaster/DeleteCategory",
+    changeStoreCategoryStatus: "/MenuMaster/ChangeStoreCategoryStatus",
+
+    // Store Item CRUD
+    editStoreItem: "/MenuMaster/EditStoreItem",
+    changeStoreItemStatus: "/MenuMaster/ChangeStoreItemStatus",
+
     // Additional Menu
     getAllShopMenuType: "/FoodChowWD/GetAllShopMenuTypeWD",
     getItemsForMenuType: "/FoodChowWD/GetItemsForMenuTypeWD",
@@ -386,6 +395,10 @@ export const ENDPOINTS = {
 
     getGalleryImages:
       "/FoodChowRMS/GetImagesByShopWD",
+
+    getFoodGallery: "/FoodGallery/GetFoodgallery",
+    addToFoodGallery: "/FoodGallery/AddToFoodGallery",
+    deleteGalleryPhoto: "/FoodGallery/DeleteGalleryPhoto",
 
     //Delivery 
     getAllDeliveryZone: "/zone/get",

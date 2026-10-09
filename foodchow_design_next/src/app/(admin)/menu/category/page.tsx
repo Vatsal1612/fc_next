@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { menuService, type MenuCategory } from "@/api";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import { useShopId } from "@/utils/shop";
@@ -14,6 +14,30 @@ export default function CategoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+
+  // ── Edit modal state ──
+  const [editOpen, setEditOpen] = useState(false);
+  const [editCategory, setEditCategory] = useState<{
+    id: number;
+    cate_name: string;
+    cate_image: string;
+    status: number;
+  } | null>(null);
+  const [catName, setCatName] = useState("");
+  const [catStatus, setCatStatus] = useState<"active" | "deactive">("active");
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // ── Delete modal state ──
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<MenuCategory | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Stable ref so the useEffect crop logic can push the cropped base64 back to React state
+  const setEditImagePreviewRef = useRef(setEditImagePreview);
+  useEffect(() => {
+    setEditImagePreviewRef.current = setEditImagePreview;
+  }, []);
 
   const totalPages = Math.max(1, Math.ceil(categories.length / PAGE_SIZE));
   const pageStart = (page - 1) * PAGE_SIZE;
@@ -39,11 +63,93 @@ export default function CategoryPage() {
     };
   }, []);
 
+  // ── React handlers ──
+
+  function handleEdit(cat: MenuCategory) {
+    setEditCategory({ id: cat.id, cate_name: cat.cate_name, cate_image: cat.cate_image, status: cat.status });
+    setCatName(cat.cate_name);
+    setCatStatus(cat.status === 1 ? "active" : "deactive");
+    setEditImagePreview(cat.cate_image || null);
+    setEditOpen(true);
+  }
+
+  async function handleSave() {
+    if (!editCategory) return;
+    const trimmedName = catName.trim();
+    if (!trimmedName) {
+      alert("Category name is required.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await menuService.addStoreCategory({
+        id: editCategory.id,
+        shop_id: SHOP_ID,
+        cate_name: trimmedName,
+        cate_image: editImagePreview ?? "",
+        description: "",
+        parent_id: 0,
+      });
+      setCategories((prev) =>
+        prev.map((c) =>
+          c.id === editCategory.id
+            ? { ...c, cate_name: trimmedName, cate_image: editImagePreview ?? "", status: catStatus === "active" ? 1 : 0 }
+            : c
+        )
+      );
+      setEditOpen(false);
+    } catch {
+      alert("Failed to save category. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleDelete(cat: MenuCategory) {
+    setDeleteTarget(cat);
+    setDeleteOpen(true);
+  }
+
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await menuService.deleteCategory(deleteTarget.id);
+      if (res?.message === "Item Available In This Category") {
+        alert("Cannot delete: this category has items. Remove items first.");
+        setDeleteOpen(false);
+        return;
+      }
+      setCategories((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+      setDeleteOpen(false);
+      setDeleteTarget(null);
+    } catch {
+      alert("Failed to delete category. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function handleToggle(cat: MenuCategory) {
+    const newStatus = cat.status === 1 ? 0 : 1;
+    // Optimistic update
+    setCategories((prev) =>
+      prev.map((c) => (c.id === cat.id ? { ...c, status: newStatus } : c))
+    );
+    try {
+      await menuService.changeStoreCategoryStatus(cat.id, newStatus);
+    } catch {
+      // Roll back on failure
+      setCategories((prev) =>
+        prev.map((c) => (c.id === cat.id ? { ...c, status: cat.status } : c))
+      );
+      alert("Failed to update status.");
+    }
+  }
+
+  // ── DOM-manipulation useEffect (search, bulk delete, add new modal, crop) ──
   useEffect(() => {
     let nextId = 3;
-    let rowToDelete: HTMLTableRowElement | null = null;
-    let editMode = false;
-    let editRowEl: HTMLTableRowElement | null = null;
 
     const root = document.getElementById("pg-menu-category");
     if (!root) return;
@@ -58,10 +164,7 @@ export default function CategoryPage() {
     const saveCatBtn = $("saveCatBtn");
     const modalClose = $("modalClose");
     const cancelBtn = $("cancelBtn");
-    const catModal = $("catModal");
-    const deleteModal = $("deleteModal");
-    const confirmDeleteBtn = $("confirmDeleteBtn");
-    const cancelDeleteBtn = $("cancelDeleteBtn");
+    const addModal = $("addCatModal");
     const prevBtn = $("prevBtn");
     const nextBtn = $("nextBtn");
     const fileInput = $<HTMLInputElement>("fileInput");
@@ -90,7 +193,7 @@ export default function CategoryPage() {
     ): HTMLTableRowElement {
       const tr = document.createElement("tr");
       tr.dataset.id = String(id);
-      tr.innerHTML = `<td><input type="checkbox" class="cb row-cb"></td><td>${imgSrc ? `<img src="${escapeHtml(imgSrc)}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;">` : `<div class="no-img"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2h1l2-2h6l2 2h1a2 2 0 012 2z"/><circle cx="12" cy="13" r="3"/></svg><span>No Image</span></div>`}</td><td><span class="cat-name">${escapeHtml(name.toUpperCase())}</span></td><td><div class="act-btns"><button class="icon-btn edit-btn" title="Edit"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="icon-btn delete-btn" title="Delete"><svg viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button><label class="toggle-switch"><input type="checkbox" ${isActive ? "checked" : ""}><span class="slider"></span></label></div></td>`;
+      tr.innerHTML = `<td><input type="checkbox" class="cb row-cb"></td><td>${imgSrc ? `<img src="${escapeHtml(imgSrc)}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;">` : `<div class="no-img"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2h1l2-2h6l2 2h1a2 2 0 012 2z"/><circle cx="12" cy="13" r="3"/></svg><span>No Image</span></div>`}</td><td><span class="cat-name">${escapeHtml(name.toUpperCase())}</span></td><td><div class="act-btns"><button class="icon-btn edit-btn" title="Edit Category"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="icon-btn delete-btn" title="Delete Category"><svg viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button><label class="toggle-switch"><input type="checkbox" ${isActive ? "checked" : ""}><span class="slider"></span></label></div></td>`;
       return tr;
     }
 
@@ -107,68 +210,10 @@ export default function CategoryPage() {
       if (span) span.style.display = "";
     }
 
-    function openEditModal(btn: HTMLElement) {
-      editMode = true;
-      editRowEl = btn.closest("tr");
-      if (!editRowEl) return;
-      const name = editRowEl.querySelector(".cat-name")?.textContent ?? "";
-      const isActive =
-        (editRowEl.querySelector(".toggle-switch input") as HTMLInputElement | null)
-          ?.checked ?? false;
-      const existingImg = editRowEl.querySelector(
-        "td:nth-child(2) img"
-      ) as HTMLImageElement | null;
-      const modalTitle = $("modalTitle");
-      const saveBtn = $("saveCatBtn");
-      const catNameInput = $<HTMLInputElement>("catNameInput");
-      if (modalTitle) modalTitle.textContent = "Edit Category";
-      if (saveBtn) saveBtn.textContent = "SAVE";
-      if (catNameInput) catNameInput.value = name;
-      if (isActive) {
-        const r = root!.querySelector(
-          'input[name=catStatus][value=active]'
-        ) as HTMLInputElement | null;
-        if (r) r.checked = true;
-      } else {
-        const r = root!.querySelector(
-          'input[name=catStatus][value=deactive]'
-        ) as HTMLInputElement | null;
-        if (r) r.checked = true;
-      }
-      resetImgPreview();
-      if (existingImg) {
-        const previewImg = $<HTMLImageElement>("previewImg");
-        if (previewImg) {
-          previewImg.src = existingImg.src;
-          previewImg.style.display = "block";
-        }
-        const imgPreview = $("imgPreview");
-        const svg = imgPreview?.querySelector("svg") as SVGElement | null;
-        const span = imgPreview?.querySelector("span") as HTMLElement | null;
-        if (svg) svg.style.display = "none";
-        if (span) span.style.display = "none";
-      }
-      catModal?.classList.add("open");
-    }
-
-    function openDeleteModal(btn: HTMLElement) {
-      rowToDelete = btn.closest("tr");
-      const name = rowToDelete?.querySelector(".cat-name")?.textContent ?? "";
-      const msg = $("deleteModalMsg");
-      if (msg)
-        msg.textContent = `Are you sure you want to delete "${name}"? This action cannot be undone.`;
-      deleteModal?.classList.add("open");
-    }
-
     function closeModal() {
-      catModal?.classList.remove("open");
+      addModal?.classList.remove("open");
       resetImgPreview();
       if (fileInput) fileInput.value = "";
-    }
-
-    function closeDeleteModal() {
-      deleteModal?.classList.remove("open");
-      rowToDelete = null;
     }
 
     // ── Search ──
@@ -210,26 +255,22 @@ export default function CategoryPage() {
     deleteAllBtn?.addEventListener("click", onDeleteAll);
 
     const onOpenAdd = () => {
-      editMode = false;
-      editRowEl = null;
-      const modalTitle = $("modalTitle");
-      const saveBtn = $("saveCatBtn");
-      const catNameInput = $<HTMLInputElement>("catNameInput");
+      const modalTitle = $("addModalTitle");
+      const catNameInput = $<HTMLInputElement>("addCatNameInput");
       if (modalTitle) modalTitle.textContent = "Add New Category";
-      if (saveBtn) saveBtn.textContent = "ADD";
       if (catNameInput) catNameInput.value = "";
       const r = root.querySelector(
-        'input[name=catStatus][value=active]'
+        'input[name=addCatStatus][value=active]'
       ) as HTMLInputElement | null;
       if (r) r.checked = true;
       resetImgPreview();
-      catModal?.classList.add("open");
-      setTimeout(() => $<HTMLInputElement>("catNameInput")?.focus(), 50);
+      addModal?.classList.add("open");
+      setTimeout(() => $<HTMLInputElement>("addCatNameInput")?.focus(), 50);
     };
     openAddModal?.addEventListener("click", onOpenAdd);
 
     const onSave = () => {
-      const catNameInput = $<HTMLInputElement>("catNameInput");
+      const catNameInput = $<HTMLInputElement>("addCatNameInput");
       if (!catNameInput) return;
       const name = catNameInput.value.trim();
       if (!name) {
@@ -239,31 +280,15 @@ export default function CategoryPage() {
       catNameInput.style.borderColor = "";
       const isActive =
         (root.querySelector(
-          'input[name=catStatus]:checked'
+          'input[name=addCatStatus]:checked'
         ) as HTMLInputElement | null)?.value === "active";
       const previewImg = $<HTMLImageElement>("previewImg");
       const imgSrc =
         previewImg && previewImg.style.display !== "none" && previewImg.src
           ? previewImg.src
           : null;
-      if (editMode && editRowEl) {
-        const catName = editRowEl.querySelector(".cat-name");
-        if (catName) catName.textContent = name.toUpperCase();
-        const toggle = editRowEl.querySelector(
-          ".toggle-switch input"
-        ) as HTMLInputElement | null;
-        if (toggle) toggle.checked = isActive;
-        const imgCell = editRowEl.querySelector(
-          "td:nth-child(2)"
-        ) as HTMLElement | null;
-        if (imgCell)
-          imgCell.innerHTML = imgSrc
-            ? `<img src="${escapeHtml(imgSrc)}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;">`
-            : `<div class="no-img"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2h1l2-2h6l2 2h1a2 2 0 012 2z"/><circle cx="12" cy="13" r="3"/></svg><span>No Image</span></div>`;
-      } else {
-        const tr = buildRow(nextId++, name, imgSrc, isActive);
-        $("catTableBody")?.appendChild(tr);
-      }
+      const tr = buildRow(nextId++, name, imgSrc, isActive);
+      $("catTableBody")?.appendChild(tr);
       updateFooter();
       closeModal();
     };
@@ -271,48 +296,20 @@ export default function CategoryPage() {
 
     modalClose?.addEventListener("click", closeModal);
     cancelBtn?.addEventListener("click", closeModal);
-    const onCatModalClick = (e: MouseEvent) => {
-      if (e.target === catModal) closeModal();
+    const onAddModalClick = (e: MouseEvent) => {
+      if (e.target === addModal) closeModal();
     };
-    catModal?.addEventListener("click", onCatModalClick);
+    addModal?.addEventListener("click", onAddModalClick);
 
     const onKeydown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         closeModal();
-        closeDeleteModal();
+        setEditImagePreviewRef.current(null);
+        setEditOpen(false);
+        setDeleteOpen(false);
       }
     };
     document.addEventListener("keydown", onKeydown);
-
-    const onConfirmDelete = () => {
-      if (rowToDelete) {
-        rowToDelete.remove();
-        updateFooter();
-      }
-      closeDeleteModal();
-    };
-    confirmDeleteBtn?.addEventListener("click", onConfirmDelete);
-    cancelDeleteBtn?.addEventListener("click", closeDeleteModal);
-    const onDeleteModalClick = (e: MouseEvent) => {
-      if (e.target === deleteModal) closeDeleteModal();
-    };
-    deleteModal?.addEventListener("click", onDeleteModalClick);
-
-    // ── Event delegation for edit/delete buttons (incl. dynamic rows) ──
-    const tableBody = $("catTableBody");
-    const onTableClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const editB = target.closest(".edit-btn") as HTMLElement | null;
-      if (editB) {
-        openEditModal(editB);
-        return;
-      }
-      const delB = target.closest(".delete-btn") as HTMLElement | null;
-      if (delB) {
-        openDeleteModal(delB);
-      }
-    };
-    tableBody?.addEventListener("click", onTableClick);
 
     // ── Step nav ──
     let currentStep = 6;
@@ -500,6 +497,8 @@ export default function CategoryPage() {
       const span = imgPreview?.querySelector("span") as HTMLElement | null;
       if (svg) svg.style.display = "none";
       if (span) span.style.display = "none";
+      // Bridge cropped image to React state for the edit modal
+      setEditImagePreviewRef.current(src);
       closeCropModal();
     }
 
@@ -563,12 +562,8 @@ export default function CategoryPage() {
       saveCatBtn?.removeEventListener("click", onSave);
       modalClose?.removeEventListener("click", closeModal);
       cancelBtn?.removeEventListener("click", closeModal);
-      catModal?.removeEventListener("click", onCatModalClick);
+      addModal?.removeEventListener("click", onAddModalClick);
       document.removeEventListener("keydown", onKeydown);
-      confirmDeleteBtn?.removeEventListener("click", onConfirmDelete);
-      cancelDeleteBtn?.removeEventListener("click", closeDeleteModal);
-      deleteModal?.removeEventListener("click", onDeleteModalClick);
-      tableBody?.removeEventListener("click", onTableClick);
       prevBtn?.removeEventListener("click", onPrev);
       nextBtn?.removeEventListener("click", onNext);
       fileInput?.removeEventListener("change", onFileChange);
@@ -613,7 +608,7 @@ export default function CategoryPage() {
                 </button>
               </div>
 
-              {/* ── TABLE (comparison-by-product style) ── */}
+              {/* ── TABLE ── */}
               <div className="table-card">
                 <div className="table-card-header">
                   <span>All Categories</span>
@@ -698,21 +693,33 @@ export default function CategoryPage() {
                             </td>
                             <td>
                               <div className="act-btns">
-                                <button className="icon-btn edit-btn" title="Edit">
+                                <button
+                                  className="icon-btn edit-btn"
+                                  title="Edit Category"
+                                  onClick={() => handleEdit(cat)}
+                                >
                                   <svg viewBox="0 0 24 24">
                                     <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
                                     <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
                                   </svg>
                                 </button>
-                                <button className="icon-btn delete-btn" title="Delete">
+                                <button
+                                  className="icon-btn delete-btn"
+                                  title="Delete Category"
+                                  onClick={() => handleDelete(cat)}
+                                >
                                   <svg viewBox="0 0 24 24">
                                     <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
                                   </svg>
                                 </button>
-                                <label className="toggle-switch">
+                                <label
+                                  className="toggle-switch"
+                                  title={cat.status === 1 ? "DeActivate Category" : "Activate Category"}
+                                >
                                   <input
                                     type="checkbox"
-                                    defaultChecked={cat.status === 1}
+                                    checked={cat.status === 1}
+                                    onChange={() => handleToggle(cat)}
                                   />
                                   <span className="slider"></span>
                                 </label>
@@ -775,18 +782,17 @@ export default function CategoryPage() {
         </div>
       </div>
 
-      {/* ADD/EDIT Modal */}
-      <div className="modal-overlay" id="catModal">
+      {/* ADD NEW Modal (DOM-controlled via useEffect) */}
+      <div className="modal-overlay" id="addCatModal">
         <div className="modal">
           <button className="modal-close" id="modalClose">
             <svg viewBox="0 0 24 24">
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
-          <div className="modal-title" id="modalTitle">
+          <div className="modal-title" id="addModalTitle">
             Add New Category
           </div>
-          <input type="hidden" id="editRowId" />
           <div className="form-group">
             <label className="form-label">
               Category Name <span className="req">*</span>
@@ -794,7 +800,7 @@ export default function CategoryPage() {
             <input
               className="form-input"
               type="text"
-              id="catNameInput"
+              id="addCatNameInput"
               placeholder="e.g. Italian, Mexican, Thai..."
             />
           </div>
@@ -802,10 +808,10 @@ export default function CategoryPage() {
             <label className="form-label">Status</label>
             <div className="radio-group">
               <label className="radio-label">
-                <input type="radio" name="catStatus" value="active" defaultChecked /> Active
+                <input type="radio" name="addCatStatus" value="active" defaultChecked /> Active
               </label>
               <label className="radio-label">
-                <input type="radio" name="catStatus" value="deactive" /> De-Active
+                <input type="radio" name="addCatStatus" value="deactive" /> De-Active
               </label>
             </div>
           </div>
@@ -818,7 +824,7 @@ export default function CategoryPage() {
                   <circle cx="12" cy="13" r="3" />
                 </svg>
                 <span>No image</span>
-                <img id="previewImg" alt="preview" />
+                <img id="previewImg" alt="preview" style={{ display: "none" }} />
               </div>
               <div className="img-upload-info">
                 <button className="upload-btn" type="button">
@@ -852,31 +858,164 @@ export default function CategoryPage() {
         </div>
       </div>
 
-      {/* DELETE Modal */}
-      <div className="modal-overlay" id="deleteModal">
-        <div className="modal del-modal">
-          <div className="del-icon">
-            <svg viewBox="0 0 24 24">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-              <path d="M10 11v6M14 11v6" />
-              <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
-            </svg>
-          </div>
-          <h3>Delete Category?</h3>
-          <p id="deleteModalMsg">
-            Are you sure you want to delete this category? This action cannot be undone.
-          </p>
-          <div className="del-btns">
-            <button className="btn-del-confirm" id="confirmDeleteBtn">
-              DELETE
+      {/* EDIT Modal (React-controlled) */}
+      {editOpen && (
+        <div
+          className="modal-overlay open"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setEditOpen(false);
+          }}
+        >
+          <div className="modal">
+            <button className="modal-close" onClick={() => setEditOpen(false)}>
+              <svg viewBox="0 0 24 24">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
             </button>
-            <button className="btn-cancel-modal" id="cancelDeleteBtn">
-              CANCEL
-            </button>
+            <div className="modal-title">Edit Category</div>
+            <div className="form-group">
+              <label className="form-label">
+                Category Name <span className="req">*</span>
+              </label>
+              <input
+                className="form-input"
+                type="text"
+                value={catName}
+                onChange={(e) => setCatName(e.target.value)}
+                placeholder="e.g. Italian, Mexican, Thai..."
+                autoFocus
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Status</label>
+              <div className="radio-group">
+                <label className="radio-label">
+                  <input
+                    type="radio"
+                    name="editCatStatus"
+                    value="active"
+                    checked={catStatus === "active"}
+                    onChange={() => setCatStatus("active")}
+                  />{" "}
+                  Active
+                </label>
+                <label className="radio-label">
+                  <input
+                    type="radio"
+                    name="editCatStatus"
+                    value="deactive"
+                    checked={catStatus === "deactive"}
+                    onChange={() => setCatStatus("deactive")}
+                  />{" "}
+                  De-Active
+                </label>
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Choose Image</label>
+              <div className="img-upload-row">
+                <div className="img-preview" id="editImgPreview">
+                  {editImagePreview ? (
+                    <img
+                      src={editImagePreview}
+                      alt="preview"
+                      style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  ) : (
+                    <>
+                      <svg viewBox="0 0 24 24">
+                        <path d="M21 15a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2h1l2-2h6l2 2h1a2 2 0 012 2z" />
+                        <circle cx="12" cy="13" r="3" />
+                      </svg>
+                      <span>No image</span>
+                    </>
+                  )}
+                </div>
+                <div className="img-upload-info">
+                  <button
+                    className="upload-btn"
+                    type="button"
+                    onClick={() => document.getElementById("fileInput")?.click()}
+                  >
+                    <svg viewBox="0 0 24 24">
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                    </svg>
+                    UPLOAD IMAGE
+                  </button>
+                  {editImagePreview && (
+                    <button
+                      type="button"
+                      className="btn-cancel-modal"
+                      style={{ marginTop: 8, fontSize: "0.75rem" }}
+                      onClick={() => setEditImagePreview(null)}
+                    >
+                      DELETE IMAGE
+                    </button>
+                  )}
+                  <div className="upload-hint">
+                    Only .gif, .png, .jpeg, .jpg upto 1 MB
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn-add"
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {saving ? "SAVING…" : "SAVE"}
+              </button>
+              <button
+                className="btn-cancel-modal"
+                onClick={() => setEditOpen(false)}
+              >
+                CANCEL
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* DELETE Modal (React-controlled) */}
+      {deleteOpen && (
+        <div
+          className="modal-overlay open"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setDeleteOpen(false);
+          }}
+        >
+          <div className="modal del-modal">
+            <div className="del-icon">
+              <svg viewBox="0 0 24 24">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                <path d="M10 11v6M14 11v6" />
+                <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+              </svg>
+            </div>
+            <h3>Delete Category?</h3>
+            <p>
+              Are you sure you want to delete &quot;{deleteTarget?.cate_name}&quot;? This action cannot be undone.
+            </p>
+            <div className="del-btns">
+              <button
+                className="btn-del-confirm"
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+              >
+                {deleting ? "DELETING…" : "DELETE"}
+              </button>
+              <button
+                className="btn-cancel-modal"
+                onClick={() => setDeleteOpen(false)}
+              >
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CROP MODAL */}
       <div className="crop-overlay" id="cropOverlay">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AddItemPayload, menuService, type MenuCategory } from "@/api/services/menu.service";
 import Swal from "sweetalert2";
 import { WizardFooter } from "@/components/shared/WizardFooter";
@@ -18,7 +18,20 @@ export default function ItemsPage() {
   const [isVeg] = useState("1");
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [items, setItems] = useState<MenuCategory[]>([]);
-  // const [items, setItems] = useState<MenuItem[]>([]);
+
+  // Edit item state
+  const [editItemId, setEditItemId] = useState<number | null>(null);
+  const [editCateId, setEditCateId] = useState<number>(0);
+  const [editItemImage, setEditItemImage] = useState<string>("");
+  const [editBase64Image, setEditBase64Image] = useState<string>("");
+  const [updatingItem, setUpdatingItem] = useState(false);
+  const [togglingItemId, setTogglingItemId] = useState<number | null>(null);
+
+  // Ref so the useEffect crop logic can push the cropped base64 back to React state
+  const setEditBase64ImageRef = useRef(setEditBase64Image);
+  useEffect(() => {
+    setEditBase64ImageRef.current = setEditBase64Image;
+  }, []);
 
   useEffect(() => {
     const loadItems = async () => {
@@ -115,7 +128,7 @@ export default function ItemsPage() {
     try {
       const response = await menuService.deleteItem(itemId, SHOP_ID);
 
-      if (response.success) {
+      if (response.success || response.Success || response.ResponseCode === 1 || response.responseCode === 1) {
         Swal.fire("Deleted!", "Item deleted successfully.", "success");
 
         const data = await menuService.getItems(SHOP_ID);
@@ -125,6 +138,85 @@ export default function ItemsPage() {
       Swal.fire("Error", "Unable to delete item.", "error");
     }
   };
+
+  // Update item via API
+  async function handleUpdateItem() {
+    if (editItemId === null) return;
+    const newName =
+      (document.getElementById("editItemNameInput") as HTMLInputElement | null)?.value.trim() ?? "";
+    const newDesc =
+      (document.getElementById("editItemDescInput") as HTMLTextAreaElement | null)?.value.trim() ?? "";
+    const isVegActive =
+      document.getElementById("editTypeVegBtn")?.classList.contains("active-segment") ?? true;
+
+    if (!newName) {
+      alert("Item name is required.");
+      return;
+    }
+
+    setUpdatingItem(true);
+    try {
+      await menuService.editStoreItem({
+        Item_Id: editItemId,
+        Cate_Id: editCateId,
+        Item_Name: newName,
+        Description: newDesc,
+        Is_Veg: isVegActive ? 1 : 0,
+        barcode: "",
+        base64Image: editBase64Image,
+        Item_Image: editItemImage,
+      });
+      // Refresh items from API so the table shows updated data
+      const data = await menuService.getItems(SHOP_ID);
+      setItems(data);
+      // Switch back to list view
+      document.getElementById("editItemFormView")?.classList.remove("active-view");
+      document.getElementById("mainDirectoryView")?.classList.add("active-view");
+    } catch {
+      alert("Failed to update item. Please try again.");
+    } finally {
+      setUpdatingItem(false);
+    }
+  }
+
+  // Toggle item active/inactive
+  async function handleToggleItem(itemId: number, currentStatus: number, category: MenuCategory) {
+    const newStatus = currentStatus === 1 ? 0 : 1;
+    setTogglingItemId(itemId);
+    // Optimistic update
+    setItems((prev) =>
+      prev.map((c) =>
+        c.id === category.id
+          ? {
+              ...c,
+              item_list: c.item_list?.map((it: any) =>
+                it.item_Id === itemId ? { ...it, status: newStatus } : it
+              ),
+            }
+          : c
+      )
+    );
+    try {
+      await menuService.changeStoreItemStatus(itemId, newStatus);
+    } catch {
+      // Rollback
+      setItems((prev) =>
+        prev.map((c) =>
+          c.id === category.id
+            ? {
+                ...c,
+                item_list: c.item_list?.map((it: any) =>
+                  it.item_Id === itemId ? { ...it, status: currentStatus } : it
+                ),
+              }
+            : c
+        )
+      );
+      alert("Failed to update item status.");
+    } finally {
+      setTogglingItemId(null);
+    }
+  }
 
   useEffect(() => {
     // ===== HEADER DROPDOWN (global close) =====
@@ -355,6 +447,10 @@ export default function ItemsPage() {
         const editThumb = document.getElementById("editThumbFrame");
         if (editThumb)
           editThumb.innerHTML = `<img src="${ucmPreviewImg.src}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;">`;
+        // Bridge base64 to React state (strip data URI prefix)
+        setEditBase64ImageRef.current(
+          ucmPreviewImg.src.replace(/^data:image\/[a-z]+;base64,/, "")
+        );
         uploadCropOverlay?.classList.remove("open");
         currentAddImgBtn = null;
         return;
@@ -590,6 +686,16 @@ export default function ItemsPage() {
       const isActive =
         currentEditRow.querySelector<HTMLInputElement>(".switch input")
           ?.checked ?? false;
+
+      // Capture data attributes for React state
+      const itemId = Number(currentEditRow.dataset.itemId ?? "0");
+      const cateId = Number(currentEditRow.dataset.cateId ?? "0");
+      const itemImage = currentEditRow.dataset.itemImage ?? "";
+      setEditItemId(itemId);
+      setEditCateId(cateId);
+      setEditItemImage(itemImage);
+      setEditBase64Image(""); // clear any previous crop
+
       const editItemNameInput = document.getElementById(
         "editItemNameInput"
       ) as HTMLInputElement | null;
@@ -633,44 +739,6 @@ export default function ItemsPage() {
       setTimeout(updateScrollbar, 50);
     };
     cancelEditItemFormBtn?.addEventListener("click", cancelEditHandler);
-
-    const updateItemHandler = () => {
-      if (!currentEditRow) return;
-      const newName =
-        (
-          document.getElementById("editItemNameInput") as HTMLInputElement | null
-        )?.value.trim() ?? "";
-      const newPrice =
-        (
-          document.getElementById(
-            "editItemPriceInput"
-          ) as HTMLInputElement | null
-        )?.value.trim() ?? "";
-      const nameCell = currentEditRow.querySelector<HTMLElement>(".item-name");
-      const priceCell = currentEditRow.querySelector<HTMLElement>(".item-price");
-      if (newName && nameCell) nameCell.innerText = newName;
-      if (newPrice && priceCell) priceCell.innerText = `Rs.${newPrice}`;
-      const isNowActive =
-        document
-          .getElementById("editStatusActiveBtn")
-          ?.classList.contains("active-segment") ?? false;
-      const switchInput = currentEditRow.querySelector<HTMLInputElement>(
-        ".switch input"
-      );
-      if (switchInput) switchInput.checked = isNowActive;
-      const editThumb = document.getElementById("editThumbFrame");
-      const newImg = editThumb?.querySelector<HTMLImageElement>("img");
-      if (newImg) {
-        const placeholderDiv =
-          currentEditRow.querySelector<HTMLElement>(".placeholder-img");
-        if (placeholderDiv)
-          placeholderDiv.innerHTML = `<img src="${newImg.src}" style="width:52px;height:52px;object-fit:cover;border-radius:4px;">`;
-      }
-      editItemFormView?.classList.remove("active-view");
-      mainDirectoryView?.classList.add("active-view");
-      setTimeout(updateScrollbar, 50);
-    };
-    updateItemFormBtn?.addEventListener("click", updateItemHandler);
 
     const editUploadHandler = () => {
       currentAddImgBtn = "edit-form";
@@ -920,7 +988,6 @@ export default function ItemsPage() {
       confirmYesBtn?.removeEventListener("click", confirmYesHandler);
       document.removeEventListener("click", editClickHandler);
       cancelEditItemFormBtn?.removeEventListener("click", cancelEditHandler);
-      updateItemFormBtn?.removeEventListener("click", updateItemHandler);
       editUploadImageBtn?.removeEventListener("click", editUploadHandler);
       searchInput?.removeEventListener("input", applyFilters);
       categoryFilterSelect?.removeEventListener("change", applyFilters);
@@ -1177,14 +1244,35 @@ export default function ItemsPage() {
                     <tbody>
                       {items.map((category) =>
                         category.item_list?.map((item: any) => (
-                          <tr key={item.item_Id}>
-                            <td>{item.item_Name}</td>
-                            <td>Rs. {item.price}</td>
+                          <tr
+                            key={item.item_Id}
+                            data-item-id={item.item_Id}
+                            data-cate-id={category.id}
+                            data-item-image={item.item_Image ?? item.Item_Image ?? ""}
+                            data-category={String(category.id)}
+                          >
+                            <td>
+                              <div className="drag-handle">
+                                <i className="fa-solid fa-bars"></i>
+                              </div>
+                            </td>
+                            <td className="item-name">{item.item_Name ?? item.Item_Name}</td>
+                            <td className="item-price">Rs.{item.price ?? 0}</td>
 
                             <td>
                               <div className="placeholder-img">
-                                <i className="fa-solid fa-concierge-bell"></i>
-                                <span>No Image</span>
+                                {(item.item_Image || item.Item_Image) ? (
+                                  <img
+                                    src={item.item_Image ?? item.Item_Image}
+                                    style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 4 }}
+                                    alt={item.item_Name ?? item.Item_Name}
+                                  />
+                                ) : (
+                                  <>
+                                    <i className="fa-solid fa-concierge-bell"></i>
+                                    <span>No Image</span>
+                                  </>
+                                )}
                               </div>
                             </td>
 
@@ -1196,11 +1284,14 @@ export default function ItemsPage() {
 
                             <td>
                               <div className="action-cell">
-                                <button className="circle-action-btn btn-edit" title="Edit">
+                                <button className="circle-action-btn btn-edit" title="Edit Item">
                                   <i className="fa-regular fa-pen-to-square"></i>
                                 </button>
-                                <button className="circle-action-btn btn-delete" title="Delete"
-                                  onClick={() => handleDelete(item.item_Id)}>
+                                <button
+                                  className="circle-action-btn btn-delete"
+                                  title="Delete Item"
+                                  onClick={() => handleDelete(item.item_Id)}
+                                >
                                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <polyline points="3 6 5 6 21 6" />
                                     <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
@@ -1213,11 +1304,15 @@ export default function ItemsPage() {
                             </td>
 
                             <td>
-                              <label className="switch">
+                              <label
+                                className="switch"
+                                title={item.status === 1 ? "DeActivate Item" : "Activate Item"}
+                              >
                                 <input
                                   type="checkbox"
                                   checked={item.status === 1}
-                                  readOnly
+                                  disabled={togglingItemId === item.item_Id}
+                                  onChange={() => handleToggleItem(item.item_Id, item.status, category)}
                                 />
                                 <span className="slider"></span>
                               </label>
@@ -1627,8 +1722,13 @@ export default function ItemsPage() {
                 </label>
               </div>
               <div className="action-footer-row">
-                <button className="btn btn-form-add" id="updateItemFormBtn">
-                  UPDATE
+                <button
+                  className="btn btn-form-add"
+                  id="updateItemFormBtn"
+                  onClick={handleUpdateItem}
+                  disabled={updatingItem}
+                >
+                  {updatingItem ? "SAVING…" : "UPDATE"}
                 </button>
                 <button className="btn btn-form-cancel" id="cancelEditItemFormBtn">
                   CANCEL
