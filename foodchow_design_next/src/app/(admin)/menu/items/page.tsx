@@ -5,6 +5,7 @@ import { AddItemPayload, menuService, type MenuCategory } from "@/api/services/m
 import Swal from "sweetalert2";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import { useShopId } from "@/utils/shop";
+import ReportPagination from "@/components/shared/ReportPagination";
 
 import "./page.css";
 
@@ -31,6 +32,9 @@ export default function ItemsPage() {
   const [updatingItem, setUpdatingItem] = useState(false);
   const [togglingItemId, setTogglingItemId] = useState<number | null>(null);
 
+  // Drag and drop state
+  const [draggedItemId, setDraggedItemId] = useState<number | null>(null);
+
   // Pagination state
   const PAGE_SIZE = 10;
   const [page, setPage] = useState(1);
@@ -41,17 +45,100 @@ export default function ItemsPage() {
     setEditBase64ImageRef.current = setEditBase64Image;
   }, []);
 
-  useEffect(() => {
-    const loadItems = async () => {
-      try {
-        const data = await menuService.getItems(SHOP_ID);
-        setItems(data);
-        console.log("Items:", data);
-      } catch (error) {
-        console.error(error);
-      }
-    };
+  const loadItems = async () => {
+    try {
+      const data = await menuService.getItems(SHOP_ID);
+      setItems(data);
+      console.log("Items:", data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
+  const loadItemsRef = useRef(loadItems);
+  useEffect(() => {
+    loadItemsRef.current = loadItems;
+  });
+
+  // Drag and Drop handlers for position reordering
+  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, itemId: number) => {
+    setDraggedItemId(itemId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(itemId));
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLTableRowElement>, targetItemId: number) => {
+    e.preventDefault();
+    const sourceIdStr = e.dataTransfer.getData("text/plain");
+    const sourceItemId = Number(sourceIdStr);
+
+    if (!sourceItemId || sourceItemId === targetItemId) {
+      setDraggedItemId(null);
+      return;
+    }
+
+    // Find which category both items belong to
+    let targetCategory: MenuCategory | null = null;
+    for (const cat of items) {
+      const hasSource = cat.item_list?.some((it: any) => it.item_Id === sourceItemId);
+      const hasTarget = cat.item_list?.some((it: any) => it.item_Id === targetItemId);
+      if (hasSource && hasTarget) {
+        targetCategory = cat;
+        break;
+      }
+    }
+
+    if (!targetCategory || !targetCategory.item_list) {
+      setDraggedItemId(null);
+      return;
+    }
+
+    const currentList = [...targetCategory.item_list];
+    const sourceIdx = currentList.findIndex((it: any) => it.item_Id === sourceItemId);
+    const targetIdx = currentList.findIndex((it: any) => it.item_Id === targetItemId);
+
+    if (sourceIdx === -1 || targetIdx === -1) {
+      setDraggedItemId(null);
+      return;
+    }
+
+    const [movedItem] = currentList.splice(sourceIdx, 1);
+    currentList.splice(targetIdx, 0, movedItem);
+
+    // Optimistically update React state
+    setItems((prev) =>
+      prev.map((c) => (c.id === targetCategory!.id ? { ...c, item_list: currentList } : c))
+    );
+    setDraggedItemId(null);
+
+    // Prepare item_id and pos_id arrays for backend
+    const itemIds = currentList.map((it: any) => it.item_Id);
+    const posIds = currentList.map((_, idx) => idx + 1);
+
+    try {
+      await menuService.changeItemPosition(itemIds, posIds);
+      Swal.fire({
+        icon: "success",
+        title: "Position Updated",
+        text: "Item position reordered successfully.",
+        timer: 1500,
+        showConfirmButton: false,
+        toast: true,
+        position: "top-end",
+      });
+    } catch (err) {
+      console.error("Failed to update item position:", err);
+      // Reload on failure
+      loadItems();
+    }
+  };
+
+  useEffect(() => {
     loadItems();
   }, []);
 
@@ -159,6 +246,10 @@ export default function ItemsPage() {
 
     setUpdatingItem(true);
     try {
+      const generatedImageName = editBase64Image
+        ? `${SHOP_ID}_${Date.now()}_item.jpg`
+        : editItemImage;
+
       await menuService.editStoreItem({
         Item_Id: editItemId,
         Cate_Id: editCateId,
@@ -167,11 +258,10 @@ export default function ItemsPage() {
         Is_Veg: isVegActive ? 1 : 0,
         barcode: "",
         base64Image: editBase64Image,
-        Item_Image: editItemImage,
+        Item_Image: generatedImageName,
       });
       // Refresh items from API so the table shows updated data
-      const data = await menuService.getItems(SHOP_ID);
-      setItems(data);
+      await loadItems();
       // Switch back to list view
       document.getElementById("editItemFormView")?.classList.remove("active-view");
       document.getElementById("mainDirectoryView")?.classList.add("active-view");
@@ -473,6 +563,29 @@ export default function ItemsPage() {
             row.querySelector<HTMLElement>(".placeholder-img");
           if (placeholderDiv)
             placeholderDiv.innerHTML = `<img src="${ucmPreviewImg.src}" style="width:52px;height:52px;object-fit:cover;border-radius:4px;">`;
+
+          const rowItemId = Number(row.dataset.itemId || "0");
+          const rowCateId = Number(row.dataset.cateId || "0");
+          const rowItemName = row.querySelector<HTMLElement>(".item-name")?.innerText || "";
+          const pureBase64 = ucmPreviewImg.src.replace(/^data:image\/[a-z]+;base64,/, "");
+          const generatedName = `${SHOP_ID}_${Date.now()}_item.jpg`;
+
+          if (rowItemId) {
+            menuService.editStoreItem({
+              Item_Id: rowItemId,
+              Cate_Id: rowCateId,
+              Item_Name: rowItemName,
+              Description: "",
+              Is_Veg: 1,
+              barcode: "",
+              base64Image: pureBase64,
+              Item_Image: generatedName,
+            }).then(() => {
+              loadItemsRef.current();
+            }).catch((err) => {
+              console.error("Failed to upload item image:", err);
+            });
+          }
         }
       } else {
         const formThumb = document.querySelector<HTMLElement>(
@@ -482,6 +595,7 @@ export default function ItemsPage() {
           formThumb.innerHTML = `<img src="${ucmPreviewImg.src}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;">`;
       }
       uploadCropOverlay?.classList.remove("open");
+      currentAddImgBtn = null;
     };
     ucmCropUploadBtn?.addEventListener("click", cropUploadHandler);
 
@@ -1114,7 +1228,7 @@ export default function ItemsPage() {
                 <button className="btn" id="headerAddNewItemBtn">
                   <i className="fa-solid fa-plus"></i> Add New Item
                 </button>
-                <button className="btn btn-help">
+                <button className="btn btn-help" onClick={() => window.open('https://vimeo.com/1075943647', '_blank')}>
                   <i className="fa-regular fa-circle-question"></i> Help
                 </button>
               </div>
@@ -1336,9 +1450,19 @@ export default function ItemsPage() {
                             data-cate-id={category.id}
                             data-item-image={item.item_Image ?? item.Item_Image ?? ""}
                             data-category={String(category.id)}
+                            draggable={true}
+                            onDragStart={(e) => handleDragStart(e, item.item_Id)}
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, item.item_Id)}
+                            onDragEnd={() => setDraggedItemId(null)}
+                            style={{
+                              opacity: draggedItemId === item.item_Id ? 0.4 : 1,
+                              cursor: "default",
+                              transition: "opacity 0.2s ease",
+                            }}
                           >
                             <td>
-                              <div className="drag-handle">
+                              <div className="drag-handle" style={{ cursor: "grab" }} title="Drag to reorder position">
                                 <i className="fa-solid fa-bars"></i>
                               </div>
                             </td>
@@ -1425,50 +1549,20 @@ export default function ItemsPage() {
                 </div>
 
                 <div className="table-footer" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", minHeight: "50px", width: "100%" }}>
-                  <div id="showingEntriesText">
+                  <div id="showingEntriesText" style={{ width: "100%" }}>
                     {(() => {
                       const allItems = items.flatMap((c) => c.item_list || []);
                       const totalItems = allItems.length;
                       const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
-                      const pageStart = (page - 1) * PAGE_SIZE;
                       
                       return (
-                        <>
-                          <div style={{ display: "inline-block" }}>
-                            Showing {totalItems === 0 ? 0 : pageStart + 1} to {Math.min(pageStart + PAGE_SIZE, totalItems)} of {totalItems} entries
-                          </div>
-                          {totalItems > 0 && (
-                            <div className="pagination" style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "inline-flex", gap: "4px" }}>
-                              <button
-                                type="button"
-                                className="page-btn"
-                                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                                disabled={page <= 1}
-                              >
-                                Prev
-                              </button>
-                              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-                                <button
-                                  key={pageNum}
-                                  type="button"
-                                  className={`page-btn ${page === pageNum ? "active-page" : ""}`}
-                                  style={{ background: page === pageNum ? "#222" : "", color: page === pageNum ? "#fff" : "" }}
-                                  onClick={() => setPage(pageNum)}
-                                >
-                                  {pageNum}
-                                </button>
-                              ))}
-                              <button
-                                type="button"
-                                className="page-btn"
-                                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                                disabled={page >= totalPages}
-                              >
-                                Next
-                              </button>
-                            </div>
-                          )}
-                        </>
+                        <ReportPagination
+                          currentPage={page}
+                          totalPages={totalPages}
+                          totalRecords={totalItems}
+                          pageSize={PAGE_SIZE}
+                          onPageChange={(p) => setPage(p)}
+                        />
                       );
                     })()}
                   </div>

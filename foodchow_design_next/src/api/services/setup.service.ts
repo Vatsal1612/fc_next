@@ -392,6 +392,89 @@ export const setupService = {
     return response.data;
   },
 
+  // Area Wise Delivery
+  async getDeliverySettingsForShop(shopId: number) {
+    const { data } = await foodchowWDClient.get(
+      ENDPOINTS.setup.getDeliverySettingsForShop,
+      {
+        params: { shop_id: shopId },
+      }
+    );
+    return data;
+  },
+
+  async updateDeliverySettingsForShop(shopId: number, status: number) {
+    const { data } = await foodchowWDClient.get(
+      ENDPOINTS.setup.updateDeliverySettingsForShop,
+      {
+        params: { shop_id: shopId, status },
+      }
+    );
+    return data;
+  },
+
+  async getCustomDeliveryLocations(shopId: number) {
+    const { data } = await foodchowWDClient.get(
+      ENDPOINTS.setup.getCustomDeliveryLocation,
+      {
+        params: { shop_id: shopId },
+      }
+    );
+    return data;
+  },
+
+  async addCustomDeliveryLocation(params: {
+    shop_id: number;
+    location_name: string;
+    min_order: number;
+    delivery_fee: number;
+    min_order_freedelivery: number;
+    delivery_hours: string;
+    delivery_minute: string;
+  }) {
+    const { data } = await foodchowWDClient.get(
+      ENDPOINTS.setup.addCustomDeliveryLocation,
+      { params }
+    );
+    return data;
+  },
+
+  async updateCustomDeliveryLocation(params: {
+    id: number;
+    location_name: string;
+    min_order: number;
+    delivery_fee: number;
+    min_order_freedelivery: number;
+    delivery_hours: string;
+    delivery_minute: string;
+  }) {
+    const { data } = await foodchowWDClient.get(
+      ENDPOINTS.setup.updateCustomDeliveryLocation,
+      { params }
+    );
+    return data;
+  },
+
+  async deleteCustomDeliveryLocation(id: number) {
+    const { data } = await foodchowWDClient.get(
+      ENDPOINTS.setup.deleteCustomDeliveryLocation,
+      {
+        params: { id },
+      }
+    );
+    return data;
+  },
+
+  async changeCustomDeliveryLocationStatus(id: number, status: number) {
+    const { data } = await foodchowWDClient.get(
+      ENDPOINTS.setup.changeCustomDeliveryLocationStatus,
+      {
+        params: { id, status },
+      }
+    );
+    return data;
+  },
+
   // Timings 
   async getShopTimings(shopId: number) {
     const { data } = await foodchowClient.get(
@@ -486,6 +569,24 @@ export const setupService = {
     );
 
     console.log("ADD FACILITY REQUEST RESPONSE:", data);
+
+    return data;
+  },
+
+  // Support
+  async addSupportTicket(payload: {
+    shop_id: string;
+    subject: string;
+    category: string;
+    priority_level: string;
+    message: string;
+  }) {
+    const { data } = await foodchowClient.post(
+      ENDPOINTS.setup.addSupportTicket,
+      payload
+    );
+
+    console.log("ADD SUPPORT TICKET RESPONSE:", data);
 
     return data;
   },

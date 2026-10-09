@@ -27,7 +27,7 @@ export default function AddTablePage() {
                 </div>
 
                 <div className="download-buttons">
-                  <a href="#" className="store-btn">
+                  <a href="https://play.google.com/store/apps/details?id=com.foodchow.pos" target="_blank" rel="noopener noreferrer" className="store-btn">
                     <i
                       className="fab fa-google-play"
                       style={{
@@ -43,7 +43,7 @@ export default function AddTablePage() {
                     </div>
                   </a>
 
-                  <a href="#" className="store-btn">
+                  <a href="https://apps.apple.com/app/foodchow-restaurant-pos/id6502334810" target="_blank" rel="noopener noreferrer" className="store-btn">
                     <i className="fab fa-apple" />
                     <div className="btn-text">
                       <span className="btn-small">Download on the</span>
@@ -51,7 +51,7 @@ export default function AddTablePage() {
                     </div>
                   </a>
 
-                  <button className="windows-btn">Windows</button>
+                  <a href="https://apps.microsoft.com/store/detail/foodchow-pos/9P54XJ2P1M6H" target="_blank" rel="noopener noreferrer" className="windows-btn" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>Windows</a>
                 </div>
               </div>
             </div>
