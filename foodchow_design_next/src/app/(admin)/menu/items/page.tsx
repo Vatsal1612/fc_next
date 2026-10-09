@@ -18,6 +18,10 @@ export default function ItemsPage() {
   const [isVeg] = useState("1");
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [items, setItems] = useState<MenuCategory[]>([]);
+  const itemsRef = useRef(items);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   // Edit item state
   const [editItemId, setEditItemId] = useState<number | null>(null);
@@ -26,6 +30,10 @@ export default function ItemsPage() {
   const [editBase64Image, setEditBase64Image] = useState<string>("");
   const [updatingItem, setUpdatingItem] = useState(false);
   const [togglingItemId, setTogglingItemId] = useState<number | null>(null);
+
+  // Pagination state
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
 
   // Ref so the useEffect crop logic can push the cropped base64 back to React state
   const setEditBase64ImageRef = useRef(setEditBase64Image);
@@ -46,11 +54,6 @@ export default function ItemsPage() {
 
     loadItems();
   }, []);
-
-  const totalItems = items.reduce(
-    (total, category) => total + (category.item_list?.length ?? 0),
-    0
-  );
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -635,6 +638,25 @@ export default function ItemsPage() {
     };
     cancelQuickChangesBtn?.addEventListener("click", cancelQuickHandler);
 
+    // Edit Item Variant toggles
+    const editContainVariantCheckbox = document.getElementById(
+      "editContainVariantCheckbox"
+    ) as HTMLInputElement | null;
+    const editVariantSection = document.getElementById("editVariantSection");
+    const editSinglePriceSection = document.getElementById("editSinglePriceSection");
+    
+    const handleEditVariantToggle = () => {
+      if (editContainVariantCheckbox?.checked) {
+        editVariantSection!.style.display = "block";
+        editSinglePriceSection!.style.display = "none";
+      } else {
+        editVariantSection!.style.display = "none";
+        editSinglePriceSection!.style.display = "block";
+      }
+    };
+
+    editContainVariantCheckbox?.addEventListener("change", handleEditVariantToggle);
+
     const saveQuickHandler = () => {
       if (confirmUpdateModal) confirmUpdateModal.style.display = "flex";
     };
@@ -667,7 +689,6 @@ export default function ItemsPage() {
     const cancelEditItemFormBtn = document.getElementById(
       "cancelEditItemFormBtn"
     );
-    const updateItemFormBtn = document.getElementById("updateItemFormBtn");
     const editUploadImageBtn = document.getElementById("editUploadImageBtn");
     let currentEditRow: HTMLElement | null = null;
 
@@ -727,6 +748,62 @@ export default function ItemsPage() {
         else
           editThumb.innerHTML = `<i class="fa-solid fa-concierge-bell" style="font-size:32px;"></i><span style="font-size:9px;">No Image</span>`;
       }
+      
+      // Populate Categories dynamically
+      const editCategoryInput = document.getElementById("editCategoryInput") as HTMLSelectElement | null;
+      if (editCategoryInput) {
+        editCategoryInput.innerHTML = '<option value="">Select Category</option>';
+        categories.forEach(cat => {
+          const option = document.createElement("option");
+          option.value = String(cat.id);
+          option.textContent = cat.cate_name;
+          if (cat.id === cateId) {
+            option.selected = true;
+          }
+          editCategoryInput.appendChild(option);
+        });
+      }
+
+      // Populate Sizes dynamically if they exist
+      const itemToEdit = itemsRef.current.flatMap((c) => c.item_list || []).find((i: any) => i.item_Id === itemId);
+      const sizesList = itemToEdit?.FoodItemSizeList || itemToEdit?.foodItemSizeList || [];
+      const isSizeAvailable = itemToEdit?.is_size_available === 1 || itemToEdit?.Is_size_available === 1;
+      
+      const editContainVariantCheckbox = document.getElementById("editContainVariantCheckbox") as HTMLInputElement | null;
+      const editVariantRowsContainer = document.getElementById("editVariantRows");
+      
+      if (editContainVariantCheckbox && editVariantRowsContainer) {
+        const editSinglePriceSection = document.getElementById("editSinglePriceSection");
+        if (isSizeAvailable && sizesList.length > 0) {
+          editContainVariantCheckbox.checked = true;
+          if (editVariantSection) editVariantSection.style.display = "block";
+          if (editSinglePriceSection) editSinglePriceSection.style.display = "none";
+          
+          editVariantRowsContainer.innerHTML = sizesList.map((size: any) => `
+            <div class="variant-row" style="display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 15px; align-items: center; margin-bottom: 15px;">
+              <div>
+                <label>Price</label>
+                <div class="price-input-wrapper">
+                  <span class="price-prefix-badge">Rs.</span>
+                  <input type="text" class="form-input variant-price" value="${size.Net_Price ?? size.net_price ?? size.price ?? 0}" />
+                </div>
+              </div>
+              <div>
+                <label>Item Variant</label>
+                <input type="text" class="form-input variant-select" value="${size.size_name ?? size.Size_Name ?? ""}" />
+              </div>
+              <button type="button" class="circle-action-btn add-variant-btn" style="margin-top: 25px;"><i class="fa-solid fa-plus"></i></button>
+              <button type="button" class="circle-action-btn delete-variant-btn" style="margin-top: 25px; background: #222; color: #fff;"><i class="fa-solid fa-trash"></i></button>
+            </div>
+          `).join("");
+        } else {
+          editContainVariantCheckbox.checked = false;
+          if (editVariantSection) editVariantSection.style.display = "none";
+          if (editSinglePriceSection) editSinglePriceSection.style.display = "block";
+          editVariantRowsContainer.innerHTML = ""; // Or add a default blank row like in Add Item
+        }
+      }
+
       mainDirectoryView?.classList.remove("active-view");
       addNewItemFormView?.classList.remove("active-view");
       editItemFormView?.classList.add("active-view");
@@ -781,11 +858,9 @@ export default function ItemsPage() {
       }
     };
 
-    const variantRowsContainer =
-      document.getElementById("variantRows");
-
-    const addVariantRow = () => {
-      if (!variantRowsContainer) return;
+    const addVariantRow = (containerId: string = "variantRows") => {
+      const container = document.getElementById(containerId);
+      if (!container) return;
 
       const row = document.createElement("div");
 
@@ -833,7 +908,7 @@ export default function ItemsPage() {
           </button>
       `;
 
-      variantRowsContainer.appendChild(row);
+      container.appendChild(row);
     };
 
     const variantClickHandler = (e: Event) => {
@@ -843,15 +918,17 @@ export default function ItemsPage() {
       const deleteBtn = target.closest(".delete-variant-btn");
 
       if (addBtn) {
-        addVariantRow();
+        const isEditForm = addBtn.closest("#editVariantSection");
+        addVariantRow(isEditForm ? "editVariantRows" : "variantRows");
       }
 
       if (deleteBtn) {
         const row = deleteBtn.closest(".variant-row");
+        const container = deleteBtn.closest("#variantRows, #editVariantRows");
 
         if (
           row &&
-          document.querySelectorAll(".variant-row").length > 1
+          container && container.querySelectorAll(".variant-row").length > 1
         ) {
           row.remove();
         }
@@ -870,7 +947,7 @@ export default function ItemsPage() {
 
     document
       .getElementById("addVariantBtn")
-      ?.addEventListener("click", addVariantRow);
+      ?.addEventListener("click", () => addVariantRow());
 
 
 
@@ -1242,8 +1319,17 @@ export default function ItemsPage() {
                       </tr>
                     </tbody> */}
                     <tbody>
-                      {items.map((category) =>
-                        category.item_list?.map((item: any) => (
+                      {(() => {
+                        const allItems = items.flatMap((category) =>
+                          (category.item_list || []).map((item: any) => ({ ...item, _category: category }))
+                        );
+                        
+                        const pageStart = (page - 1) * PAGE_SIZE;
+                        const visibleItems = allItems.slice(pageStart, pageStart + PAGE_SIZE);
+                        
+                        return visibleItems.map((item: any) => {
+                          const category = item._category;
+                          return (
                           <tr
                             key={item.item_Id}
                             data-item-id={item.item_Id}
@@ -1257,7 +1343,20 @@ export default function ItemsPage() {
                               </div>
                             </td>
                             <td className="item-name">{item.item_Name ?? item.Item_Name}</td>
-                            <td className="item-price">Rs.{item.price ?? 0}</td>
+                            <td className="item-price">
+                              {(item.is_size_available === 1 || item.Is_size_available === 1) && (item.FoodItemSizeList?.length > 0 || item.foodItemSizeList?.length > 0) ? (
+                                <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "120px" }}>
+                                  {(item.FoodItemSizeList || item.foodItemSizeList).map((size: any, idx: number) => (
+                                    <div key={idx} style={{ display: "flex", justifyContent: "space-between", background: "#f8f9fa", padding: "4px 8px", borderRadius: "4px", fontSize: "13px" }}>
+                                      <span style={{ fontWeight: 500 }}>{size.size_name ?? size.Size_Name ?? "Size"}</span>
+                                      <span>Rs.{size.Net_Price ?? size.net_price ?? size.Net_Prices ?? size.price ?? size.Total_Price ?? 0}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span>Rs.{item.price ?? 0}</span>
+                              )}
+                            </td>
 
                             <td>
                               <div className="placeholder-img">
@@ -1318,16 +1417,60 @@ export default function ItemsPage() {
                               </label>
                             </td>
                           </tr>
-                        ))
-                      )}
+                          );
+                        });
+                      })()}
                     </tbody>
                   </table>
                 </div>
 
-                <div className="table-footer">
+                <div className="table-footer" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", minHeight: "50px", width: "100%" }}>
                   <div id="showingEntriesText">
-                    Showing {totalItems > 0 ? 1 : 0} to {totalItems} of {totalItems} entries
-
+                    {(() => {
+                      const allItems = items.flatMap((c) => c.item_list || []);
+                      const totalItems = allItems.length;
+                      const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+                      const pageStart = (page - 1) * PAGE_SIZE;
+                      
+                      return (
+                        <>
+                          <div style={{ display: "inline-block" }}>
+                            Showing {totalItems === 0 ? 0 : pageStart + 1} to {Math.min(pageStart + PAGE_SIZE, totalItems)} of {totalItems} entries
+                          </div>
+                          {totalItems > 0 && (
+                            <div className="pagination" style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "inline-flex", gap: "4px" }}>
+                              <button
+                                type="button"
+                                className="page-btn"
+                                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                disabled={page <= 1}
+                              >
+                                Prev
+                              </button>
+                              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                                <button
+                                  key={pageNum}
+                                  type="button"
+                                  className={`page-btn ${page === pageNum ? "active-page" : ""}`}
+                                  style={{ background: page === pageNum ? "#222" : "", color: page === pageNum ? "#fff" : "" }}
+                                  onClick={() => setPage(pageNum)}
+                                >
+                                  {pageNum}
+                                </button>
+                              ))}
+                              <button
+                                type="button"
+                                className="page-btn"
+                                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                                disabled={page >= totalPages}
+                              >
+                                Next
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                   <div className="custom-scrollbar-container">
                     <span className="scrollbar-arrow" id="scrollLeftBtn">
@@ -1649,7 +1792,7 @@ export default function ItemsPage() {
                       </label>
                     </div>
                   </div>
-                  <div className="form-group">
+                  <div className="form-group" id="editSinglePriceSection">
                     <label className="form-label">Price</label>
                     <div className="price-input-wrapper">
                       <span className="price-prefix-badge">Rs.</span>
@@ -1658,8 +1801,16 @@ export default function ItemsPage() {
                   </div>
                   <div className="form-group">
                     <label className="checkbox-container-label">
-                      <input type="checkbox" id="editContainSize" /> Contain Size
+                      <input type="checkbox" id="editContainVariantCheckbox" /> Contain Variant
                     </label>
+                  </div>
+                  <div
+                    id="editVariantSection"
+                    style={{ display: "none", marginTop: "15px" }}
+                  >
+                    <div id="editVariantRows">
+                      {/* Dynamic rows will be injected here via JS */}
+                    </div>
                   </div>
                   <div className="segmented-block" style={{ marginTop: "4px" }}>
                     <label className="form-label">

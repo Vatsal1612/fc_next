@@ -294,6 +294,7 @@ export const setupService = {
           ShopId: shopId,
           ImageFlag: imageFlag,
           LastId: 0,
+          t: Date.now(), // Prevent caching
         },
       }
     );
@@ -379,6 +380,15 @@ export const setupService = {
       payload
     );
 
+    return response.data;
+  },
+  async deleteDeliveryZone(shopId: number, zoneId: number) {
+    const response = await foodchowClient.delete(
+      ENDPOINTS.setup.deleteDeliveryZone(zoneId),
+      {
+        params: { shopId, zone: zoneId }
+      }
+    );
     return response.data;
   },
 
