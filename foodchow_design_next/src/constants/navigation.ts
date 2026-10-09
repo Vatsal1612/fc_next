@@ -119,9 +119,9 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Support",
     icon: "fas fa-headset",
     items: [
-      { label: "Help Center", icon: "fas fa-life-ring", href: "#" },
-      { label: "Contact Support", icon: "fas fa-envelope", href: "#" },
-      { label: "Documentation", icon: "fas fa-book", href: "#" },
+      { label: "Create Support Ticket", icon: "fas fa-ticket-alt", href: "/support/ticket" },
+      { label: "Tutorial", icon: "fas fa-play-circle", href: "#" },
+      { label: "FoodChow Docs", icon: "fas fa-book", href: "https://foodchow.gitbook.io/foodchow-docs" },
     ],
   },
 ];

@@ -92,6 +92,14 @@ export default function TimmingsPage() {
   }
 };
   useEffect(() => {
+    const toggleInputs = (day: string, enabled: boolean): void => {
+      document
+        .querySelectorAll<HTMLInputElement>("#pg-setup-timmings ." + day + "-time")
+        .forEach((input) => {
+          input.disabled = !enabled;
+        });
+    };
+
     const fetchShopTimings = async () => {
       try {
         const shopId = sessionStorage.getItem("shop_id");
@@ -100,7 +108,40 @@ export default function TimmingsPage() {
         console.log("SHOP TIMINGS RESPONSE:", response);
 
         setShopTimings(response.data);
-shopTimingsRef.current = response.data;
+        shopTimingsRef.current = response.data;
+
+        // Manually update DOM since inputs are uncontrolled
+        if (response.data && Array.isArray(response.data)) {
+          setTimeout(() => {
+            response.data.forEach((timing: any) => {
+              const row = document.getElementById("row_" + timing.days_name);
+              if (row) {
+                const inputs = row.querySelectorAll<HTMLInputElement>(".time-input");
+                if (inputs[0]) inputs[0].value = timing.open_time1 || "";
+                if (inputs[1]) inputs[1].value = timing.close_time1 || "";
+                if (inputs[2]) inputs[2].value = timing.open_time2 || "";
+                if (inputs[3]) inputs[3].value = timing.close_time2 || "";
+                if (inputs[4]) inputs[4].value = timing.open_time3 || "";
+                if (inputs[5]) inputs[5].value = timing.close_time3 || "";
+
+                const rClose = row.querySelector<HTMLInputElement>('input[value="close"]');
+                const r24 = row.querySelector<HTMLInputElement>('input[value="24hrs"]');
+                const rTimings = row.querySelector<HTMLInputElement>('input[value="timings"]');
+
+                if (timing.close_day === 1) {
+                  if (rClose) rClose.checked = true;
+                  toggleInputs(timing.days_name, false);
+                } else if (timing.hrs_Day === 1 || timing.Hrs_Day === 1) {
+                  if (r24) r24.checked = true;
+                  toggleInputs(timing.days_name, false);
+                } else {
+                  if (rTimings) rTimings.checked = true;
+                  toggleInputs(timing.days_name, true);
+                }
+              }
+            });
+          }, 0);
+        }
       } catch (error) {
         console.error("ERROR FETCHING SHOP TIMINGS:", error);
       }
@@ -109,14 +150,6 @@ shopTimingsRef.current = response.data;
     fetchShopTimings();
 
     const days = [...DAYS];
-
-    const toggleInputs = (day: string, enabled: boolean): void => {
-      document
-        .querySelectorAll<HTMLInputElement>("#pg-setup-timmings ." + day + "-time")
-        .forEach((input) => {
-          input.disabled = !enabled;
-        });
-    };
 
     // Wire each row's mode radios (replaces inline onchange).
     const radios = Array.from(

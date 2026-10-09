@@ -209,7 +209,7 @@ export default function RestaurantLogoPage() {
     const onYes = async (): Promise<void> => {
       pendingActionRef.current = "";
       setLogo("");
-      
+
       Swal.fire({ icon: "info", title: "Logo Removed", text: "Click 'Save Changes' to update the restaurant logo.", confirmButtonColor: "#00a896" });
 
       dynamicStateWithLogo = false;
@@ -320,7 +320,7 @@ export default function RestaurantLogoPage() {
                     Restaurant Logo
                   </h1>
                 </div>
-                <button 
+                <button
                   className="btn-help"
                   onClick={() => {
                     Swal.fire({
@@ -399,7 +399,7 @@ export default function RestaurantLogoPage() {
                           <circle cx="9" cy="9" r="2" />
                           <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
                         </svg>
-                        <div className="placeholder-text">Click to upload logo</div>
+                        <div className="placeholder-text"></div>
                         <div className="placeholder-sub">PNG, JPG, GIF up to 3MB</div>
                       </div>
                     </div>
@@ -481,7 +481,7 @@ export default function RestaurantLogoPage() {
                       if (response.success) {
                         const wasRemove = pendingActionRef.current === "";
                         pendingActionRef.current = null;
-                        
+
                         const info = await restaurantService.getRestaurantInformation(Number(sessionShopId));
                         if (info?.shoplogo) {
                           setLogo(info.shoplogo);
@@ -490,7 +490,7 @@ export default function RestaurantLogoPage() {
                           setLogo("");
                           logoRef.current = "";
                         }
-                        
+
                         Swal.fire({
                           icon: "success",
                           title: "Saved Successfully!",

@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 import { WizardFooter } from "@/components/shared/WizardFooter";
+import { setupService } from "@/api/services/setup.service";
+import Swal from "sweetalert2";
 import "./page.css";
 
 /**
@@ -183,7 +185,7 @@ export default function RestaurantImgaePage() {
       if (cropImg) cropImg.style.transform = `scale(${cs.zoom})`;
     };
 
-    const applyCrop = (): void => {
+    const applyCrop = async (): Promise<void> => {
       if (!cropImg || !cropWrapper || !cropCanvas || !imagePreview) return;
       const sx2 = cropImg.naturalWidth / cropWrapper.offsetWidth;
       const sy2 = cropImg.naturalHeight / cropWrapper.offsetHeight;
@@ -203,18 +205,85 @@ export default function RestaurantImgaePage() {
           cropCanvas.height,
         );
       const src = cropCanvas.toDataURL("image/jpeg", 0.92);
-      imagePreview.src = src;
-      imagePreview.style.display = "block";
-      if (placeholderText) placeholderText.style.display = "none";
-      const placeholder = document.getElementById("placeholder");
-      if (placeholder) {
-        placeholder.style.background = "transparent";
-        placeholder.style.border = "none";
-      }
-      if (btnChooseImage) (btnChooseImage as HTMLElement).style.display = "none";
-      if (btnDelete) btnDelete.style.display = "block";
       closeCropModal();
+
+      Swal.fire({
+        title: "Uploading Image...",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
+
+      try {
+        const base64Data = src.replace(/^data:image\/[a-z]+;base64,/, "");
+        const shopId = sessionStorage.getItem("shop_id");
+        if (!shopId) throw new Error("No Shop ID");
+
+        const payload = {
+          shop_id: shopId,
+          device_type: "1",
+          imageflag: "1", // 1 = Restaurant Image
+          user_type: "4",
+          photo_count: "1",
+          photo_0: base64Data,
+          user_type_id: shopId,
+          caption: "restaurant_image.jpg",
+        };
+        
+        await setupService.uploadGalleryImage(payload);
+        
+        // Refresh the image
+        await fetchRestaurantImage();
+
+        Swal.fire({
+          icon: "success",
+          title: "Saved Successfully!",
+          text: "Restaurant image added successfully.",
+          confirmButtonColor: "#00a896",
+        });
+      } catch (err) {
+        console.error(err);
+        Swal.fire("Error", "Failed to upload image", "error");
+      }
     };
+
+    let currentGalleryId: number | null = null;
+
+    const fetchRestaurantImage = async () => {
+      try {
+        const shopId = sessionStorage.getItem("shop_id");
+        if (!shopId) return;
+
+        // ImageFlag = 1 for Restaurant Image
+        const res = await setupService.getGalleryImages(Number(shopId), 1);
+        if (res && res.data) {
+          const parsedImages = JSON.parse(res.data);
+          if (parsedImages && parsedImages.length > 0) {
+            const imageObj = parsedImages[0];
+            currentGalleryId = imageObj.gallery_id || imageObj.gallery_Id;
+            
+            if (imagePreview) {
+              imagePreview.src = `https://admin.foodchow.com/AgentImages/${shopId}/${imageObj.gallery_image || imageObj.gallery_Image}`;
+              imagePreview.style.display = "block";
+            }
+            if (placeholderText) placeholderText.style.display = "none";
+            const placeholder = document.getElementById("placeholder");
+            if (placeholder) {
+              placeholder.style.background = "transparent";
+              placeholder.style.border = "none";
+            }
+            if (btnChooseImage) (btnChooseImage as HTMLElement).style.display = "none";
+            if (btnDelete) btnDelete.style.display = "block";
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load restaurant image:", err);
+      }
+    };
+
+    // Load initial image
+    fetchRestaurantImage();
 
     // ── Wire handlers ──
     const onChoose = (): void => fileInput?.click();
@@ -249,22 +318,46 @@ export default function RestaurantImgaePage() {
     };
     btnCancel?.addEventListener("click", onCancelDelete);
 
-    const onConfirmDelete = (): void => {
-      if (imagePreview) {
-        imagePreview.src = "#";
-        imagePreview.style.display = "none";
-      }
-      if (placeholderText) placeholderText.style.display = "block";
-      const placeholder = document.getElementById("placeholder");
-      if (placeholder) {
-        placeholder.style.background = "";
-        placeholder.style.border = "";
-      }
-      if (btnChooseImage) (btnChooseImage as HTMLElement).style.display = "block";
-      if (btnDelete) btnDelete.style.display = "none";
-      if (fileInput) fileInput.value = "";
-      originalImageSrc = "";
+    const onConfirmDelete = async (): Promise<void> => {
       if (deleteModal) deleteModal.style.display = "none";
+
+      if (!currentGalleryId) {
+        Swal.fire("Error", "No image ID found to delete.", "error");
+        return;
+      }
+
+      Swal.fire({
+        title: "Removing...",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
+
+      try {
+        await setupService.deleteGalleryPhoto(currentGalleryId);
+
+        currentGalleryId = null;
+        if (imagePreview) {
+          imagePreview.src = "#";
+          imagePreview.style.display = "none";
+        }
+        if (placeholderText) placeholderText.style.display = "block";
+        const placeholder = document.getElementById("placeholder");
+        if (placeholder) {
+          placeholder.style.background = "";
+          placeholder.style.border = "";
+        }
+        if (btnChooseImage) (btnChooseImage as HTMLElement).style.display = "block";
+        if (btnDelete) btnDelete.style.display = "none";
+        if (fileInput) fileInput.value = "";
+        originalImageSrc = "";
+        
+        Swal.fire("Deleted!", "Restaurant image removed.", "success");
+      } catch (err) {
+        console.error(err);
+        Swal.fire("Error", "Failed to remove image.", "error");
+      }
     };
     btnConfirmDelete?.addEventListener("click", onConfirmDelete);
 
