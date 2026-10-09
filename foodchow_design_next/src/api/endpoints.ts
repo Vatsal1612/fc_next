@@ -85,6 +85,7 @@ export const ENDPOINTS = {
 
     // Store Category CRUD
     addStoreCategory: "/MenuMaster/AddStoreCategory",
+    categoryImageUpload: "/MenuMaster/CategoryImageUpload",
     deleteCategory: "/MenuMaster/DeleteCategory",
     changeStoreCategoryStatus: "/MenuMaster/ChangeStoreCategoryStatus",
 
@@ -404,6 +405,7 @@ export const ENDPOINTS = {
     getAllDeliveryZone: "/zone/get",
     addDeliveryZone: "/zone/select-zone",
     updateDeliveryZone: "/zone/update-zone",
+    deleteDeliveryZone: (zoneId: string | number) => `/zone/delete/${zoneId}`,
 
     //Timings
     getRestaurantTimings: "/RestaurantProfile/GetShopTimings",

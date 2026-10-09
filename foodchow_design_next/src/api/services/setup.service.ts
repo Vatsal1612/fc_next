@@ -381,6 +381,15 @@ export const setupService = {
 
     return response.data;
   },
+  async deleteDeliveryZone(shopId: number, zoneId: number) {
+    const response = await foodchowClient.delete(
+      ENDPOINTS.setup.deleteDeliveryZone(zoneId),
+      {
+        params: { shopId, zone: zoneId }
+      }
+    );
+    return response.data;
+  },
 
   // Timings 
   async getShopTimings(shopId: number) {

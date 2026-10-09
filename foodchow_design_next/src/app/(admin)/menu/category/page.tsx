@@ -3,10 +3,36 @@
 import { useEffect, useRef, useState } from "react";
 import { menuService, type MenuCategory } from "@/api";
 import { WizardFooter } from "@/components/shared/WizardFooter";
-import { useShopId } from "@/utils/shop";
+import Swal from "sweetalert2";
+import { useShopId, getShopId } from "@/utils/shop";
 import "./page.css";
 
+function getCategoryImageUrl(imagePath?: string | null): string | null {
+  if (!imagePath || imagePath === "null" || imagePath.trim() === "") return null;
+  if (
+    imagePath.startsWith("data:") ||
+    imagePath.startsWith("http://") ||
+    imagePath.startsWith("https://") ||
+    imagePath.startsWith("blob:")
+  ) {
+    return imagePath;
+  }
+  return `https://admin.foodchow.com/CategoryImages/${imagePath}`;
+}
+
 const PAGE_SIZE = 10;
+
+const showToast = (icon: "success" | "error" | "warning", title: string) => {
+  Swal.fire({
+    toast: true,
+    position: "top-end",
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    icon,
+    title,
+  });
+};
 
 export default function CategoryPage() {
   const SHOP_ID = useShopId();
@@ -35,6 +61,7 @@ export default function CategoryPage() {
 
   // Stable ref so the useEffect crop logic can push the cropped base64 back to React state
   const setEditImagePreviewRef = useRef(setEditImagePreview);
+  const cropSourceRef = useRef<"add" | "edit">("add");
   useEffect(() => {
     setEditImagePreviewRef.current = setEditImagePreview;
   }, []);
@@ -45,10 +72,12 @@ export default function CategoryPage() {
 
   // ── Load categories from the FoodChow API ──
   useEffect(() => {
+    const currentShop = SHOP_ID || getShopId();
+    if (!currentShop) return;
     let active = true;
     setLoading(true);
     menuService
-      .categoriesByShop(SHOP_ID)
+      .categoriesByShop(currentShop)
       .then((data) => {
         if (active) setCategories(data);
       })
@@ -61,7 +90,7 @@ export default function CategoryPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [SHOP_ID]);
 
   // ── React handlers ──
 
@@ -77,29 +106,66 @@ export default function CategoryPage() {
     if (!editCategory) return;
     const trimmedName = catName.trim();
     if (!trimmedName) {
-      alert("Category name is required.");
+      showToast("warning", "Category name is required.");
+      return;
+    }
+    const activeShopId = SHOP_ID || getShopId();
+    if (!activeShopId) {
+      showToast("warning", "Shop ID not found. Please log in again.");
       return;
     }
     setSaving(true);
     try {
-      await menuService.addStoreCategory({
+      let finalImageName = "";
+
+      // 1. If user selected/cropped a new image (base64)
+      if (editImagePreview && editImagePreview.startsWith("data:image/")) {
+        const rawBase64 = editImagePreview.replace(/^data:image\/[a-z]+;base64,/, "");
+        const uploadRes = await menuService.uploadCategoryImage({
+          id: editCategory.id,
+          shop_id: activeShopId,
+          base64Image: rawBase64,
+        });
+
+        if (uploadRes && uploadRes.success === false) {
+          throw new Error(uploadRes.message || "Failed to upload category image");
+        }
+        finalImageName = uploadRes?.data || "";
+      } else if (editImagePreview) {
+        // Kept existing image filename
+        finalImageName = editCategory.cate_image || "";
+      } else {
+        // Image was cleared / deleted
+        finalImageName = "";
+      }
+
+      // 2. Update category name and metadata
+      const saveRes = await menuService.addStoreCategory({
         id: editCategory.id,
-        shop_id: SHOP_ID,
+        shop_id: activeShopId,
         cate_name: trimmedName,
-        cate_image: editImagePreview ?? "",
+        cate_image: finalImageName,
         description: "",
         parent_id: 0,
       });
-      setCategories((prev) =>
-        prev.map((c) =>
-          c.id === editCategory.id
-            ? { ...c, cate_name: trimmedName, cate_image: editImagePreview ?? "", status: catStatus === "active" ? 1 : 0 }
-            : c
-        )
-      );
+
+      if (saveRes && saveRes.success === false) {
+        throw new Error(saveRes.message || "Failed to save category name");
+      }
+
+      // 3. Update status if changed
+      const targetStatus = catStatus === "active" ? 1 : 0;
+      if (targetStatus !== editCategory.status) {
+        await menuService.changeStoreCategoryStatus(editCategory.id, targetStatus);
+      }
+
+      // 4. Reload fresh categories from server
+      const refreshed = await menuService.categoriesByShop(activeShopId);
+      setCategories(refreshed);
       setEditOpen(false);
-    } catch {
-      alert("Failed to save category. Please try again.");
+      showToast("success", "Category updated successfully");
+    } catch (err: any) {
+      showToast("error", err?.message || "Failed to save category. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -116,15 +182,16 @@ export default function CategoryPage() {
     try {
       const res = await menuService.deleteCategory(deleteTarget.id);
       if (res?.message === "Item Available In This Category") {
-        alert("Cannot delete: this category has items. Remove items first.");
+        showToast("error", "Cannot delete: this category has items. Remove items first.");
         setDeleteOpen(false);
         return;
       }
       setCategories((prev) => prev.filter((c) => c.id !== deleteTarget.id));
       setDeleteOpen(false);
       setDeleteTarget(null);
+      showToast("success", "Category deleted successfully");
     } catch {
-      alert("Failed to delete category. Please try again.");
+      showToast("error", "Failed to delete category. Please try again.");
     } finally {
       setDeleting(false);
     }
@@ -138,19 +205,18 @@ export default function CategoryPage() {
     );
     try {
       await menuService.changeStoreCategoryStatus(cat.id, newStatus);
+      showToast("success", `Category ${newStatus === 1 ? "activated" : "deactivated"} successfully`);
     } catch {
       // Roll back on failure
       setCategories((prev) =>
         prev.map((c) => (c.id === cat.id ? { ...c, status: cat.status } : c))
       );
-      alert("Failed to update status.");
+      showToast("error", "Failed to update status.");
     }
   }
 
   // ── DOM-manipulation useEffect (search, bulk delete, add new modal, crop) ──
   useEffect(() => {
-    let nextId = 3;
-
     const root = document.getElementById("pg-menu-category");
     if (!root) return;
 
@@ -173,28 +239,6 @@ export default function CategoryPage() {
       const total = document.querySelectorAll("#catTableBody tr").length;
       const tf = $("tableFooter");
       if (tf) tf.textContent = `Showing 1 to ${total} of ${total} entries`;
-    }
-
-    function escapeHtml(str: string): string {
-      if (!str) return "";
-      return str
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    }
-
-    function buildRow(
-      id: number,
-      name: string,
-      imgSrc: string | null,
-      isActive: boolean
-    ): HTMLTableRowElement {
-      const tr = document.createElement("tr");
-      tr.dataset.id = String(id);
-      tr.innerHTML = `<td><input type="checkbox" class="cb row-cb"></td><td>${imgSrc ? `<img src="${escapeHtml(imgSrc)}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;">` : `<div class="no-img"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2h1l2-2h6l2 2h1a2 2 0 012 2z"/><circle cx="12" cy="13" r="3"/></svg><span>No Image</span></div>`}</td><td><span class="cat-name">${escapeHtml(name.toUpperCase())}</span></td><td><div class="act-btns"><button class="icon-btn edit-btn" title="Edit Category"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="icon-btn delete-btn" title="Delete Category"><svg viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button><label class="toggle-switch"><input type="checkbox" ${isActive ? "checked" : ""}><span class="slider"></span></label></div></td>`;
-      return tr;
     }
 
     function resetImgPreview() {
@@ -245,7 +289,7 @@ export default function CategoryPage() {
     const onDeleteAll = () => {
       const checked = document.querySelectorAll<HTMLInputElement>(".row-cb:checked");
       if (!checked.length) {
-        alert("Select at least one row.");
+        showToast("warning", "Select at least one row.");
         return;
       }
       checked.forEach((cb) => cb.closest("tr")?.remove());
@@ -255,6 +299,7 @@ export default function CategoryPage() {
     deleteAllBtn?.addEventListener("click", onDeleteAll);
 
     const onOpenAdd = () => {
+      cropSourceRef.current = "add";
       const modalTitle = $("addModalTitle");
       const catNameInput = $<HTMLInputElement>("addCatNameInput");
       if (modalTitle) modalTitle.textContent = "Add New Category";
@@ -269,7 +314,7 @@ export default function CategoryPage() {
     };
     openAddModal?.addEventListener("click", onOpenAdd);
 
-    const onSave = () => {
+    const onSave = async () => {
       const catNameInput = $<HTMLInputElement>("addCatNameInput");
       if (!catNameInput) return;
       const name = catNameInput.value.trim();
@@ -287,10 +332,52 @@ export default function CategoryPage() {
         previewImg && previewImg.style.display !== "none" && previewImg.src
           ? previewImg.src
           : null;
-      const tr = buildRow(nextId++, name, imgSrc, isActive);
-      $("catTableBody")?.appendChild(tr);
-      updateFooter();
-      closeModal();
+
+      const activeShopId = getShopId();
+      if (!activeShopId) {
+        showToast("warning", "Shop ID not found");
+        return;
+      }
+
+      try {
+        if (saveCatBtn) saveCatBtn.textContent = "ADDING...";
+        const addRes = await menuService.addStoreCategory({
+          id: 0,
+          shop_id: activeShopId,
+          cate_name: name,
+          cate_image: "",
+          description: "",
+          parent_id: 0,
+        });
+
+        if (addRes && addRes.success === false) {
+          showToast("error", addRes.message || "Failed to add category");
+          return;
+        }
+
+        const newId = addRes?.data;
+        if (newId && imgSrc && imgSrc.startsWith("data:image/")) {
+          const rawBase64 = imgSrc.replace(/^data:image\/[a-z]+;base64,/, "");
+          await menuService.uploadCategoryImage({
+            id: newId,
+            shop_id: activeShopId,
+            base64Image: rawBase64,
+          });
+        }
+
+        if (newId && !isActive) {
+          await menuService.changeStoreCategoryStatus(newId, 0);
+        }
+
+        const refreshed = await menuService.categoriesByShop(activeShopId);
+        setCategories(refreshed);
+        closeModal();
+        showToast("success", "Category added successfully");
+      } catch (err: any) {
+        showToast("error", err?.message || "Failed to add category");
+      } finally {
+        if (saveCatBtn) saveCatBtn.textContent = "ADD";
+      }
     };
     saveCatBtn?.addEventListener("click", onSave);
 
@@ -487,18 +574,20 @@ export default function CategoryPage() {
           canvas.height
         );
       const src = canvas.toDataURL("image/jpeg", 0.92);
-      const prev = $<HTMLImageElement>("previewImg");
-      if (prev) {
-        prev.src = src;
-        prev.style.display = "block";
+      if (cropSourceRef.current === "edit") {
+        setEditImagePreviewRef.current(src);
+      } else {
+        const prev = $<HTMLImageElement>("previewImg");
+        if (prev) {
+          prev.src = src;
+          prev.style.display = "block";
+        }
+        const imgPreview = $("imgPreview");
+        const svg = imgPreview?.querySelector("svg") as SVGElement | null;
+        const span = imgPreview?.querySelector("span") as HTMLElement | null;
+        if (svg) svg.style.display = "none";
+        if (span) span.style.display = "none";
       }
-      const imgPreview = $("imgPreview");
-      const svg = imgPreview?.querySelector("svg") as SVGElement | null;
-      const span = imgPreview?.querySelector("span") as HTMLElement | null;
-      if (svg) svg.style.display = "none";
-      if (span) span.style.display = "none";
-      // Bridge cropped image to React state for the edit modal
-      setEditImagePreviewRef.current(src);
       closeCropModal();
     }
 
@@ -506,7 +595,7 @@ export default function CategoryPage() {
       const f = (e.target as HTMLInputElement).files?.[0];
       if (!f) return;
       if (f.size > 1024 * 1024) {
-        alert("Max 1MB image allowed");
+        showToast("warning", "Max 1MB image allowed");
         this.value = "";
         return;
       }
@@ -665,9 +754,9 @@ export default function CategoryPage() {
                               <input type="checkbox" className="cb row-cb" />
                             </td>
                             <td>
-                              {cat.cate_image ? (
+                              {getCategoryImageUrl(cat.cate_image) ? (
                                 <img
-                                  src={cat.cate_image}
+                                  src={getCategoryImageUrl(cat.cate_image)!}
                                   alt={cat.cate_name}
                                   style={{
                                     width: 52,
@@ -675,16 +764,25 @@ export default function CategoryPage() {
                                     borderRadius: "50%",
                                     objectFit: "cover",
                                   }}
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                                    const next = (e.currentTarget as HTMLImageElement).nextElementSibling as HTMLElement | null;
+                                    if (next) next.style.display = "inline-flex";
+                                  }}
                                 />
-                              ) : (
-                                <div className="no-img">
-                                  <svg viewBox="0 0 24 24">
-                                    <path d="M21 15a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2h1l2-2h6l2 2h1a2 2 0 012 2z" />
-                                    <circle cx="12" cy="13" r="3" />
-                                  </svg>
-                                  <span>No Image</span>
-                                </div>
-                              )}
+                              ) : null}
+                              <div
+                                className="no-img"
+                                style={{
+                                  display: getCategoryImageUrl(cat.cate_image) ? "none" : "inline-flex",
+                                }}
+                              >
+                                <svg viewBox="0 0 24 24">
+                                  <path d="M21 15a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2h1l2-2h6l2 2h1a2 2 0 012 2z" />
+                                  <circle cx="12" cy="13" r="3" />
+                                </svg>
+                                <span>No Image</span>
+                              </div>
                             </td>
                             <td>
                               <span className="cat-name">
@@ -736,8 +834,9 @@ export default function CategoryPage() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
-                      gap: "12px",
-                      flexWrap: "wrap",
+                      position: "relative",
+                      minHeight: "50px",
+                      width: "100%"
                     }}
                   >
                     <span>
@@ -750,7 +849,7 @@ export default function CategoryPage() {
                           } of ${categories.length} entries`}
                     </span>
                     {!loading && !error && categories.length > 0 && (
-                      <div className="pagination">
+                      <div className="pagination" style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>
                         <button
                           type="button"
                           className="page-btn"
@@ -759,9 +858,17 @@ export default function CategoryPage() {
                         >
                           Prev
                         </button>
-                        <span className="page-info">
-                          Page {page} of {totalPages}
-                        </span>
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                          <button
+                            key={pageNum}
+                            type="button"
+                            className={`page-btn ${page === pageNum ? "active-page" : ""}`}
+                            style={{ background: page === pageNum ? "#222" : "", color: page === pageNum ? "#fff" : "" }}
+                            onClick={() => setPage(pageNum)}
+                          >
+                            {pageNum}
+                          </button>
+                        ))}
                         <button
                           type="button"
                           className="page-btn"
@@ -915,9 +1022,9 @@ export default function CategoryPage() {
               <label className="form-label">Choose Image</label>
               <div className="img-upload-row">
                 <div className="img-preview" id="editImgPreview">
-                  {editImagePreview ? (
+                  {getCategoryImageUrl(editImagePreview) ? (
                     <img
-                      src={editImagePreview}
+                      src={getCategoryImageUrl(editImagePreview)!}
                       alt="preview"
                       style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }}
                     />
@@ -935,7 +1042,10 @@ export default function CategoryPage() {
                   <button
                     className="upload-btn"
                     type="button"
-                    onClick={() => document.getElementById("fileInput")?.click()}
+                    onClick={() => {
+                      cropSourceRef.current = "edit";
+                      document.getElementById("fileInput")?.click();
+                    }}
                   >
                     <svg viewBox="0 0 24 24">
                       <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />

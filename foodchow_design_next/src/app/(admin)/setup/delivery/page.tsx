@@ -1436,11 +1436,43 @@ export default function DeliveryPage() {
       byId("cancelDeleteBtn")?.addEventListener("click", closeDeleteModal);
       byId("closeDetailsBtn")?.addEventListener("click", closeDetailsModal);
 
-      const onConfirmDelete = (): void => {
-        if (rowPendingDeletion) byId(rowPendingDeletion)?.remove();
-        closeDeleteModal();
+      const onConfirmDelete = async (): Promise<void> => {
+        if (!rowPendingDeletion) return;
+        
+        const zoneIdStr = rowPendingDeletion.replace("row-idx-", "");
+        const zoneId = Number(zoneIdStr);
+        const shopId = sessionStorage.getItem("shop_id");
+        
+        if (!shopId) {
+          alert("Shop ID not found");
+          return;
+        }
+
+        const confirmBtn = byId("confirmDeleteBtn");
+        if (confirmBtn) confirmBtn.textContent = "DELETING...";
+
+        try {
+          const response = await setupService.deleteDeliveryZone(Number(shopId), zoneId);
+          if (response?.success === false) {
+            alert(response?.message || "Failed to delete zone");
+            if (confirmBtn) confirmBtn.textContent = "YES, DELETE IT";
+            return;
+          }
+
+          // Fetch fresh data
+          const refreshed = await setupService.getAllZones(Number(shopId));
+          const rawZones = refreshed.data?.[0] ?? [];
+          setZones(groupZones(rawZones));
+
+          closeDeleteModal();
+        } catch (error: any) {
+          console.error("Delete Error:", error);
+          alert(error?.response?.data?.message || error?.message || "Failed to delete zone");
+        } finally {
+          if (confirmBtn) confirmBtn.textContent = "YES, DELETE IT";
+        }
       };
-      byId("confirmDeleteBtn")?.addEventListener("click", onConfirmDelete);
+      byId("confirmDeleteBtn")?.addEventListener("click", () => { void onConfirmDelete(); });
 
       const onHelp = (): void => alert("Help coming soon!");
       const helpBtns = Array.from(
