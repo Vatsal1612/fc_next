@@ -112,6 +112,14 @@ declare global {
 }
 
 export default function DeliveryPage() {
+  const [deliveryType, setDeliveryType] = useState<"area" | "zone">("area");
+  const [areas, setAreas] = useState([
+    { id: 1, active: true, name: "Sydney", minAmt: 110, freeAmt: 120, fee: 10, time: "10 Minute" },
+    { id: 2, active: true, name: "kadodara", minAmt: 500, freeAmt: 510, fee: 15, time: "10 Minute" },
+    { id: 3, active: true, name: "ADAJAN", minAmt: 200, freeAmt: 510, fee: 30, time: "20 Minute" },
+    { id: 4, active: true, name: "katargam", minAmt: 200, freeAmt: 510, fee: 30, time: "20 Minute" },
+    { id: 5, active: true, name: "Dumas", minAmt: 100, freeAmt: 200, fee: 50, time: "10 Minute" }
+  ]);
   const [zones, setZones] = useState<any[]>([]);
 
   const editingZoneRef = useRef<any | null>(null);
@@ -1575,19 +1583,93 @@ export default function DeliveryPage() {
         {/* ── MAIN WORKSPACE ── */}
         <div className="main-workspace">
           <div className="container">
-            <div className="page-header">
-              <h1 className="header-title typ-page-heading" style={{ margin: 0 }}>How would you like to Setup Delivery?</h1>
-              <div>
-                <label style={{ fontWeight: 600, fontSize: "14px" }}>
-                  <input type="radio" name="setup" /> Area Wise
+            <div className="page-header" style={{ background: "#fff", padding: "20px", borderRadius: "8px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h1 className="header-title typ-page-heading" style={{ margin: 0, fontSize: "1.25rem", color: "#334155" }}>How would you like to Setup Delivery?</h1>
+              <div style={{ display: "flex", gap: "24px" }}>
+                <label style={{ fontWeight: 600, fontSize: "15px", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: deliveryType === "area" ? "#0f766e" : "#64748b" }}>
+                  <input type="radio" name="setup" checked={deliveryType === "area"} onChange={() => setDeliveryType("area")} style={{ accentColor: "#0f766e", width: "16px", height: "16px" }} /> Area Wise
                 </label>
-                <label style={{ marginLeft: "20px", fontWeight: 600, fontSize: "14px" }}>
-                  <input type="radio" name="setup" defaultChecked /> Zone Wise
+                <label style={{ fontWeight: 600, fontSize: "15px", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: deliveryType === "zone" ? "#0f766e" : "#64748b" }}>
+                  <input type="radio" name="setup" checked={deliveryType === "zone"} onChange={() => setDeliveryType("zone")} style={{ accentColor: "#0f766e", width: "16px", height: "16px" }} /> Zone Wise
                 </label>
               </div>
             </div>
 
-            <div className="page-header" style={{ marginBottom: "15px" }}>
+            {deliveryType === "area" && (
+              <div className="area-wise-container" style={{ background: "#fff", padding: "24px", borderRadius: "8px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", marginTop: "24px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                  <div>
+                    <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#1e293b", margin: 0, display: "inline-block", marginRight: "20px" }}>Area Wise Delivery</h2>
+                    <span style={{ fontSize: "0.95rem", color: "#64748b", fontWeight: 600 }}>Click On Add Area to Add Area</span>
+                  </div>
+                  <button className="btn-add-area" style={{ background: "#0f766e", color: "#fff", border: "none", padding: "10px 24px", borderRadius: "6px", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", letterSpacing: "0.5px" }}>
+                    ADD AREA
+                  </button>
+                </div>
+
+                <div className="table-responsive">
+                  <table className="area-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "center" }}>
+                    <thead>
+                      <tr style={{ background: "#0f766e", color: "#fff" }}>
+                        <th style={{ padding: "14px 10px", borderTopLeftRadius: "6px", width: "60px" }}></th>
+                        <th style={{ padding: "14px 10px", fontSize: "0.85rem", fontWeight: 600 }}>Sr. No.</th>
+                        <th style={{ padding: "14px 10px", fontSize: "0.85rem", fontWeight: 600 }}>Area Name</th>
+                        <th style={{ padding: "14px 10px", fontSize: "0.85rem", fontWeight: 600 }}>Minimum Order Amount</th>
+                        <th style={{ padding: "14px 10px", fontSize: "0.85rem", fontWeight: 600 }}>Minimum Order Amount for Free Delivery</th>
+                        <th style={{ padding: "14px 10px", fontSize: "0.85rem", fontWeight: 600 }}>Delivery Fees</th>
+                        <th style={{ padding: "14px 10px", fontSize: "0.85rem", fontWeight: 600 }}>Delivery Time</th>
+                        <th style={{ padding: "14px 10px", fontSize: "0.85rem", fontWeight: 600 }}>Edit</th>
+                        <th style={{ padding: "14px 10px", borderTopRightRadius: "6px", fontSize: "0.85rem", fontWeight: 600 }}>Delete</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {areas.map((area, index) => (
+                        <tr key={area.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                          <td style={{ padding: "16px 10px" }}>
+                            <label className="switch" style={{ margin: "0 auto" }}>
+                              <input type="checkbox" checked={area.active} onChange={() => {
+                                const newAreas = [...areas];
+                                newAreas[index].active = !newAreas[index].active;
+                                setAreas(newAreas);
+                              }} />
+                              <span className="slider"></span>
+                            </label>
+                          </td>
+                          <td style={{ padding: "16px 10px", fontWeight: 600, color: "#1e293b", fontSize: "0.95rem" }}>{index + 1}</td>
+                          <td style={{ padding: "16px 10px", fontWeight: 600, color: "#1e293b", fontSize: "0.95rem" }}>{area.name}</td>
+                          <td style={{ padding: "16px 10px" }}>
+                            <input type="text" value={area.minAmt} readOnly className="area-input" />
+                          </td>
+                          <td style={{ padding: "16px 10px" }}>
+                            <input type="text" value={area.freeAmt} readOnly className="area-input" />
+                          </td>
+                          <td style={{ padding: "16px 10px" }}>
+                            <input type="text" value={area.fee} readOnly className="area-input" />
+                          </td>
+                          <td style={{ padding: "16px 10px" }}>
+                            <input type="text" value={area.time} readOnly className="area-input" />
+                          </td>
+                          <td style={{ padding: "16px 10px" }}>
+                            <button className="circle-action-btn btn-edit" style={{ margin: "0 auto", width: "32px", height: "32px", borderRadius: "50%", background: "#0f766e", color: "white", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                              <i className="fa-solid fa-pen" style={{ fontSize: "12px" }}></i>
+                            </button>
+                          </td>
+                          <td style={{ padding: "16px 10px" }}>
+                            <button className="circle-action-btn btn-delete" style={{ margin: "0 auto", width: "32px", height: "32px", borderRadius: "50%", background: "#334155", color: "white", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                              <i className="fa-solid fa-trash" style={{ fontSize: "12px" }}></i>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {deliveryType === "zone" && (
+              <>
+            <div className="page-header" style={{ marginBottom: "15px", marginTop: "24px" }}>
               <h1 className="header-title typ-page-heading" style={{ margin: 0 }}>
                 Select Delivery Zone{" "}
                 <span className="header-subtitle">
@@ -1899,10 +1981,12 @@ export default function DeliveryPage() {
               </tbody>
             </table>
           </div>
+        </>
+        )}
         </div>
 
-        <WizardFooter />
-      </div>
+      <WizardFooter />
+    </div>
 
 
       {/* Delete Modal */ }
