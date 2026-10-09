@@ -294,6 +294,7 @@ export const setupService = {
           ShopId: shopId,
           ImageFlag: imageFlag,
           LastId: 0,
+          t: Date.now(), // Prevent caching
         },
       }
     );
