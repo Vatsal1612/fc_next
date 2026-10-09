@@ -794,6 +794,19 @@ export const menuService = {
 
     return setting[0];
   },
+  /** Save Item Code Type Setting (0: numeric, 1: alphanumeric) */
+  async saveItemCodeTypeSetting(shopId: number, itemCodeType: number) {
+    const { data } = await foodchowWDClient.get(
+      ENDPOINTS.menu.saveItemCodeTypeSetting,
+      {
+        params: {
+          shop_id: shopId,
+          item_code: itemCodeType,
+        },
+      }
+    );
+    return data;
+  },
   /** Update Item Code */
   async updateItemCode(
     shopId: number,
@@ -813,6 +826,19 @@ export const menuService = {
 
     console.log("UPDATE ITEM CODE:", data);
 
+    return data;
+  },
+  /** Change Item Position */
+  async changeItemPosition(itemIds: (string | number)[], posIds: (string | number)[]) {
+    const { data } = await foodchowWDClient.get(
+      ENDPOINTS.menu.changeItemPosition,
+      {
+        params: {
+          item_id: itemIds.join(","),
+          pos_id: posIds.join(","),
+        },
+      }
+    );
     return data;
   },
 

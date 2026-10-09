@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { setupService } from "@/api/services/setup.service";
 import Script from "next/script";
 import { WizardFooter } from "@/components/shared/WizardFooter";
+import { ReportPagination } from "@/components/shared/ReportPagination";
 import "./page.css";
 
 /**
@@ -113,14 +114,57 @@ declare global {
 
 export default function DeliveryPage() {
   const [deliveryType, setDeliveryType] = useState<"area" | "zone">("area");
-  const [areas, setAreas] = useState([
-    { id: 1, active: true, name: "Sydney", minAmt: 110, freeAmt: 120, fee: 10, time: "10 Minute" },
-    { id: 2, active: true, name: "kadodara", minAmt: 500, freeAmt: 510, fee: 15, time: "10 Minute" },
-    { id: 3, active: true, name: "ADAJAN", minAmt: 200, freeAmt: 510, fee: 30, time: "20 Minute" },
-    { id: 4, active: true, name: "katargam", minAmt: 200, freeAmt: 510, fee: 30, time: "20 Minute" },
-    { id: 5, active: true, name: "Dumas", minAmt: 100, freeAmt: 200, fee: 50, time: "10 Minute" }
-  ]);
+  const [areas, setAreas] = useState<any[]>([]);
+  const [isLoadingAreas, setIsLoadingAreas] = useState(false);
+  const [shopId, setShopId] = useState<number>(0);
+
+  // Modal & Edit states for Area
+  const [showAreaModal, setShowAreaModal] = useState(false);
+  const [isEditingArea, setIsEditingArea] = useState(false);
+  const [editingAreaId, setEditingAreaId] = useState<number | null>(null);
+
+  // Form fields
+  const [areaName, setAreaName] = useState("");
+  const [areaMinAmt, setAreaMinAmt] = useState("");
+  const [areaFreeAmt, setAreaFreeAmt] = useState("");
+  const [areaFee, setAreaFee] = useState("");
+  const [areaDeliveryTime, setAreaDeliveryTime] = useState("10 Minute");
+
+  // Custom Time Sub-Modal
+  const [showCustomTimeModal, setShowCustomTimeModal] = useState(false);
+  const [customHours, setCustomHours] = useState("00");
+  const [customMinutes, setCustomMinutes] = useState("05");
+
+  // Delete Confirmation Modal for Area
+  const [showDeleteAreaModal, setShowDeleteAreaModal] = useState(false);
+  const [deletingAreaId, setDeletingAreaId] = useState<number | null>(null);
+
+  // Toast State
+  const [toastMessage, setToastMessage] = useState("");
+  const [showToast, setShowToast] = useState(false);
+
   const [zones, setZones] = useState<any[]>([]);
+
+  // Pagination States
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const showNotification = (msg: string) => {
+    setToastMessage(msg);
+    setShowToast(true);
+    setTimeout(() => {
+      setShowToast(false);
+    }, 3000);
+  };
+
+  const formatDeliveryTime = (hours: string | number, minutes: string | number) => {
+    const h = String(hours || "00").trim();
+    const m = String(minutes || "00").trim();
+    if (h === "00" || h === "0") {
+      return m ? `${m} Minute` : "";
+    }
+    return `${h} Hours ${m} Minute`;
+  };
 
   const editingZoneRef = useRef<any | null>(null);
   const editModeRef = useRef<"FORM" | "MAP" | null>(null);
@@ -1534,10 +1578,225 @@ export default function DeliveryPage() {
       cleanups.forEach((fn) => fn());
     };
   }, []);
+  const fetchAreas = async (currentShopId: number) => {
+    try {
+      setIsLoadingAreas(true);
+      const res = await setupService.getCustomDeliveryLocations(currentShopId);
+      console.log("GET CUSTOM DELIVERY LOCATIONS:", res);
+      let parsedList: any[] = [];
+      if (res && res.data) {
+        try {
+          parsedList = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+        } catch (e) {
+          console.error("Failed to parse areas json:", e);
+        }
+      }
+      if (Array.isArray(parsedList)) {
+        setAreas(
+          parsedList.map((item: any) => {
+            let timeStr = "";
+            const h = item.delivery_hours || "00";
+            const m = item.delivery_minute || "";
+            if (h === "00" || h === "0" || !h) {
+              timeStr = m ? `${m} Minute` : "";
+            } else {
+              timeStr = `${h} Hours ${m} Minute`;
+            }
+
+            return {
+              id: item.id,
+              name: item.location_name || "",
+              minAmt: item.min_order ?? 0,
+              freeAmt: item.min_order_freedelivery ?? 0,
+              fee: item.delivery_fee ?? 0,
+              time: timeStr || "10 Minute",
+              delivery_hours: item.delivery_hours || "00",
+              delivery_minute: item.delivery_minute || "10",
+              active: item.status === 1 || item.status === "1",
+            };
+          })
+        );
+      } else {
+        setAreas([]);
+      }
+    } catch (err) {
+      console.error("Error fetching areas:", err);
+    } finally {
+      setIsLoadingAreas(false);
+    }
+  };
+
+  const handleDeliveryTypeChange = async (type: "area" | "zone") => {
+    setDeliveryType(type);
+    setCurrentPage(1); // Reset pagination on tab switch
+    if (!shopId) return;
+    try {
+      const statusValue = type === "area" ? 1 : 0;
+      await setupService.updateDeliverySettingsForShop(shopId, statusValue);
+      showNotification(`Delivery mode switched to ${type === "area" ? "Area Wise" : "Zone Wise"}`);
+      if (type === "area") {
+        fetchAreas(shopId);
+      }
+    } catch (err) {
+      console.error("Error updating delivery settings:", err);
+    }
+  };
+
+  const handleToggleAreaStatus = async (areaId: number, currentActive: boolean) => {
+    try {
+      const newStatus = currentActive ? 0 : 1;
+      setAreas((prev) =>
+        prev.map((a) => (a.id === areaId ? { ...a, active: !currentActive } : a))
+      );
+      await setupService.changeCustomDeliveryLocationStatus(areaId, newStatus);
+      showNotification("Area status updated successfully");
+    } catch (err) {
+      console.error("Error changing status:", err);
+      showNotification("Failed to update area status");
+      if (shopId) fetchAreas(shopId);
+    }
+  };
+
+  const handleOpenAddAreaModal = () => {
+    setIsEditingArea(false);
+    setEditingAreaId(null);
+    setAreaName("");
+    setAreaMinAmt("");
+    setAreaFreeAmt("");
+    setAreaFee("");
+    setAreaDeliveryTime("10 Minute");
+    setShowAreaModal(true);
+  };
+
+  const handleOpenEditAreaModal = (area: any) => {
+    setIsEditingArea(true);
+    setEditingAreaId(area.id);
+    setAreaName(area.name);
+    setAreaMinAmt(String(area.minAmt));
+    setAreaFreeAmt(String(area.freeAmt));
+    setAreaFee(String(area.fee));
+    setAreaDeliveryTime(area.time);
+    setShowAreaModal(true);
+  };
+
+  const handleSaveArea = async () => {
+    if (!areaName.trim()) {
+      alert("Please enter the Delivery Area name.");
+      return;
+    }
+    const minVal = parseFloat(areaMinAmt);
+    const freeVal = parseFloat(areaFreeAmt);
+    const feeVal = parseFloat(areaFee);
+
+    if (isNaN(minVal) || minVal < 0) {
+      alert("Please enter valid Minimum Order Amount.");
+      return;
+    }
+    if (isNaN(freeVal) || freeVal < 0) {
+      alert("Please enter valid Minimum Order Amount For Free Delivery.");
+      return;
+    }
+    if (freeVal <= minVal) {
+      alert("'Minimum order amount for free delivery' should be more than 'Minimum order amount'.");
+      return;
+    }
+    if (isNaN(feeVal) || feeVal < 0) {
+      alert("Please enter valid Delivery Fee.");
+      return;
+    }
+
+    // Parse delivery time
+    let dHours = "00";
+    let dMinute = "10";
+    if (areaDeliveryTime.includes("Hours")) {
+      const parts = areaDeliveryTime.split("Hours");
+      dHours = parts[0].trim();
+      dMinute = parts[1].replace("Minute", "").trim();
+    } else {
+      dMinute = areaDeliveryTime.replace("Minute", "").trim() || "10";
+    }
+
+    try {
+      if (isEditingArea && editingAreaId) {
+        await setupService.updateCustomDeliveryLocation({
+          id: editingAreaId,
+          location_name: areaName.trim(),
+          min_order: minVal,
+          delivery_fee: feeVal,
+          min_order_freedelivery: freeVal,
+          delivery_hours: dHours,
+          delivery_minute: dMinute,
+        });
+        showNotification("Delivery area updated successfully!");
+      } else {
+        await setupService.addCustomDeliveryLocation({
+          shop_id: shopId,
+          location_name: areaName.trim(),
+          min_order: minVal,
+          delivery_fee: feeVal,
+          min_order_freedelivery: freeVal,
+          delivery_hours: dHours,
+          delivery_minute: dMinute,
+        });
+        showNotification("Delivery area added successfully!");
+      }
+
+      setShowAreaModal(false);
+      if (shopId) fetchAreas(shopId);
+    } catch (err) {
+      console.error("Error saving area:", err);
+      alert("Error saving area. Please try again.");
+    }
+  };
+
+  const handleDeleteAreaConfirm = async () => {
+    if (!deletingAreaId) return;
+    try {
+      await setupService.deleteCustomDeliveryLocation(deletingAreaId);
+      showNotification("Delivery area deleted successfully!");
+      setShowDeleteAreaModal(false);
+      setDeletingAreaId(null);
+      if (shopId) fetchAreas(shopId);
+    } catch (err) {
+      console.error("Error deleting area:", err);
+      alert("Failed to delete area.");
+    }
+  };
+
+  useEffect(() => {
+    const rawId = sessionStorage.getItem("shop_id");
+    const parsedShopId = Number(rawId) || 0;
+    setShopId(parsedShopId);
+
+    const initDeliverySettings = async () => {
+      if (!parsedShopId) return;
+      try {
+        const settingsRes = await setupService.getDeliverySettingsForShop(parsedShopId);
+        console.log("DELIVERY SETTINGS RES:", settingsRes);
+        if (settingsRes && settingsRes.data) {
+          try {
+            const dataObj = typeof settingsRes.data === "string" ? JSON.parse(settingsRes.data) : settingsRes.data;
+            if (Array.isArray(dataObj) && dataObj.length > 0) {
+              const settingVal = Number(dataObj[0].delivery_settings);
+              setDeliveryType(settingVal === 1 ? "area" : "zone");
+            }
+          } catch (e) {
+            console.error("Error parsing delivery settings:", e);
+          }
+        }
+        fetchAreas(parsedShopId);
+      } catch (err) {
+        console.error("Error initializing delivery settings:", err);
+      }
+    };
+
+    initDeliverySettings();
+  }, []);
+
   useEffect(() => {
     const fetchZones = async () => {
       try {
-        const ShopId = sessionStorage.getItem("shop_id")
+        const ShopId = sessionStorage.getItem("shop_id");
 
         const response = await setupService.getAllZones(Number(ShopId));
 
@@ -1555,6 +1814,11 @@ export default function DeliveryPage() {
 
     fetchZones();
   }, []);
+
+  // Pagination Logic
+  const paginatedAreas = areas.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const paginatedZones = zones.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   return (
     <div id="pg-setup-delivery">
       <link
@@ -1587,10 +1851,10 @@ export default function DeliveryPage() {
               <h1 className="header-title typ-page-heading" style={{ margin: 0, fontSize: "1.25rem", color: "#334155" }}>How would you like to Setup Delivery?</h1>
               <div style={{ display: "flex", gap: "24px" }}>
                 <label style={{ fontWeight: 600, fontSize: "15px", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: deliveryType === "area" ? "#0f766e" : "#64748b" }}>
-                  <input type="radio" name="setup" checked={deliveryType === "area"} onChange={() => setDeliveryType("area")} style={{ accentColor: "#0f766e", width: "16px", height: "16px" }} /> Area Wise
+                  <input type="radio" name="setup" checked={deliveryType === "area"} onChange={() => handleDeliveryTypeChange("area")} style={{ accentColor: "#0f766e", width: "16px", height: "16px" }} /> Area Wise
                 </label>
                 <label style={{ fontWeight: 600, fontSize: "15px", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: deliveryType === "zone" ? "#0f766e" : "#64748b" }}>
-                  <input type="radio" name="setup" checked={deliveryType === "zone"} onChange={() => setDeliveryType("zone")} style={{ accentColor: "#0f766e", width: "16px", height: "16px" }} /> Zone Wise
+                  <input type="radio" name="setup" checked={deliveryType === "zone"} onChange={() => handleDeliveryTypeChange("zone")} style={{ accentColor: "#0f766e", width: "16px", height: "16px" }} /> Zone Wise
                 </label>
               </div>
             </div>
@@ -1602,7 +1866,7 @@ export default function DeliveryPage() {
                     <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#1e293b", margin: 0, display: "inline-block", marginRight: "20px" }}>Area Wise Delivery</h2>
                     <span style={{ fontSize: "0.95rem", color: "#64748b", fontWeight: 600 }}>Click On Add Area to Add Area</span>
                   </div>
-                  <button className="btn-add-area" style={{ background: "#0f766e", color: "#fff", border: "none", padding: "10px 24px", borderRadius: "6px", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", letterSpacing: "0.5px" }}>
+                  <button className="btn-add-area" onClick={handleOpenAddAreaModal} style={{ background: "#0f766e", color: "#fff", border: "none", padding: "10px 24px", borderRadius: "6px", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", letterSpacing: "0.5px" }}>
                     ADD AREA
                   </button>
                 </div>
@@ -1623,47 +1887,82 @@ export default function DeliveryPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {areas.map((area, index) => (
-                        <tr key={area.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                          <td style={{ padding: "16px 10px" }}>
-                            <label className="switch" style={{ margin: "0 auto" }}>
-                              <input type="checkbox" checked={area.active} onChange={() => {
-                                const newAreas = [...areas];
-                                newAreas[index].active = !newAreas[index].active;
-                                setAreas(newAreas);
-                              }} />
-                              <span className="slider"></span>
-                            </label>
-                          </td>
-                          <td style={{ padding: "16px 10px", fontWeight: 600, color: "#1e293b", fontSize: "0.95rem" }}>{index + 1}</td>
-                          <td style={{ padding: "16px 10px", fontWeight: 600, color: "#1e293b", fontSize: "0.95rem" }}>{area.name}</td>
-                          <td style={{ padding: "16px 10px" }}>
-                            <input type="text" value={area.minAmt} readOnly className="area-input" />
-                          </td>
-                          <td style={{ padding: "16px 10px" }}>
-                            <input type="text" value={area.freeAmt} readOnly className="area-input" />
-                          </td>
-                          <td style={{ padding: "16px 10px" }}>
-                            <input type="text" value={area.fee} readOnly className="area-input" />
-                          </td>
-                          <td style={{ padding: "16px 10px" }}>
-                            <input type="text" value={area.time} readOnly className="area-input" />
-                          </td>
-                          <td style={{ padding: "16px 10px" }}>
-                            <button className="circle-action-btn btn-edit" style={{ margin: "0 auto", width: "32px", height: "32px", borderRadius: "50%", background: "#0f766e", color: "white", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                              <i className="fa-solid fa-pen" style={{ fontSize: "12px" }}></i>
-                            </button>
-                          </td>
-                          <td style={{ padding: "16px 10px" }}>
-                            <button className="circle-action-btn btn-delete" style={{ margin: "0 auto", width: "32px", height: "32px", borderRadius: "50%", background: "#334155", color: "white", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                              <i className="fa-solid fa-trash" style={{ fontSize: "12px" }}></i>
-                            </button>
+                      {isLoadingAreas ? (
+                        <tr>
+                          <td colSpan={9} style={{ padding: "40px", color: "#64748b", fontSize: "0.95rem" }}>
+                            Loading areas...
                           </td>
                         </tr>
-                      ))}
+                      ) : areas.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} style={{ padding: "40px", color: "#64748b", fontSize: "0.95rem" }}>
+                            No Delivery Areas Added Yet. Click &quot;ADD AREA&quot; to configure delivery locations.
+                          </td>
+                        </tr>
+                      ) : (
+                        paginatedAreas.map((area, index) => (
+                          <tr key={area.id || index} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                            <td style={{ padding: "16px 10px" }}>
+                              <label className="switch" style={{ margin: "0 auto" }}>
+                                <input
+                                  type="checkbox"
+                                  checked={area.active}
+                                  onChange={() => handleToggleAreaStatus(area.id, area.active)}
+                                />
+                                <span className="slider"></span>
+                              </label>
+                            </td>
+                            <td style={{ padding: "16px 10px", fontWeight: 600, color: "#1e293b", fontSize: "0.95rem" }}>{(currentPage - 1) * itemsPerPage + index + 1}</td>
+                            <td style={{ padding: "16px 10px", fontWeight: 600, color: "#1e293b", fontSize: "0.95rem" }}>{area.name}</td>
+                            <td style={{ padding: "16px 10px" }}>
+                              <input type="text" value={area.minAmt} readOnly className="area-input" />
+                            </td>
+                            <td style={{ padding: "16px 10px" }}>
+                              <input type="text" value={area.freeAmt} readOnly className="area-input" />
+                            </td>
+                            <td style={{ padding: "16px 10px" }}>
+                              <input type="text" value={area.fee} readOnly className="area-input" />
+                            </td>
+                            <td style={{ padding: "16px 10px" }}>
+                              <input type="text" value={area.time} readOnly className="area-input time-input" />
+                            </td>
+                            <td style={{ padding: "16px 10px" }}>
+                              <button
+                                className="circle-action-btn btn-edit"
+                                onClick={() => handleOpenEditAreaModal(area)}
+                                style={{ margin: "0 auto", width: "32px", height: "32px", borderRadius: "50%", background: "#0f766e", color: "white", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                                title="Edit Area"
+                              >
+                                <i className="fa-solid fa-pen" style={{ fontSize: "12px" }}></i>
+                              </button>
+                            </td>
+                            <td style={{ padding: "16px 10px" }}>
+                              <button
+                                className="circle-action-btn btn-delete"
+                                onClick={() => {
+                                  setDeletingAreaId(area.id);
+                                  setShowDeleteAreaModal(true);
+                                }}
+                                style={{ margin: "0 auto", width: "32px", height: "32px", borderRadius: "50%", background: "#334155", color: "white", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                                title="Delete Area"
+                              >
+                                <i className="fa-solid fa-trash" style={{ fontSize: "12px" }}></i>
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
+
+                {areas.length > 0 && (
+                  <ReportPagination
+                    currentPage={currentPage}
+                    totalPages={Math.ceil(areas.length / itemsPerPage)}
+                    onPageChange={setCurrentPage}
+                  />
+                )}
               </div>
             )}
 
@@ -1819,9 +2118,9 @@ export default function DeliveryPage() {
               </thead>
               <tbody>
                 {zones.length > 0 ? (
-                  zones.map((zone, index) => (
+                  paginatedZones.map((zone, index) => (
                     <tr key={zone.Id} id={`row-idx-${zone.Id}`}>
-                      <td>{index + 1}</td>
+                      <td>{(currentPage - 1) * itemsPerPage + index + 1}</td>
 
                       <td>
                         <div className="cell-flex-center">
@@ -1863,8 +2162,8 @@ export default function DeliveryPage() {
                       <td>
                         <input
                           type="text"
-                          value={`${zone.delivery_hours ?? "00"}:${zone.delivery_minute ?? "00"}`}
-                          style={{ width: "100px" }}
+                          value={formatDeliveryTime(zone.delivery_hours, zone.delivery_minute)}
+                          style={{ width: "120px" }}
                           disabled
                           readOnly
                         />
@@ -1981,6 +2280,14 @@ export default function DeliveryPage() {
               </tbody>
             </table>
           </div>
+
+          {zones.length > 0 && (
+            <ReportPagination
+              currentPage={currentPage}
+              totalPages={Math.ceil(zones.length / itemsPerPage)}
+              onPageChange={setCurrentPage}
+            />
+          )}
         </>
         )}
         </div>
@@ -2099,6 +2406,216 @@ export default function DeliveryPage() {
       </button>
     </div>
   </div>
+
+  {/* ── Area Wise Modal (Add / Edit Area) ── */}
+  {showAreaModal && (
+    <div className="modal-overlay-custom" style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 9999 }}>
+      <div className="area-modal-content" style={{ background: "white", padding: "30px", borderRadius: "8px", width: "90%", maxWidth: "550px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
+        <h3 className="area-modal-title" style={{ marginTop: 0, marginBottom: "20px", fontSize: "1.25rem", textAlign: "center" }}>
+          {isEditingArea ? "Update Area Details" : "Enter Area Details"}
+        </h3>
+
+        <div className="area-modal-field" style={{ marginBottom: "16px" }}>
+          <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>Area Name</label>
+          <input
+            type="text"
+            className="area-modal-input"
+            style={{ width: "100%", padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
+            placeholder="Enter Area Name"
+            value={areaName}
+            onChange={(e) => setAreaName(e.target.value)}
+          />
+        </div>
+
+        <div className="area-modal-field" style={{ marginBottom: "16px" }}>
+          <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>Minimum Order Amount</label>
+          <input
+            type="number"
+            step="any"
+            className="area-modal-input"
+            style={{ width: "100%", padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
+            placeholder="0.00"
+            value={areaMinAmt}
+            onChange={(e) => setAreaMinAmt(e.target.value)}
+          />
+        </div>
+
+        <div className="area-modal-field" style={{ marginBottom: "16px" }}>
+          <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>
+            Minimum Order Amount for Free Delivery
+            <div style={{ color: "#ef4444", fontSize: "0.8rem", fontWeight: 500, marginTop: "4px" }}>
+              ** Amount must be greater than minimum order amount
+            </div>
+          </label>
+          <input
+            type="number"
+            step="any"
+            className="area-modal-input"
+            style={{ width: "100%", padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
+            placeholder="0.00"
+            value={areaFreeAmt}
+            onChange={(e) => setAreaFreeAmt(e.target.value)}
+          />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+          <div className="area-modal-field" style={{ marginBottom: "16px" }}>
+            <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>Delivery Fees</label>
+            <input
+              type="number"
+              step="any"
+              className="area-modal-input"
+              style={{ width: "100%", padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
+              placeholder="0.00"
+              value={areaFee}
+              onChange={(e) => setAreaFee(e.target.value)}
+            />
+          </div>
+
+          <div className="area-modal-field" style={{ marginBottom: "16px" }}>
+            <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>Delivery Time</label>
+            <select
+              className="area-modal-select"
+              style={{ width: "100%", padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
+              value={areaDeliveryTime}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "Custom") {
+                  setShowCustomTimeModal(true);
+                } else {
+                  setAreaDeliveryTime(val);
+                }
+              }}
+            >
+              <option value="10 Minute">10 Minutes</option>
+              <option value="20 Minute">20 Minutes</option>
+              <option value="30 Minute">30 Minutes</option>
+              <option value="40 Minute">40 Minutes</option>
+              <option value="50 Minute">50 Minutes</option>
+              <option value="60 Minute">60 Minutes</option>
+              {areaDeliveryTime.includes("Hours") && (
+                <option value={areaDeliveryTime}>{areaDeliveryTime}</option>
+              )}
+              <option value="Custom">Custom Time...</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="area-modal-actions">
+          <button
+            className="btn-teal"
+            onClick={handleSaveArea}
+            style={{ padding: "10px 28px", borderRadius: "6px", fontWeight: 700 }}
+          >
+            {isEditingArea ? "UPDATE" : "SAVE"}
+          </button>
+          <button
+            className="btn-red"
+            onClick={() => setShowAreaModal(false)}
+            style={{ padding: "10px 28px", borderRadius: "6px", fontWeight: 700 }}
+          >
+            CANCEL
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* ── Custom Delivery Time Sub-Modal ── */}
+  {showCustomTimeModal && (
+    <div className="modal-overlay-custom" style={{ zIndex: 10002 }}>
+      <div className="area-modal-content" style={{ maxWidth: "400px" }}>
+        <h3 className="area-modal-title">Delivery On Time</h3>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
+          <div>
+            <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "#475569", marginBottom: "6px" }}>Hours</label>
+            <select
+              className="area-modal-select"
+              value={customHours}
+              onChange={(e) => setCustomHours(e.target.value)}
+            >
+              {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")).map((hr) => (
+                <option key={hr} value={hr}>{hr}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "#475569", marginBottom: "6px" }}>Minutes</label>
+            <select
+              className="area-modal-select"
+              value={customMinutes}
+              onChange={(e) => setCustomMinutes(e.target.value)}
+            >
+              {Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0")).map((mn) => (
+                <option key={mn} value={mn}>{mn}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="area-modal-actions">
+          <button
+            className="btn-teal"
+            onClick={() => {
+              const formattedTime = `${customHours} Hours ${customMinutes} Minute`;
+              setAreaDeliveryTime(formattedTime);
+              setShowCustomTimeModal(false);
+            }}
+            style={{ padding: "8px 24px" }}
+          >
+            SAVE
+          </button>
+          <button
+            className="btn-red"
+            onClick={() => setShowCustomTimeModal(false)}
+            style={{ padding: "8px 24px" }}
+          >
+            CLOSE
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* ── Delete Confirmation Modal for Area ── */}
+  {showDeleteAreaModal && (
+    <div className="modal-overlay-custom">
+      <div className="area-modal-content" style={{ maxWidth: "450px", textAlign: "center" }}>
+        <div style={{ fontSize: "1rem", fontWeight: 600, color: "#334155", marginBottom: "24px", lineHeight: "1.5" }}>
+          This will delete the delivery area that you have selected!
+        </div>
+        <div className="area-modal-actions">
+          <button
+            className="btn-red"
+            onClick={handleDeleteAreaConfirm}
+            style={{ padding: "10px 24px", borderRadius: "6px", fontWeight: 700 }}
+          >
+            YES, DELETE IT
+          </button>
+          <button
+            className="btn-teal"
+            onClick={() => {
+              setShowDeleteAreaModal(false);
+              setDeletingAreaId(null);
+            }}
+            style={{ padding: "10px 24px", borderRadius: "6px", fontWeight: 700, background: "#64748b" }}
+          >
+            CANCEL
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* ── Toast Notification ── */}
+  {showToast && (
+    <div className="delivery-toast">
+      <i className="fa-solid fa-circle-check" style={{ color: "#38bdf8", fontSize: "1.1rem" }}></i>
+      <span>{toastMessage}</span>
+    </div>
+  )}
     </div>
     </div>
   );

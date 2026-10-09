@@ -113,6 +113,7 @@ export function Sidebar() {
   const activeSection = getActiveSection(pathname);
   const router = useRouter();
   const [shopName, setShopName] = useState("Loading...");
+  const [shopLogo, setShopLogo] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchShopInfo = async () => {
@@ -122,6 +123,9 @@ export function Sidebar() {
           const info = await setupService.getRestaurantInformation(Number(shopId));
           if (info && info.shop_name) {
             setShopName(info.shop_name);
+            if (info.shoplogo) {
+              setShopLogo(info.shoplogo);
+            }
           } else {
             setShopName("Unknown Restaurant");
           }
@@ -178,7 +182,15 @@ export function Sidebar() {
       <div className={styles.sidebarInner}>
         <div className={styles.shopInfoWrapper}>
           <div className={styles.shopInfo}>
-            <i className="fas fa-store" />
+            {shopLogo ? (
+              <img 
+                src={`https://admin.foodchow.com/LogoImages/${shopLogo}`} 
+                alt="Shop Logo" 
+                style={{ width: "24px", height: "24px", borderRadius: "50%", objectFit: "cover" }} 
+              />
+            ) : (
+              <i className="fas fa-store" />
+            )}
             {shopName}
           </div>
         </div>

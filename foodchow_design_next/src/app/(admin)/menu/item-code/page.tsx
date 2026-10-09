@@ -82,30 +82,41 @@ export default function ItemCodePage() {
   //     });
   //   }
   // };
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  const filteredItems = items.filter((item) =>
+    item.item_name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const handleTypeChange = async (newType: number) => {
+    setItemCodeType(newType);
+    try {
+      await menuService.saveItemCodeTypeSetting(SHOP_ID, newType);
+    } catch (e) {
+      console.error("Failed to update item code type setting:", e);
+    }
+  };
+
   const saveChanges = async () => {
-    // Check for duplicate item codes
-    // const codes = items
-    //   .map((item) => item.item_code?.trim())
-    //   .filter((code) => code !== "");
+    // 1. If numeric type is selected, validate that all entered codes are purely numeric
+    if (itemCodeType === 0) {
+      for (const item of items) {
+        const code = item.item_code ? String(item.item_code).trim() : "";
+        if (code !== "" && !/^\d+$/.test(code)) {
+          await Swal.fire({
+            icon: "error",
+            title: "Validation Error",
+            text: "Please enter numeric values only.",
+          });
+          return;
+        }
+      }
+    }
 
-    // const duplicateCode = codes.find(
-    //   (code, index) => codes.indexOf(code) !== index
-    // );
-
-    // if (duplicateCode) {
-    //   await Swal.fire({
-    //     icon: "error",
-    //     title: "Duplicate Item Found!",
-    //     text: `Item code "${duplicateCode}" is already assigned to another item.`,
-    //   });
-
-    //   return;
-    // }
-
+    // 2. Check for duplicate item codes
     const codeMap = new Map<string, string>();
 
     for (const item of items) {
-      const code = item.item_code?.trim();
+      const code = item.item_code ? String(item.item_code).trim() : "";
 
       if (!code) continue;
 
@@ -122,13 +133,18 @@ export default function ItemCodePage() {
 
       codeMap.set(code, item.item_name);
     }
+
     try {
+      // Save item code type setting (Numeric = 0, AlphaNumeric = 1)
+      await menuService.saveItemCodeTypeSetting(SHOP_ID, itemCodeType);
+
+      // Save item codes
       await Promise.all(
         items.map((item) =>
           menuService.updateItemCode(
             SHOP_ID,
             item.item_id,
-            item.item_code ?? ""
+            item.item_code ? String(item.item_code).trim() : ""
           )
         )
       );
@@ -152,77 +168,12 @@ export default function ItemCodePage() {
       });
     }
   };
-  // ============================================
-
-
 
   useEffect(() => {
     loadData();
   }, []);
 
-
-  useEffect(() => {
-    const helpModal = document.getElementById("helpModal");
-    // const toast = document.getElementById("toast");
-    const helpBtn = document.getElementById("openHelpBtn");
-    const closeBtns = document.querySelectorAll<HTMLButtonElement>(
-      "[data-close-help]"
-    );
-    const searchInput = document.getElementById(
-      "searchInput"
-    ) as HTMLInputElement | null;
-
-    // let toastTimer: ReturnType<typeof setTimeout>;
-
-    function openHelpModal() {
-      if (!helpModal) return;
-      helpModal.style.display = "flex";
-      setTimeout(() => helpModal.classList.add("show"), 10);
-    }
-
-    function closeHelpModal() {
-      if (!helpModal) return;
-      helpModal.classList.remove("show");
-      setTimeout(() => (helpModal.style.display = "none"), 200);
-    }
-
-    function filterItems(query: string) {
-      const rows = document.querySelectorAll<HTMLTableRowElement>(
-        "#items-body tr"
-      );
-      const q = query.toLowerCase();
-      let visible = 0;
-      rows.forEach((row) => {
-        const name = row.cells[0]?.textContent?.toLowerCase() || "";
-        const codeBadge = row.querySelector<HTMLElement>(".code-display-badge");
-        const code = codeBadge ? (codeBadge.textContent || "").toLowerCase() : "";
-        const match = name.includes(q) || code.includes(q);
-        row.style.display = match ? "" : "none";
-        if (match) visible++;
-      });
-      const itemCount = document.getElementById("item-count");
-      if (itemCount) {
-        itemCount.textContent =
-          visible + " item" + (visible !== 1 ? "s" : "");
-      }
-    }
-
-    const onSearch = (e: Event) =>
-      filterItems((e.target as HTMLInputElement).value);
-
-    helpBtn?.addEventListener("click", openHelpModal);
-    // saveBtn?.addEventListener("click", saveChanges);
-    searchInput?.addEventListener("input", onSearch);
-    closeBtns.forEach((b) => b.addEventListener("click", closeHelpModal));
-
-    return () => {
-      // clearTimeout(toastTimer);
-      helpBtn?.removeEventListener("click", openHelpModal);
-      // saveBtn?.removeEventListener("click", saveChanges);
-      searchInput?.removeEventListener("input", onSearch);
-      closeBtns.forEach((b) => b.removeEventListener("click", closeHelpModal));
-    };
-  }, []);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   return (
     <div id="pg-menu-item-code">
@@ -232,7 +183,7 @@ export default function ItemCodePage() {
             <div className="card">
               <div className="card-header">
                 <h1 className="card-title typ-page-heading" style={{ margin: 0 }}>Item Code</h1>
-                <button className="btn-help" id="openHelpBtn">
+                <button className="btn-help" id="openHelpBtn" onClick={() => window.open('https://vimeo.com/1075945406', '_blank')}>
                   <svg viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="10" />
                     <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
@@ -251,8 +202,7 @@ export default function ItemCodePage() {
                       id="r-numeric"
                       value="numeric"
                       checked={itemCodeType === 0}
-                      // readOnly
-                      onChange={() => setItemCodeType(0)}
+                      onChange={() => handleTypeChange(0)}
                     />
                     <label htmlFor="r-numeric">
                       <span className="radio-dot"></span> Numeric
@@ -265,8 +215,7 @@ export default function ItemCodePage() {
                       id="r-alpha"
                       value="alpha"
                       checked={itemCodeType === 1}
-                      // readOnly
-                      onChange={() => setItemCodeType(1)}
+                      onChange={() => handleTypeChange(1)}
                     />
                     <label htmlFor="r-alpha">
                       <span className="radio-dot"></span> AlphaNumeric
@@ -284,11 +233,13 @@ export default function ItemCodePage() {
                     className="search-input"
                     placeholder="Search items"
                     id="searchInput"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
 
                 <span className="item-count" id="item-count">
-                  {items.length} items
+                  {filteredItems.length} {filteredItems.length === 1 ? "item" : "items"}
                 </span>
 
                 <button className="btn-action btn-save" id="saveBtn" onClick={saveChanges}>
@@ -314,25 +265,35 @@ export default function ItemCodePage() {
                           Loading items...
                         </td>
                       </tr>
+                    ) : filteredItems.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} style={{ textAlign: "center", padding: "24px", color: "#64748b" }}>
+                          No matching items found.
+                        </td>
+                      </tr>
                     ) : (
-                      items.map((item) => (
+                      filteredItems.map((item) => (
                         <tr key={item.item_id}>
                           <td>{item.item_name}</td>
                           <td>
-                            {/* <span className="code-display-badge">
-                              {item.item_code ?? "NULL"}
-                            </span> */}
                             <input
                               className="code-input"
                               type="text"
                               value={item.item_code ?? ""}
                               onChange={(e) => {
-                                const value = e.target.value;
+                                const rawValue = e.target.value;
+                                let validValue = rawValue;
+
+                                if (itemCodeType === 0) {
+                                  validValue = rawValue.replace(/[^0-9]/g, "");
+                                } else {
+                                  validValue = rawValue.replace(/[^a-zA-Z0-9]/g, "");
+                                }
 
                                 setItems((prev) =>
                                   prev.map((i) =>
                                     i.item_id === item.item_id
-                                      ? { ...i, item_code: value }
+                                      ? { ...i, item_code: validValue }
                                       : i
                                   )
                                 );
@@ -352,11 +313,11 @@ export default function ItemCodePage() {
         </div>
       </div>
 
-      <div className="modal-overlay" id="helpModal">
+      <div className={`modal-overlay ${isHelpOpen ? "show" : ""}`} id="helpModal" style={{ display: isHelpOpen ? "flex" : "none" }}>
         <div className="modal-container">
           <div className="modal-title-bar">
             <h3>Item Code Help Guide</h3>
-            <button className="modal-close-btn" data-close-help>
+            <button className="modal-close-btn" type="button" onClick={() => setIsHelpOpen(false)}>
               <svg viewBox="0 0 24 24">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
@@ -385,7 +346,7 @@ export default function ItemCodePage() {
             <button
               className="btn-action btn-cancel"
               type="button"
-              data-close-help
+              onClick={() => setIsHelpOpen(false)}
             >
               Close
             </button>

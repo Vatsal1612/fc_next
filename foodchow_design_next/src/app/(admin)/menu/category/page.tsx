@@ -5,6 +5,7 @@ import { menuService, type MenuCategory } from "@/api";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import Swal from "sweetalert2";
 import { useShopId, getShopId } from "@/utils/shop";
+import ReportPagination from "@/components/shared/ReportPagination";
 import "./page.css";
 
 function getCategoryImageUrl(imagePath?: string | null): string | null {
@@ -680,7 +681,7 @@ export default function CategoryPage() {
                   </svg>
                   ADD NEW CATEGORY
                 </button>
-                <button className="btn-help" id="helpBtnCard" style={{ marginLeft: "0" }}>
+                <button className="btn-help" id="helpBtnCard" style={{ marginLeft: "0" }} onClick={() => window.open('https://vimeo.com/1075943159', '_blank')}>
                   <svg viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="10" />
                     <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
@@ -830,54 +831,16 @@ export default function CategoryPage() {
                   <div
                     className="table-footer"
                     id="tableFooter"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      position: "relative",
-                      minHeight: "50px",
-                      width: "100%"
-                    }}
+                    style={{ width: "100%" }}
                   >
-                    <span>
-                      {loading
-                        ? "Loading…"
-                        : categories.length === 0
-                        ? "Showing 0 entries"
-                        : `Showing ${pageStart + 1} to ${
-                            pageStart + pagedCategories.length
-                          } of ${categories.length} entries`}
-                    </span>
-                    {!loading && !error && categories.length > 0 && (
-                      <div className="pagination" style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>
-                        <button
-                          type="button"
-                          className="page-btn"
-                          onClick={() => setPage((p) => Math.max(1, p - 1))}
-                          disabled={page <= 1}
-                        >
-                          Prev
-                        </button>
-                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-                          <button
-                            key={pageNum}
-                            type="button"
-                            className={`page-btn ${page === pageNum ? "active-page" : ""}`}
-                            style={{ background: page === pageNum ? "#222" : "", color: page === pageNum ? "#fff" : "" }}
-                            onClick={() => setPage(pageNum)}
-                          >
-                            {pageNum}
-                          </button>
-                        ))}
-                        <button
-                          type="button"
-                          className="page-btn"
-                          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                          disabled={page >= totalPages}
-                        >
-                          Next
-                        </button>
-                      </div>
+                    {!loading && !error && (
+                      <ReportPagination
+                        currentPage={page}
+                        totalPages={totalPages}
+                        totalRecords={categories.length}
+                        pageSize={PAGE_SIZE}
+                        onPageChange={(p) => setPage(p)}
+                      />
                     )}
                   </div>
                 </div>
