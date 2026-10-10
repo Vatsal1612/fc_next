@@ -35,9 +35,10 @@ export default function ItemsPage() {
   // Drag and drop state
   const [draggedItemId, setDraggedItemId] = useState<number | null>(null);
 
-  // Pagination state
-  const PAGE_SIZE = 10;
+  // Pagination and filtering state
+  const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
+  const [filterCategoryId, setFilterCategoryId] = useState("all");
 
   // Ref so the useEffect crop logic can push the cropped base64 back to React state
   const setEditBase64ImageRef = useRef(setEditBase64Image);
@@ -136,6 +137,12 @@ export default function ItemsPage() {
       // Reload on failure
       loadItems();
     }
+  };
+
+  const getImageUrl = (img: string | null | undefined) => {
+    if (!img) return "";
+    if (img.startsWith("http")) return img;
+    return `https://admin.foodchow.com/FoodItemImages/${img}`;
   };
 
   useEffect(() => {
@@ -708,25 +715,49 @@ export default function ItemsPage() {
 
     const openQuickEditHandler = () => {
       if (!mainItemsTable || !quickEditTableBody || !quickEditModal) return;
-      const rows = mainItemsTable.querySelectorAll<HTMLElement>("tbody tr");
       quickEditTableBody.innerHTML = "";
+      const allItems = itemsRef.current.flatMap((c) => c.item_list || []);
+      const rows = mainItemsTable.querySelectorAll<HTMLElement>("tbody tr");
+      
       rows.forEach((row, index) => {
-        const itemName =
-          row.querySelector<HTMLElement>(".item-name")?.innerText ?? "";
-        const priceValue =
-          row
-            .querySelector<HTMLElement>(".item-price")
-            ?.innerText.replace(/[^0-9]/g, "") ?? "";
+        const itemId = Number(row.dataset.itemId);
+        const item = allItems.find((i: any) => i.item_Id === itemId);
+        const itemName = row.querySelector<HTMLElement>(".item-name")?.innerText ?? "";
+        
+        let sizesHtml = "";
+        let inputsHtml = "";
+        
+        if (item && (item.is_size_available === 1 || item.Is_size_available === 1) && ((item.FoodItemSizeList && item.FoodItemSizeList.length > 0) || (item.foodItemSizeList && item.foodItemSizeList.length > 0))) {
+           const sizesList = item.FoodItemSizeList || item.foodItemSizeList;
+           sizesList.forEach((size: any) => {
+              const sName = size.size_name ?? size.Size_Name ?? "Size";
+              const sPrice = size.Net_Price ?? size.net_price ?? size.Net_Prices ?? size.price ?? size.Total_Price ?? 0;
+              sizesHtml += `<div style="margin-bottom: 6px;">${sName}</div>`;
+              inputsHtml += `<input type="number" class="table-input item-price-input" data-is-variant="true" style="margin-bottom: 6px;" value="${sPrice}">`;
+           });
+        } else {
+           const priceValue = row.querySelector<HTMLElement>(".item-price")?.innerText.replace(/[^0-9]/g, "") ?? "0";
+           sizesHtml = "No Size Available";
+           inputsHtml = `<input type="number" class="table-input item-price-input" value="${priceValue}">`;
+        }
+
         quickEditTableBody.insertAdjacentHTML(
           "beforeend",
           `
                 <tr>
                     <td>${index + 1}</td>
-                    <td class="edit-item-name">${itemName}</td>
-                    <td class="edit-item-size">No Size Available</td>
-                    <td><input type="number" class="table-input item-price-input" value="${priceValue}"></td>
-                    <td><input type="number" class="table-input" value="0"></td>
-                    <td>
+                    <td class="edit-item-name" style="width: 250px;">
+                        <textarea class="form-input" style="resize: none; height: 40px; margin-bottom: 5px; width: 100%; border-radius: 6px; border: 1px solid darkgray;">${itemName}</textarea>
+                        <textarea class="form-input" style="resize: none; height: 50px; width: 100%; border-radius: 6px; border: 1px solid darkgray;" placeholder="Description"></textarea>
+                    </td>
+                    <td class="edit-item-size" style="vertical-align: top; padding-top: 15px; font-weight: bold;">${sizesHtml}</td>
+                    <td style="vertical-align: top; padding-top: 10px;"><div style="display: flex; flex-direction: column;">${inputsHtml}</div></td>
+                    <td style="vertical-align: top; padding-top: 10px;">
+                        <div style="display: flex; flex-direction: column;">
+                           ${sizesHtml === "No Size Available" ? `<input type="text" class="table-input" value="0" style="margin-bottom:6px;">` : item.FoodItemSizeList?.map((s:any) => `<input type="text" class="table-input" value="${s.Weight ?? 0}" style="margin-bottom:6px;">`).join('') || `<input type="text" class="table-input" value="0">`}
+                        </div>
+                    </td>
+                    <td style="vertical-align: top; padding-top: 10px;">
                         <div class="dropdown-container">
                             <div class="dropdown-trigger"><span>Select Unit</span><i class="fa-solid fa-caret-down"></i></div>
                             <div class="dropdown-menu">
@@ -735,9 +766,11 @@ export default function ItemsPage() {
                                 <div class="dropdown-item">Gram</div>
                                 <div class="dropdown-item">Pound</div>
                                 <div class="dropdown-item">Ounce</div>
-                                <div class="dropdown-item active-selection">Min. Order</div>
                             </div>
                         </div>
+                    </td>
+                    <td style="vertical-align: top; padding-top: 10px;">
+                        <input type="number" class="table-input" placeholder="Min Qty" value="1">
                     </td>
                 </tr>`
         );
@@ -763,6 +796,10 @@ export default function ItemsPage() {
       if (editContainVariantCheckbox?.checked) {
         editVariantSection!.style.display = "block";
         editSinglePriceSection!.style.display = "none";
+        const rowsContainer = document.getElementById("editVariantRows");
+        if (rowsContainer && rowsContainer.children.length === 0) {
+          addVariantRow("editVariantRows");
+        }
       } else {
         editVariantSection!.style.display = "none";
         editSinglePriceSection!.style.display = "block";
@@ -783,16 +820,27 @@ export default function ItemsPage() {
 
     const confirmYesHandler = () => {
       if (!quickEditTableBody || !mainItemsTable) return;
-      const editInputs = quickEditTableBody.querySelectorAll<HTMLInputElement>(
-        ".item-price-input"
-      );
+      
+      const editRows = quickEditTableBody.querySelectorAll<HTMLElement>("tr");
       const mainRows = mainItemsTable.querySelectorAll<HTMLElement>("tbody tr");
-      editInputs.forEach((input, index) => {
-        const priceCell = mainRows[index]?.querySelector<HTMLElement>(
-          ".item-price"
-        );
-        if (priceCell) priceCell.innerText = `Rs.${input.value || 0}`;
+      
+      editRows.forEach((editRow, index) => {
+        const inputs = editRow.querySelectorAll<HTMLInputElement>(".item-price-input");
+        const priceCell = mainRows[index]?.querySelector<HTMLElement>(".item-price");
+        if (!priceCell) return;
+        
+        if (inputs.length > 1 || (inputs.length === 1 && inputs[0].dataset.isVariant)) {
+           const priceSpans = priceCell.querySelectorAll<HTMLElement>("div > div > span:nth-child(2)");
+           inputs.forEach((input, i) => {
+              if (priceSpans[i]) {
+                 priceSpans[i].innerText = `Rs.${input.value || 0}`;
+              }
+           });
+        } else if (inputs.length === 1) {
+           priceCell.innerHTML = `<span>Rs.${inputs[0].value || 0}</span>`;
+        }
       });
+      
       if (confirmUpdateModal) confirmUpdateModal.style.display = "none";
       if (quickEditModal) quickEditModal.style.display = "none";
     };
@@ -961,18 +1009,20 @@ export default function ItemsPage() {
       document.getElementById("variantSection");
 
     const handleVariantToggle = () => {
-      if (
-        containVariantCheckbox?.checked
-      ) {
+      if (containVariantCheckbox?.checked) {
         singlePriceSection!.style.display = "none";
         variantSection!.style.display = "block";
+        const rowsContainer = document.getElementById("variantRows");
+        if (rowsContainer && rowsContainer.children.length === 0) {
+          addVariantRow("variantRows");
+        }
       } else {
         singlePriceSection!.style.display = "block";
         variantSection!.style.display = "none";
       }
     };
 
-    const addVariantRow = (containerId: string = "variantRows") => {
+    function addVariantRow(containerId: string = "variantRows") {
       const container = document.getElementById(containerId);
       if (!container) return;
 
@@ -1213,7 +1263,11 @@ export default function ItemsPage() {
                 <select
                   className="category-select"
                   id="categoryFilterSelect"
-                  defaultValue="all"
+                  value={filterCategoryId}
+                  onChange={(e) => {
+                    setFilterCategoryId(e.target.value);
+                    setPage(1); // Reset to page 1 on filter change
+                  }}
                 >
                   <option value="all">ALL CATEGORIES</option>
 
@@ -1434,12 +1488,16 @@ export default function ItemsPage() {
                     </tbody> */}
                     <tbody>
                       {(() => {
-                        const allItems = items.flatMap((category) =>
+                        const filteredCategories = filterCategoryId === "all" 
+                          ? items 
+                          : items.filter(c => String(c.id) === filterCategoryId);
+
+                        const allItems = filteredCategories.flatMap((category) =>
                           (category.item_list || []).map((item: any) => ({ ...item, _category: category }))
                         );
                         
-                        const pageStart = (page - 1) * PAGE_SIZE;
-                        const visibleItems = allItems.slice(pageStart, pageStart + PAGE_SIZE);
+                        const pageStart = (page - 1) * pageSize;
+                        const visibleItems = allItems.slice(pageStart, pageStart + pageSize);
                         
                         return visibleItems.map((item: any) => {
                           const category = item._category;
@@ -1448,7 +1506,7 @@ export default function ItemsPage() {
                             key={item.item_Id}
                             data-item-id={item.item_Id}
                             data-cate-id={category.id}
-                            data-item-image={item.item_Image ?? item.Item_Image ?? ""}
+                            data-item-image={getImageUrl(item.item_Image ?? item.Item_Image)}
                             data-category={String(category.id)}
                             draggable={true}
                             onDragStart={(e) => handleDragStart(e, item.item_Id)}
@@ -1468,34 +1526,47 @@ export default function ItemsPage() {
                             </td>
                             <td className="item-name">{item.item_Name ?? item.Item_Name}</td>
                             <td className="item-price">
-                              {(item.is_size_available === 1 || item.Is_size_available === 1) && (item.FoodItemSizeList?.length > 0 || item.foodItemSizeList?.length > 0) ? (
-                                <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "120px" }}>
-                                  {(item.FoodItemSizeList || item.foodItemSizeList).map((size: any, idx: number) => (
-                                    <div key={idx} style={{ display: "flex", justifyContent: "space-between", background: "#f8f9fa", padding: "4px 8px", borderRadius: "4px", fontSize: "13px" }}>
-                                      <span style={{ fontWeight: 500 }}>{size.size_name ?? size.Size_Name ?? "Size"}</span>
-                                      <span>Rs.{size.Net_Price ?? size.net_price ?? size.Net_Prices ?? size.price ?? size.Total_Price ?? 0}</span>
+                              {(() => {
+                                const isSizeAvailable = item.is_size_available === 1 || item.Is_size_available === 1 || item.is_size_available === true || item.Is_size_available === true;
+                                const sizeList = item.FoodItemSizeList || item.foodItemSizeList || item.fooditemSizeList || [];
+                                
+                                if (isSizeAvailable && sizeList.length > 0) {
+                                  return (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "120px" }}>
+                                      {sizeList.map((size: any, idx: number) => (
+                                        <div key={idx} style={{ display: "flex", justifyContent: "space-between", background: "#f8f9fa", padding: "4px 8px", borderRadius: "4px", fontSize: "13px" }}>
+                                          <span style={{ fontWeight: 500 }}>{size.size_name ?? size.Size_Name ?? size.Size_name ?? "Size"}</span>
+                                          <span>Rs.{size.Net_Price ?? size.net_price ?? size.Net_Prices ?? size.price ?? size.Total_Price ?? 0}</span>
+                                        </div>
+                                      ))}
                                     </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <span>Rs.{item.price ?? 0}</span>
-                              )}
+                                  );
+                                }
+                                
+                                return <span>Rs.{item.price ?? item.Price ?? item.net_price ?? item.Net_Price ?? 0}</span>;
+                              })()}
                             </td>
 
                             <td>
                               <div className="placeholder-img">
                                 {(item.item_Image || item.Item_Image) ? (
                                   <img
-                                    src={item.item_Image ?? item.Item_Image}
+                                    src={getImageUrl(item.item_Image ?? item.Item_Image)}
                                     style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 4 }}
-                                    alt={item.item_Name ?? item.Item_Name}
+                                    alt={item.item_Name ?? item.Item_Name ?? "Item"}
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.style.display = "none";
+                                      if (target.nextElementSibling) {
+                                        (target.nextElementSibling as HTMLElement).style.display = "flex";
+                                      }
+                                    }}
                                   />
-                                ) : (
-                                  <>
-                                    <i className="fa-solid fa-concierge-bell"></i>
-                                    <span>No Image</span>
-                                  </>
-                                )}
+                                ) : null}
+                                <div style={{ display: (item.item_Image || item.Item_Image) ? "none" : "flex", flexDirection: "column", alignItems: "center" }}>
+                                  <i className="fa-solid fa-concierge-bell"></i>
+                                  <span>No Image</span>
+                                </div>
                               </div>
                             </td>
 
@@ -1551,17 +1622,25 @@ export default function ItemsPage() {
                 <div className="table-footer" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", minHeight: "50px", width: "100%" }}>
                   <div id="showingEntriesText" style={{ width: "100%" }}>
                     {(() => {
-                      const allItems = items.flatMap((c) => c.item_list || []);
+                      const filteredCategories = filterCategoryId === "all" 
+                        ? items 
+                        : items.filter(c => String(c.id) === filterCategoryId);
+
+                      const allItems = filteredCategories.flatMap((c) => c.item_list || []);
                       const totalItems = allItems.length;
-                      const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+                      const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
                       
                       return (
                         <ReportPagination
                           currentPage={page}
                           totalPages={totalPages}
                           totalRecords={totalItems}
-                          pageSize={PAGE_SIZE}
+                          pageSize={pageSize}
                           onPageChange={(p) => setPage(p)}
+                          onPageSizeChange={(size) => {
+                            setPageSize(size);
+                            setPage(1);
+                          }}
                         />
                       );
                     })()}
@@ -2064,6 +2143,7 @@ export default function ItemsPage() {
                   <th>Item Price (Rs.)</th>
                   <th>Weight</th>
                   <th>Unit</th>
+                  <th>Min. Order Qty</th>
                 </tr>
               </thead>
               <tbody id="quickEditTableBody"></tbody>

@@ -99,14 +99,14 @@ const cuisineSelectStyles = {
     alignItems: "center",
     padding: "2px",
   }),
-  
+
   multiValueLabel: (base: any) => ({
     ...base,
     color: "#fff",
     fontSize: "13px",
     padding: "2px 6px",
   }),
-  
+
   multiValueRemove: (base: any) => ({
     ...base,
     color: "#fff",
@@ -508,7 +508,24 @@ export default function MyProfilePage() {
         popupAnchor: [1, -34],
         shadowSize: [41, 41]
       });
-      L.marker([lat, lng], { icon: redIcon, draggable: false }).addTo(map);
+      const marker = L.marker([lat, lng], { icon: redIcon, draggable: true }).addTo(map);
+      marker.on('dragend', (e: any) => {
+        const position = marker.getLatLng();
+        setAddress((prev: any) => ({
+          ...prev,
+          latitude: position.lat.toString(),
+          longitude: position.lng.toString(),
+        }));
+      });
+
+      map.on('click', (e: any) => {
+        marker.setLatLng(e.latlng);
+        setAddress((prev: any) => ({
+          ...prev,
+          latitude: e.latlng.lat.toString(),
+          longitude: e.latlng.lng.toString(),
+        }));
+      });
 
       // Force Leaflet to recalculate map size once container is fully rendered
       setTimeout(() => {
@@ -685,126 +702,126 @@ export default function MyProfilePage() {
               </div>
 
               <div className="pf-card-body">
-            <div className="timehint">
-              <svg viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 8v4l3 2" />
-              </svg>
-              About a minute — most of it&apos;s already filled in from your signup.
-            </div>
+                {/* <div className="timehint">
+                  <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 8v4l3 2" />
+                  </svg>
+                  About a minute — most of it&apos;s already filled in from your signup.
+                </div> */}
 
-            {/* STEP 1 — Owner Information */}
-            <div id="step1">
-              <h1 className="typ-page-heading" style={{ margin: 0 }}>Owner Information</h1>
-              <div className="ssub">
-                We pulled these from your signup. Just check they&apos;re right.
-              </div>
-              <div className="grid2">
-                <div className="field">
-                  <span className="lab2">
-                    First Name <span className="req">*</span>
-                  </span>
-                  <input className="inp prefill" type="text"
-                    value={profile.first_name || ""}
-                    onChange={(e) =>
-                      setProfile({
-                        ...profile,
-                        first_name: e.target.value,
-                      })
-                    } />
-                  <span className="filledtag">
-                    <svg viewBox="0 0 24 24">
-                      <path d="M5 13l4 4L19 7" />
-                    </svg>{" "}
-                    From your signup
-                  </span>
-                </div>
-                <div className="field">
-                  <span className="lab2">
-                    Last Name <span className="req">*</span>
-                  </span>
-                  <input className="inp prefill" type="text"
-                    value={profile.last_name || ""}
-                    onChange={(e) =>
-                      setProfile({
-                        ...profile,
-                        last_name: e.target.value
-                      })
-                    } />
-                  <span className="filledtag">
-                    <svg viewBox="0 0 24 24">
-                      <path d="M5 13l4 4L19 7" />
-                    </svg>{" "}
-                    From your signup
-                  </span>
-                </div>
-                <div className="field">
-                  <span className="lab2">
-                    Email Address <span className="req">*</span>
-                  </span>
-                  <input
-                    className="inp prefill"
-                    type="email"
-                    value={profile.owner_eamil || ""}
-                    onChange={(e) =>
-                      setProfile({
-                        ...profile,
-                        owner_eamil: e.target.value
-                      })
-                    }
-                  />
-                  <span className="filledtag">
-                    <svg viewBox="0 0 24 24">
-                      <path d="M5 13l4 4L19 7" />
-                    </svg>{" "}
-                    From your signup
-                  </span>
-                </div>
-                <div className="field">
-                  <span className="lab2">
-                    Mobile No [Order Taking Number] <span className="req">*</span>
-                  </span>
-                  <input className="inp prefill" type="tel" value={profile.owner_phoneno || ""} onChange={(e) => setProfile({ ...profile, owner_phoneno: e.target.value })} />
-                  <span className="helper">
+                {/* STEP 1 — Owner Information */}
+                <div id="step1">
+                  <h1 className="typ-page-heading" style={{ margin: 0 }}>Owner Information</h1>
+                  <div className="ssub">
+                    {/* We pulled these from your signup. Just check they&apos;re right. */}
+                  </div>
+                  <div className="grid2">
+                    <div className="field">
+                      <span className="lab2">
+                        First Name <span className="req">*</span>
+                      </span>
+                      <input className="inp prefill" type="text"
+                        value={profile.first_name || ""}
+                        onChange={(e) =>
+                          setProfile({
+                            ...profile,
+                            first_name: e.target.value,
+                          })
+                        } />
+                      <span className="filledtag">
+                        {/* <svg viewBox="0 0 24 24">
+                          <path d="M5 13l4 4L19 7" />
+                        </svg>{" "}
+                        From your signup */}
+                      </span>
+                    </div>
+                    <div className="field">
+                      <span className="lab2">
+                        Last Name <span className="req">*</span>
+                      </span>
+                      <input className="inp prefill" type="text"
+                        value={profile.last_name || ""}
+                        onChange={(e) =>
+                          setProfile({
+                            ...profile,
+                            last_name: e.target.value
+                          })
+                        } />
+                      <span className="filledtag">
+                        {/* <svg viewBox="0 0 24 24">
+                          <path d="M5 13l4 4L19 7" />
+                        </svg>{" "}
+                        From your signup */}
+                      </span>
+                    </div>
+                    <div className="field">
+                      <span className="lab2">
+                        Email Address <span className="req">*</span>
+                      </span>
+                      <input
+                        className="inp prefill"
+                        type="email"
+                        value={profile.owner_eamil || ""}
+                        onChange={(e) =>
+                          setProfile({
+                            ...profile,
+                            owner_eamil: e.target.value
+                          })
+                        }
+                      />
+                      <span className="filledtag">
+                        {/* <svg viewBox="0 0 24 24">
+                          <path d="M5 13l4 4L19 7" />
+                        </svg>{" "}
+                        From your signup */}
+                      </span>
+                    </div>
+                    <div className="field">
+                      <span className="lab2">
+                        Mobile No [Order Taking Number] <span className="req">*</span>
+                      </span>
+                      <input className="inp prefill" type="tel" value={profile.owner_phoneno || ""} onChange={(e) => setProfile({ ...profile, owner_phoneno: e.target.value })} />
+                      {/* <span className="helper">
                     Where new order alerts go. Restaurant landline can be added later.
-                  </span>
-                </div>
-                <div className="field">
-                  <span className="lab2">
-                    Restaurant Phone No <span className="pill opt">Optional</span>
-                  </span>
-                  <input className="inp" type="tel" value={profile.mobileno || ""} onChange={(e) => setProfile({ ...profile, mobileno: e.target.value })} />
-                  <span className="helper">
+                  </span> */}
+                    </div>
+                    <div className="field">
+                      <span className="lab2">
+                        Restaurant Phone No <span className="pill opt">Optional</span>
+                      </span>
+                      <input className="inp" type="tel" value={profile.mobileno || ""} onChange={(e) => setProfile({ ...profile, mobileno: e.target.value })} />
+                      {/* <span className="helper">
                     Shown to customers on your restaurant page.
-                  </span>
-                </div>
-              </div>
-              <div className="cap">
+                  </span> */}
+                    </div>
+                  </div>
+                  {/* <div className="cap">
                 Every field we already captured at signup is pre-filled and marked, so
                 step 1 is a 10-second confirm instead of re-typing the same data a
                 second time.
-              </div>
-              <div className="step-nav">
-                <span className="step-nav-hint">Section 1 of 3 · Next up: Other Information</span>
-                <button type="button" className="nav-btn" data-step-nav="next">
-                  NEXT: OTHER INFO
-                  <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6" /></svg>
-                </button>
-              </div>
-            </div>
+              </div> */}
+                  <div className="step-nav">
+                    <span className="step-nav-hint">Section 1 of 3 · Next up: Other Information</span>
+                    <button type="button" className="nav-btn" data-step-nav="next">
+                      NEXT: OTHER INFO
+                      <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6" /></svg>
+                    </button>
+                  </div>
+                </div>
 
-            {/* STEP 2 — Other Information */}
-            <div id="step2" className="hidden">
-              <h1 className="typ-page-heading" style={{ margin: 0 }}>Other Information</h1>
-              <div className="ssub">
-                Tell us about your restaurant type and cuisines.
-              </div>
-              <div className="grid2">
-                <div className="field">
-                  <span className="lab2">
-                    Restaurant Type <span className="req">*</span>
-                  </span>
-                  {/*<div className="check-wrap">
+                {/* STEP 2 — Other Information */}
+                <div id="step2" className="hidden">
+                  <h1 className="typ-page-heading" style={{ margin: 0 }}>Other Information</h1>
+                  <div className="ssub">
+                    {/* Tell us about your restaurant type and cuisines. */}
+                  </div>
+                  <div className="grid2">
+                    <div className="field">
+                      <span className="lab2">
+                        Restaurant Type <span className="req">*</span>
+                      </span>
+                      {/*<div className="check-wrap">
                     <label className="check-item">
                       <input type="checkbox" defaultChecked /> Vegetarian
                     </label>
@@ -833,338 +850,323 @@ export default function MyProfilePage() {
                       <input type="checkbox" /> Ayurvedic
                     </label>
                   </div>*/}
-                  <div className="check-wrap">
-                    {restaurantTypes.map((item) => (
-                      <label key={item.id} className="check-item">
-                        <input
-                          type="checkbox"
-                          checked={profile.shop_type?.split(",").includes(item.id) || false}
-                          onChange={(e) => {
-                            const selected = profile.shop_type
-                              ? profile.shop_type.split(",")
-                              : [];
+                      <div className="check-wrap">
+                        {restaurantTypes.map((item) => (
+                          <label key={item.id} className="check-item">
+                            <input
+                              type="checkbox"
+                              checked={profile.shop_type?.split(",").includes(item.id) || false}
+                              onChange={(e) => {
+                                const selected = profile.shop_type
+                                  ? profile.shop_type.split(",")
+                                  : [];
 
-                            let updated = [];
+                                let updated = [];
 
-                            if (e.target.checked) {
-                              updated = [...selected, item.id];
-                            } else {
-                              updated = selected.filter((id: any) => id !== item.id);
-                            }
+                                if (e.target.checked) {
+                                  updated = [...selected, item.id];
+                                } else {
+                                  updated = selected.filter((id: any) => id !== item.id);
+                                }
 
-                            setProfile({
-                              ...profile,
-                              shop_type: updated.join(","),
-                            });
-                          }}
-                        />
+                                setProfile({
+                                  ...profile,
+                                  shop_type: updated.join(","),
+                                });
+                              }}
+                            />
 
-                        {item.label}
-                      </label>
-                    ))}
+                            {item.label}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="field" style={{ marginBottom: "20px" }}>
+                      <span className="lab2">
+                        Select Your Restaurant Cuisines <span className="req">*</span>
+                      </span>
+                      <Select
+                        instanceId="restaurant-cuisine"
+                        inputId="restaurant-cuisine"
+                        isMulti
+                        closeMenuOnSelect={false}
+                        hideSelectedOptions={false}
+                        menuPlacement="auto"
+                        menuPosition="fixed"
+                        menuPortalTarget={typeof document !== "undefined" ? document.body : null}
+                        menuShouldScrollIntoView={false}
+                        maxMenuHeight={220}
+                        styles={{
+                          ...cuisineSelectStyles,
+                          menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
+                        }}
+                        classNamePrefix="fc-cuisine"
+                        options={cuisineOptions}
+                        value={cuisineOptions.filter(option =>
+                          profile.cuisine_type?.split(",").includes(option.value)
+                        )}
+                        onChange={(selected: MultiValue<CuisineOption>) => {
+                          setProfile({
+                            ...profile,
+                            cuisine_type: selected.map((item) => item.value).join(","),
+                          });
+                        }}
+                      />
+                    </div>
+                    <div className="field">
+                      <span className="lab2">
+                        Default Currency <span className="req">*</span>{" "}
+                        <span className="pill auto">Auto</span>
+                      </span>
+                      <input
+                        className="inp prefill"
+                        type="text"
+                        value={profile.currency || ""}
+                        onChange={(e) =>
+                          setProfile({
+                            ...profile,
+                            currency: e.target.value,
+                          })
+                        }
+                      />
+                      {/* <span className="helper">Set from your country. Change if needed.</span> */}
+                    </div>
                   </div>
-                </div>
-                <div className="field" style={{ marginBottom: "20px" }}>
-                  <span className="lab2">
-                    Select Your Restaurant Cuisines <span className="req">*</span>
-                  </span>
-                  <Select
-                    instanceId="restaurant-cuisine"
-                    inputId="restaurant-cuisine"
-                    isMulti
-                    closeMenuOnSelect={false}
-                    hideSelectedOptions={false}
-                    menuPlacement="auto"
-                    menuPosition="fixed"
-                    menuPortalTarget={typeof document !== "undefined" ? document.body : null}
-                    menuShouldScrollIntoView={false}
-                    maxMenuHeight={220}
-                    styles={{
-                      ...cuisineSelectStyles,
-                      menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
-                    }}
-                    classNamePrefix="fc-cuisine"
-                    options={cuisineOptions}
-                    value={cuisineOptions.filter(option =>
-                      profile.cuisine_type?.split(",").includes(option.value)
-                    )}
-                    onChange={(selected: MultiValue<CuisineOption>) => {
-                      setProfile({
-                        ...profile,
-                        cuisine_type: selected.map((item) => item.value).join(","),
-                      });
-                    }}
-                  />
-                </div>
-                <div className="field">
-                  <span className="lab2">
-                    Default Currency <span className="req">*</span>{" "}
-                    <span className="pill auto">Auto</span>
-                  </span>
-                  <input
-                    className="inp prefill"
-                    type="text"
-                    value={profile.currency || ""}
-                    onChange={(e) =>
-                      setProfile({
-                        ...profile,
-                        currency: e.target.value,
-                      })
-                    }
-                  />
-                  <span className="helper">Set from your country. Change if needed.</span>
-                </div>
-              </div>
-              <div className="cap">
-                Dietary type and cuisine affect how you appear on the FoodChow
-                marketplace — they&apos;re required here so customers can find you.
-              </div>
-              <div className="step-nav">
-                <button type="button" className="nav-btn ghost" data-step-nav="prev">
-                  <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" /></svg>
-                  BACK: OWNER
-                </button>
-                <span className="step-nav-hint">Section 2 of 3</span>
-                <button type="button" className="nav-btn" data-step-nav="next">
-                  NEXT: RESTAURANT INFO
-                  <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6" /></svg>
-                </button>
-              </div>
-            </div>
-
-            {/* STEP 3 — Restaurant Information */}
-            <div id="step3" className="hidden">
-              <h1 className="typ-page-heading" style={{ margin: 0 }}>Restaurant Information</h1>
-              <div className="ssub">
-                Your restaurant address and details for the listing page.
-              </div>
-              <div className="grid2" style={{ marginBottom: "18px" }}>
-                <div className="field">
-                  <span className="lab2">
-                    Restaurant Name <span className="req">*</span>
-                  </span>
-                  <input className="inp" type="text" value={profile.shop_name || ""}
-                    onChange={(e) =>
-                      setProfile({
-                        ...profile,
-                        shop_name: e.target.value
-                      })
-                    } />
-                </div>
-                <div className="field">
-                  <span className="lab2">
-                    Restaurant Website URL <span className="req">*</span>
-                  </span>
-                  <input
-                    className="inp"
-                    type="text"
-                    value={profile.subdomain || ""}
-                    onChange={(e) => setProfile({ ...profile, subdomain: e.target.value })}
-                  />
-                </div>
-                <div className="field">
-                  <span className="lab2">
-                    Promocode <span className="pill opt">Optional</span>
-                  </span>
-                  <input className="inp" type="text" value={profile.promo_code || ""} onChange={(e) => setProfile({ ...profile, promo_code: e.target.value })} />
-                </div>
-                <div className="field">
-                  <span className="lab2">
-                    Timezones <span className="req">*</span>{" "}
-                    <span className="pill auto">Auto</span>
-                  </span>
-                  <input
-                    className="inp prefill"
-                    type="text"
-                    value={profile.timezone || ""}
-                    onChange={(e) =>
-                      setProfile({
-                        ...profile,
-                        timezone: e.target.value,
-                      })
-                    }
-
-                  />
-                </div>
-              </div>
-              <div className="field full" style={{ marginBottom: 0 }}>
-                <span className="lab2">
-                  Find your restaurant{" "}
-                  <span className="pill go">Needed for delivery &amp; listing</span>
-                </span>
-                <div className="searchwrap">
-                  <svg className="s" viewBox="0 0 24 24">
-                    <circle cx="11" cy="11" r="7" />
-                    <path d="M21 21l-4-4" />
-                  </svg>
-                  <input
-                    className="inp"
-                    type="text"
-                    value={address.search_query || ""}
-                    onChange={(e) => setAddress({ ...address, search_query: e.target.value })}
-                    placeholder="Search your restaurant address…"
-                  />
-                </div>
-                <span className="helper">
-                  Auto-fills area, city, state, pincode &amp; timezone — no separate
-                  fields needed.
-                </span>
-              </div>
-              <div className="map-wrapper-canvas" id="mapWrapper">
-                <div className="custom-map-type-control">
-                  <div className="map-type-tabs-row">
-                    <button
-                      className="map-tab-btn"
-                      id="mapViewTab"
-                      data-type="map"
-                      type="button"
-                    >
-                      Map
+                  {/* <div className="cap">
+                    Dietary type and cuisine affect how you appear on the FoodChow
+                    marketplace — they&apos;re required here so customers can find you.
+                  </div> */}
+                  <div className="step-nav">
+                    <button type="button" className="nav-btn ghost" data-step-nav="prev">
+                      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" /></svg>
+                      BACK: OWNER
                     </button>
-                    <button
-                      className="map-tab-btn tab-active"
-                      id="satelliteViewTab"
-                      data-type="satellite"
-                      type="button"
-                    >
-                      Satellite
+                    <span className="step-nav-hint">Section 2 of 3</span>
+                    <button type="button" className="nav-btn" data-step-nav="next">
+                      NEXT: RESTAURANT INFO
+                      <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6" /></svg>
                     </button>
                   </div>
-                  <div className="map-sub-options-panel" id="terrainCheckboxContainer" style={{ visibility: 'hidden', left: 0 }}>
-                    <input type="checkbox" id="terrainToggleCheckbox" />
-                    <label htmlFor="terrainToggleCheckbox" style={{ cursor: "pointer" }}>
-                      Terrain
-                    </label>
-                  </div>
-                  <div className="map-sub-options-panel" id="labelsCheckboxContainer" style={{ right: 0 }}>
-                    <input type="checkbox" id="labelsToggleCheckbox" defaultChecked />
-                    <label htmlFor="labelsToggleCheckbox" style={{ cursor: "pointer" }}>
-                      Labels
-                    </label>
-                  </div>
                 </div>
 
-                <div className="google-fullscreen-control">
-                  <button
-                    className="google-control-box"
-                    id="fullscreenToggleBtn"
-                    title="Toggle Fullscreen"
-                    type="button"
-                  >
-                    <i className="fas fa-expand" />
+                {/* STEP 3 — Restaurant Information */}
+                <div id="step3" className="hidden">
+                  <h1 className="typ-page-heading" style={{ margin: 0 }}>Restaurant Information</h1>
+                  <div className="ssub">
+                    {/* Your restaurant address and details for the listing page. */}
+                  </div>
+                  <div className="grid2" style={{ marginBottom: "18px" }}>
+                    <div className="field">
+                      <span className="lab2">
+                        Restaurant Name <span className="req">*</span>
+                      </span>
+                      <input className="inp" type="text" value={profile.shop_name || ""}
+                        onChange={(e) =>
+                          setProfile({
+                            ...profile,
+                            shop_name: e.target.value
+                          })
+                        } />
+                    </div>
+                    <div className="field">
+                      <span className="lab2">
+                        Restaurant Website URL <span className="req">*</span>
+                      </span>
+                      <input
+                        className="inp"
+                        type="text"
+                        value={profile.subdomain || ""}
+                        onChange={(e) => setProfile({ ...profile, subdomain: e.target.value })}
+                      />
+                    </div>
+                    <div className="field">
+                      <span className="lab2">
+                        Promocode <span className="pill opt">Optional</span>
+                      </span>
+                      <input className="inp" type="text" value={profile.promo_code || ""} onChange={(e) => setProfile({ ...profile, promo_code: e.target.value })} />
+                    </div>
+                    <div className="field">
+                      <span className="lab2">
+                        Timezones <span className="req">*</span>{" "}
+                        <span className="pill auto">Auto</span>
+                      </span>
+                      <input
+                        className="inp prefill"
+                        type="text"
+                        value={profile.timezone || ""}
+                        onChange={(e) =>
+                          setProfile({
+                            ...profile,
+                            timezone: e.target.value,
+                          })
+                        }
+
+                      />
+                    </div>
+                  </div>
+                  <div className="field full" style={{ marginBottom: 0 }}>
+                    <span className="lab2">
+                      Find your restaurant{" "}
+                      <span className="pill go">Needed for delivery &amp; listing</span>
+                    </span>
+                    <div className="searchwrap">
+                      <svg className="s" viewBox="0 0 24 24">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="M21 21l-4-4" />
+                      </svg>
+                      <input
+                        className="inp"
+                        type="text"
+                        value={address.search_query || ""}
+                        onChange={(e) => setAddress({ ...address, search_query: e.target.value })}
+                        placeholder="Search your restaurant address…"
+                      />
+                    </div>
+                    <span className="helper">
+                      {/* Auto-fills area, city, state, pincode &amp; timezone — no separate
+                      fields needed. */}
+                    </span>
+                  </div>
+                  <div className="map-wrapper-canvas" id="mapWrapper">
+                    <div className="custom-map-type-control">
+                      <div className="map-type-tabs-row">
+                        <button
+                          className="map-tab-btn"
+                          id="mapViewTab"
+                          data-type="map"
+                          type="button"
+                        >
+                          Map
+                        </button>
+                        <button
+                          className="map-tab-btn tab-active"
+                          id="satelliteViewTab"
+                          data-type="satellite"
+                          type="button"
+                        >
+                          Satellite
+                        </button>
+                      </div>
+                      <div className="map-sub-options-panel" id="terrainCheckboxContainer" style={{ visibility: 'hidden', left: 0 }}>
+                        <input type="checkbox" id="terrainToggleCheckbox" />
+                        <label htmlFor="terrainToggleCheckbox" style={{ cursor: "pointer" }}>
+                          Terrain
+                        </label>
+                      </div>
+                      <div className="map-sub-options-panel" id="labelsCheckboxContainer" style={{ right: 0 }}>
+                        <input type="checkbox" id="labelsToggleCheckbox" defaultChecked />
+                        <label htmlFor="labelsToggleCheckbox" style={{ cursor: "pointer" }}>
+                          Labels
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="google-fullscreen-control">
+                      <button
+                        className="google-control-box"
+                        id="fullscreenToggleBtn"
+                        title="Toggle Fullscreen"
+                        type="button"
+                      >
+                        <i className="fas fa-expand" />
+                      </button>
+                    </div>
+
+                    <div className="google-bottom-right-controls">
+                      <div className="google-pan-pad" id="panPad">
+                        <i className="fas fa-caret-up pan-up" data-dir="up" />
+                        <i className="fas fa-caret-left pan-left" data-dir="left" />
+                        <i className="fas fa-caret-right pan-right" data-dir="right" />
+                        <i className="fas fa-caret-down pan-down" data-dir="down" />
+                      </div>
+                      <div className="google-pegman-box" title="Drag to enter Street View">
+                        <div className="pegman-icon" />
+                      </div>
+                    </div>
+
+                    <div id="map" className="map" style={{ zIndex: 1, height: "350px", minHeight: "350px" }}></div>
+                  </div>
+                  <button className="disclosure-btn" id="addrToggle">
+                    <svg viewBox="0 0 24 24" id="addrCaret">
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
+                    Edit address details (area, pincode, building no)
                   </button>
-                </div>
+                  <div className="addr-panel" id="addrPanel">
+                    <div className="addr-grid">
+                      <div className="field">
+                        <span className="lab2">
+                          Apartment / Building / House No <span className="req">*</span>
+                        </span>
+                        <input className="inp prefill" type="text" value={address.houseno || ""} onChange={(e) => setAddress({ ...address, houseno: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <span className="lab2">Pincode</span>
+                        <input className="inp prefill" type="text" value={address.pincode || ""} onChange={(e) => setAddress({ ...address, pincode: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <span className="lab2">
+                          Address Line 1 <span className="req">*</span>
+                        </span>
+                        <input className="inp prefill" type="text" value={address.address || ""} onChange={(e) => setAddress({ ...address, address: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <span className="lab2">
+                          Address Line 2 <span className="pill opt">Optional</span>
+                        </span>
+                        <input className="inp" type="text" value={address.address1 || ""} onChange={(e) => setAddress({ ...address, address1: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <span className="lab2">
+                          Area / Suburb <span className="req">*</span>
+                        </span>
+                        <input className="inp prefill" type="text" value={address.area || ""} onChange={(e) => setAddress({ ...address, area: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <span className="lab2">
+                          City <span className="req">*</span>
+                        </span>
+                        <input className="inp prefill" type="text" value={address.city || ""} onChange={(e) => setAddress({ ...address, city: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <span className="lab2">
+                          State <span className="req">*</span>
+                        </span>
+                        <input className="inp prefill" type="text" value={address.state || ""} onChange={(e) => setAddress({ ...address, state: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <span className="lab2">
+                          Country <span className="req">*</span>
+                        </span>
+                        <input className="inp prefill" type="text" value={address.country || ""} onChange={(e) => setAddress({ ...address, country: e.target.value })} />
+                      </div>
+                    </div>
+                  </div>
 
-                <div className="google-bottom-right-controls">
-                  <div className="google-pan-pad" id="panPad">
-                    <i className="fas fa-caret-up pan-up" data-dir="up" />
-                    <i className="fas fa-caret-left pan-left" data-dir="left" />
-                    <i className="fas fa-caret-right pan-right" data-dir="right" />
-                    <i className="fas fa-caret-down pan-down" data-dir="down" />
-                  </div>
-                  <div className="google-pegman-box" title="Drag to enter Street View">
-                    <div className="pegman-icon" />
-                  </div>
-                </div>
-
-                <div id="map" className="map" style={{ zIndex: 1, height: "350px", minHeight: "350px" }}></div>
-              </div>
-              <button className="disclosure-btn" id="addrToggle">
-                <svg viewBox="0 0 24 24" id="addrCaret">
-                  <path d="M9 6l6 6-6 6" />
-                </svg>
-                Edit address details (area, pincode, building no)
-              </button>
-              <div className="addr-panel" id="addrPanel">
-                <div className="addr-grid">
-                  <div className="field">
-                    <span className="lab2">
-                      Apartment / Building / House No <span className="req">*</span>
-                    </span>
-                    <input className="inp prefill" type="text" value={address.houseno || ""} onChange={(e) => setAddress({ ...address, houseno: e.target.value })} />
-                  </div>
-                  <div className="field">
-                    <span className="lab2">Pincode</span>
-                    <input className="inp prefill" type="text" value={address.pincode || ""} onChange={(e) => setAddress({ ...address, pincode: e.target.value })} />
-                  </div>
-                  <div className="field">
-                    <span className="lab2">
-                      Address Line 1 <span className="req">*</span>
-                    </span>
-                    <input className="inp prefill" type="text" value={address.address || ""} onChange={(e) => setAddress({ ...address, address: e.target.value })} />
-                  </div>
-                  <div className="field">
-                    <span className="lab2">
-                      Address Line 2 <span className="pill opt">Optional</span>
-                    </span>
-                    <input className="inp" type="text" value={address.address1 || ""} onChange={(e) => setAddress({ ...address, address1: e.target.value })} />
-                  </div>
-                  <div className="field">
-                    <span className="lab2">
-                      Area / Suburb <span className="req">*</span>
-                    </span>
-                    <input className="inp prefill" type="text" value={address.area || ""} onChange={(e) => setAddress({ ...address, area: e.target.value })} />
-                  </div>
-                  <div className="field">
-                    <span className="lab2">
-                      City <span className="req">*</span>
-                    </span>
-                    <input className="inp prefill" type="text" value={address.city || ""} onChange={(e) => setAddress({ ...address, city: e.target.value })} />
-                  </div>
-                  <div className="field">
-                    <span className="lab2">
-                      State <span className="req">*</span>
-                    </span>
-                    <input className="inp prefill" type="text" value={address.state || ""} onChange={(e) => setAddress({ ...address, state: e.target.value })} />
-                  </div>
-                  <div className="field">
-                    <span className="lab2">
-                      Country <span className="req">*</span>
-                    </span>
-                    <input className="inp prefill" type="text" value={address.country || ""} onChange={(e) => setAddress({ ...address, country: e.target.value })} />
+                  <div className="step-nav">
+                    <button type="button" className="nav-btn ghost" data-step-nav="prev">
+                      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" /></svg>
+                      BACK: OTHER INFO
+                    </button>
+                    <span className="step-nav-hint">Section 3 of 3 · Last step</span>
+                    <button
+                      type="button"
+                      className="nav-btn"
+                      onClick={handleSubmit}
+                      disabled={loading}
+                    >
+                      {loading ? "Submitting..." : "SAVE & SUBMIT"}
+                    </button>
                   </div>
                 </div>
-              </div>
-              <div className="skipnote">
-                <svg viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="9" />
-                  <path d="M12 8v5M12 16h.01" />
-                </svg>
-                <div>
-                  Only doing <b>pickup or QR table ordering</b> for now? You can skip the
-                  address and still go live — we&apos;ll ask again the moment you switch
-                  on delivery or marketplace listing.
-                </div>
-              </div>
-              <div className="cap">
-                Drop the pin exactly on your restaurant — this sets the delivery radius
-                and your Google listing location. Address details are collapsed by
-                default and auto-filled from your search.
-              </div>
-              <div className="step-nav">
-                <button type="button" className="nav-btn ghost" data-step-nav="prev">
-                  <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" /></svg>
-                  BACK: OTHER INFO
-                </button>
-                <span className="step-nav-hint">Section 3 of 3 · Last step</span>
-                <button
-                  type="button"
-                  className="nav-btn"
-                  onClick={handleSubmit}
-                  disabled={loading}
-                >
-                  {loading ? "Submitting..." : "SAVE & SUBMIT"}
-                </button>
-              </div>
-            </div>
 
               </div>{/* /pf-card-body */}
             </div>{/* /pf-card */}
 
-            <div className="pf-page-nav-note">
+            {/* <div className="pf-page-nav-note">
               <span>Setup pages</span>
               Finished with My Profile? Use the buttons below to move to the next setup page.
-            </div>
+            </div> */}
             <WizardFooter />
           </div>
           {/* /content-area */}

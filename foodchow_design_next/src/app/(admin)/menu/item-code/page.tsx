@@ -83,26 +83,26 @@ export default function ItemCodePage() {
   //   }
   // };
   const [searchQuery, setSearchQuery] = useState("");
-  
-  const filteredItems = items.filter((item) =>
-    item.item_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+
+  const filteredItems = items.filter((item) => {
+    const matchesSearch = item.item_name.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    let matchesType = true;
+    const code = item.item_code ? String(item.item_code).trim() : "";
+    
+    if (code !== "") {
+      if (itemCodeType === 0) {
+        matchesType = /^\d+$/.test(code);
+      } else {
+        matchesType = /^[a-zA-Z0-9]+$/.test(code);
+      }
+    }
+    
+    return matchesSearch && matchesType;
+  });
+
   const handleTypeChange = async (newType: number) => {
     setItemCodeType(newType);
-    
-    // Update the item codes in state to strip invalid characters
-    setItems((prevItems) => 
-      prevItems.map(item => {
-        const rawCode = item.item_code ? String(item.item_code) : "";
-        let validCode = rawCode;
-        if (newType === 0) {
-          validCode = rawCode.replace(/[^0-9]/g, "");
-        } else {
-          validCode = rawCode.replace(/[^a-zA-Z0-9]/g, "");
-        }
-        return { ...item, item_code: validCode };
-      })
-    );
 
     try {
       await menuService.saveItemCodeTypeSetting(SHOP_ID, newType);
@@ -281,7 +281,7 @@ export default function ItemCodePage() {
                   <thead>
                     <tr>
                       <th>Item Name</th>
-                      <th>Item Code</th>  
+                      <th>Item Code</th>
                     </tr>
                   </thead>
                   <tbody id="items-body">

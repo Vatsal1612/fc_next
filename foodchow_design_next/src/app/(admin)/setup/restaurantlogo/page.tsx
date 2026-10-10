@@ -55,6 +55,8 @@ export default function RestaurantLogoPage() {
   const logoRef = useRef("");
   const pendingActionRef = useRef<string | null>(null);
   const [, setLoading] = useState(true);
+  const [websiteName, setWebsiteName] = useState("");
+  const infoRef = useRef<any>(null);
 
   const logoUrl = logo.startsWith("data:image")
     ? logo
@@ -76,9 +78,13 @@ export default function RestaurantLogoPage() {
         // if (info?.shoplogo) {
         //   setLogo(info.shoplogo);
         // }
-        if (info?.shoplogo) {
-          setLogo(info.shoplogo);
-          logoRef.current = info.shoplogo;
+        if (info) {
+          infoRef.current = info;
+          setWebsiteName(info.domain_name || info.subdomain || "");
+          if (info.shoplogo) {
+            setLogo(info.shoplogo);
+            logoRef.current = info.shoplogo;
+          }
         }
       } catch (error) {
         console.error(error);
@@ -367,7 +373,7 @@ export default function RestaurantLogoPage() {
               <div className="card-section">
                 <div className="logo-section-layout">
                   <div className="logo-left-col">
-                    <div className="logo-col-label">Current Logo</div>
+                    {/* <div className="logo-col-label">Current Logo</div> */}
                     <div className="logo-display-frame" id="logo-clickable-zone" style={{ border: logo ? "none" : "" }}>
                       <button
                         className="badge-dismiss-trigger"
@@ -446,6 +452,59 @@ export default function RestaurantLogoPage() {
                           CLICK TO UPLOAD
                         </button>
                       </div>
+                    </div>
+                    
+                    {/* Website Name Section */}
+                    <div className="website-name-section" style={{ marginTop: '24px' }}>
+                      <p style={{ color: '#ef4444', fontSize: '13px', fontWeight: 'bold', marginBottom: '16px' }}>
+                        **Images should be 400x250**
+                      </p>
+                      <label style={{ display: 'block', fontSize: '13px', color: '#475569', marginBottom: '8px', fontWeight: 500 }}>
+                        Website Name
+                      </label>
+                      <input 
+                        type="text" 
+                        value={websiteName}
+                        onChange={(e) => setWebsiteName(e.target.value)}
+                        placeholder="www.cospace.com" 
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #c8d8e8', borderRadius: '4px', fontSize: '14px', outline: 'none', marginBottom: '16px' }}
+                      />
+                      <button 
+                        className="btn-action-primary" 
+                        style={{ padding: '8px 24px', fontSize: '14px', fontWeight: 'bold', borderRadius: '4px', border: 'none', background: '#00a896', color: 'white', cursor: 'pointer' }}
+                        onClick={async () => {
+                          if (!infoRef.current) return;
+                          try {
+                            const sessionShopId = sessionStorage.getItem("shop_id");
+                            const response = await restaurantService.updateShopProfile({
+                                shop_id: String(sessionShopId),
+                                shop_name: infoRef.current.shop_name,
+                                email_id: infoRef.current.email,
+                                mobileno: infoRef.current.mobileno,
+                                CountryCode: "",
+                                timezone: infoRef.current.timezone,
+                                subdomain: websiteName,
+                                shoplogo: infoRef.current.shoplogo || "",
+                                business_type_id: infoRef.current.business_type_id || 0,
+                                cuisine_type: infoRef.current.cuisine_type || "",
+                                shop_type: infoRef.current.shop_type || "",
+                                insta_url: infoRef.current.insta_url || "",
+                            });
+                            if (response.success) {
+                              Swal.fire({
+                                icon: "success",
+                                title: "Saved Successfully!",
+                                text: "Website name updated.",
+                                confirmButtonColor: "#00a896",
+                              });
+                            }
+                          } catch (err) {
+                            console.error(err);
+                          }
+                        }}
+                      >
+                        SAVE
+                      </button>
                     </div>
                   </div>
                 </div>
