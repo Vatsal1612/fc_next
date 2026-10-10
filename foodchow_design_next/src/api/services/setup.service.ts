@@ -1,5 +1,5 @@
 
-import { foodchowClient, foodchowWDClient } from "@/api/client";
+import { foodchowClient, foodchowWDClient, foodchowRMSClient } from "@/api/client";
 import { ENDPOINTS } from "@/api/endpoints";
 import type { ApiResponse } from "@/api/types";
 import axios from "axios";
@@ -323,6 +323,50 @@ export const setupService = {
       ENDPOINTS.setup.deleteGalleryPhoto,
       { params: { galleryid: galleryId } }
     );
+    return data;
+  },
+
+  async getShopOverview(shopId: number) {
+    const { data } = await foodchowWDClient.get(
+      `${ENDPOINTS.setup.getShopOverview}?ShopId=${shopId}&flag=1`
+    );
+    return data;
+  },
+
+  async deleteShopOverviewImage(shopId: number) {
+    const { data } = await foodchowWDClient.get(
+      `${ENDPOINTS.setup.deleteShopOverviewImage}?shop_id=${shopId}`
+    );
+    return data;
+  },
+
+  async saveShopOverviewImage(shopId: number, fileBlob: Blob, filename: string = "restaurant_image.jpg") {
+    // 1. Convert Blob to Base64
+    const base64Data = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        resolve(reader.result as string);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(fileBlob);
+    });
+
+    // Strip the Data URL prefix (e.g. "data:image/png;base64,")
+    const cleanBase64 = base64Data.includes(",") ? base64Data.split(",")[1] : base64Data;
+
+    // 2. Call the real LIVE FoodChow.API endpoint (OfferMaster/UploadRestaurantImageRMS)
+    // This API expects shop_id and shop_image (base64). It automatically decodes the image,
+    // saves it to ShopDescriptionImage, and executes USP_UpdateFoodShopOverview.
+    const payload = {
+      shop_id: shopId,
+      shop_image: cleanBase64
+    };
+
+    const { data } = await foodchowRMSClient.post(
+      ENDPOINTS.setup.uploadRestaurantImageRMS,
+      payload
+    );
+
     return data;
   },
 

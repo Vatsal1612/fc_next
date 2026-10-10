@@ -89,6 +89,21 @@ export default function ItemCodePage() {
   );
   const handleTypeChange = async (newType: number) => {
     setItemCodeType(newType);
+    
+    // Update the item codes in state to strip invalid characters
+    setItems((prevItems) => 
+      prevItems.map(item => {
+        const rawCode = item.item_code ? String(item.item_code) : "";
+        let validCode = rawCode;
+        if (newType === 0) {
+          validCode = rawCode.replace(/[^0-9]/g, "");
+        } else {
+          validCode = rawCode.replace(/[^a-zA-Z0-9]/g, "");
+        }
+        return { ...item, item_code: validCode };
+      })
+    );
+
     try {
       await menuService.saveItemCodeTypeSetting(SHOP_ID, newType);
     } catch (e) {
@@ -97,7 +112,6 @@ export default function ItemCodePage() {
   };
 
   const saveChanges = async () => {
-    // 1. If numeric type is selected, validate that all entered codes are purely numeric
     if (itemCodeType === 0) {
       for (const item of items) {
         const code = item.item_code ? String(item.item_code).trim() : "";
@@ -106,6 +120,18 @@ export default function ItemCodePage() {
             icon: "error",
             title: "Validation Error",
             text: "Please enter numeric values only.",
+          });
+          return;
+        }
+      }
+    } else if (itemCodeType === 1) {
+      for (const item of items) {
+        const code = item.item_code ? String(item.item_code).trim() : "";
+        if (code !== "" && !/^[a-zA-Z0-9]+$/.test(code)) {
+          await Swal.fire({
+            icon: "error",
+            title: "Validation Error",
+            text: "Please enter alphanumeric values only.",
           });
           return;
         }

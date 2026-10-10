@@ -70,8 +70,9 @@
   }
 
   .header-subtitle {
-  font-size: var(--text-helper); line-height: var(--lh-helper);
-  font-weight: var(--weight-regular);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
+    font-weight: var(--weight-regular);
     color: #64748b;
     margin-left: 4px;
   }
@@ -86,8 +87,9 @@
     border: 1.5px solid var(--border-color);
     border-radius: 6px;
     color: var(--text-light);
-  font-size: var(--text-button); line-height: var(--lh-button);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
+    font-weight: var(--weight-semibold);
     cursor: pointer;
     transition: all 0.2s ease;
     outline: none;
@@ -119,8 +121,9 @@
     padding: 11px 20px;
     border-radius: 6px;
     cursor: pointer;
-  font-weight: var(--weight-semibold);
-  font-size: var(--text-button); line-height: var(--lh-button);
+    font-weight: var(--weight-semibold);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
     letter-spacing: 0.3px;
     display: inline-flex;
     align-items: center;
@@ -138,8 +141,9 @@
     padding: 11px 20px;
     border-radius: 6px;
     cursor: pointer;
-  font-weight: var(--weight-semibold);
-  font-size: var(--text-button); line-height: var(--lh-button);
+    font-weight: var(--weight-semibold);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
     letter-spacing: 0.3px;
   }
 
@@ -148,10 +152,11 @@
   }
 
   .instruction-text {
-  font-size: var(--text-helper); line-height: var(--lh-helper);
-  font-weight: var(--weight-bold);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
+    font-weight: var(--weight-bold);
     color: #1e293b;
-    margin-top: -10px;
+    margin-top: 10px;
     margin-bottom: 15px;
     display: none;
     text-transform: lowercase;
@@ -223,8 +228,9 @@
     background: #fff;
     color: #565656;
     padding: 8px 12px;
-  font-size: var(--text-helper); line-height: var(--lh-helper);
-  font-weight: var(--weight-medium);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
+    font-weight: var(--weight-medium);
     cursor: pointer;
     border: none;
     min-width: 50px;
@@ -239,7 +245,7 @@
 
   .map-tab-btn.tab-active {
     color: #000;
-  font-weight: var(--weight-bold);
+    font-weight: var(--weight-bold);
   }
 
   .map-tab-btn:not(:last-child)::after {
@@ -262,7 +268,8 @@
     display: flex;
     align-items: center;
     gap: 6px;
-  font-size: var(--text-helper); line-height: var(--lh-helper);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
     color: #565656;
     cursor: pointer;
     position: absolute;
@@ -303,7 +310,8 @@
   .google-control-box i {
     font-family: "Font Awesome 6 Free" !important;
     font-weight: 900 !important;
-  font-size: var(--text-subheading); line-height: var(--lh-subheading);
+    font-size: var(--text-subheading);
+    line-height: var(--lh-subheading);
     color: #565656;
   }
 
@@ -333,7 +341,8 @@
     font-family: "Font Awesome 6 Free" !important;
     font-weight: 900 !important;
     color: #565656;
-  font-size: var(--text-helper); line-height: var(--lh-helper);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
     transition: color 0.1s;
   }
 
@@ -447,10 +456,13 @@
   }
 
   .cell-flex-center {
-    display: inline-flex;
+    display: flex;
     align-items: center;
+    justify-content: flex-start;
+    width: 120px;
+    margin: 0 auto;
     gap: 10px;
-  font-weight: var(--weight-semibold);
+    font-weight: var(--weight-semibold);
     color: #1e293b;
   }
 
@@ -464,14 +476,17 @@
 
   input[type="text"] {
     width: 90px;
+    margin: 0 auto;
+    display: block;
     padding: 7px 10px;
     border: 1px solid #e2e8f0;
     border-radius: 6px;
     text-align: left;
     background: #fff;
     color: #1e293b;
-  font-weight: var(--weight-medium);
-  font-size: var(--text-helper); line-height: var(--lh-helper);
+    font-weight: var(--weight-medium);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
     transition: all 0.2s;
   }
 
@@ -486,6 +501,7 @@
     border-color: transparent;
     color: #334155;
     cursor: default;
+    text-align: center;
   }
 
   /* ── ACTION ICON BUTTONS (Edit/Delete) ── */
@@ -506,7 +522,7 @@
     justify-content: center;
     background: #d6f0ed;
     color: #00a89d;
-  font-size: var(--text-body);
+    font-size: var(--text-body);
     transition:
       background 0.2s ease,
       color 0.2s ease,
@@ -548,7 +564,7 @@
     justify-content: center;
     background: #fde8e8;
     color: #e05252;
-  font-size: var(--text-body);
+    font-size: var(--text-body);
     transition:
       background 0.2s ease,
       color 0.2s ease,
@@ -575,8 +591,9 @@
     padding: 8px 14px;
     border-radius: 6px;
     cursor: pointer;
-  font-weight: var(--weight-semibold);
-  font-size: var(--text-helper); line-height: var(--lh-helper);
+    font-weight: var(--weight-semibold);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
     transition: all 0.2s;
   }
 
@@ -601,10 +618,11 @@
     border: 2px dashed #cbd5e1;
     padding: 8px 18px;
     border-radius: 8px;
-  font-weight: var(--weight-bold);
+    font-weight: var(--weight-bold);
     color: #64748b;
     background: #fff;
-  font-size: var(--text-helper); line-height: var(--lh-helper);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
   }
 
   /* ── MODALS ── */
@@ -632,8 +650,8 @@
   }
 
   .modal-text {
-  font-size: var(--text-body);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-body);
+    font-weight: var(--weight-semibold);
     color: #475569;
     line-height: 1.6;
     margin-bottom: 25px;
@@ -647,8 +665,9 @@
 
   .modal-btn {
     padding: 12px 24px;
-  font-size: var(--text-label); line-height: var(--lh-label);
-  font-weight: var(--weight-bold);
+    font-size: var(--text-label);
+    line-height: var(--lh-label);
+    font-weight: var(--weight-bold);
     border: none;
     border-radius: 6px;
     cursor: pointer;
@@ -677,8 +696,9 @@
 
   .form-title {
     text-align: center;
-  font-size: var(--text-section-heading); line-height: var(--lh-section-heading);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-section-heading);
+    line-height: var(--lh-section-heading);
+    font-weight: var(--weight-semibold);
     color: #1e293b;
     margin-bottom: 25px;
   }
@@ -690,8 +710,9 @@
 
   .form-group label {
     display: block;
-  font-size: var(--text-helper); line-height: var(--lh-helper);
-  font-weight: var(--weight-bold);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
+    font-weight: var(--weight-bold);
     color: #334155;
     margin-bottom: 6px;
   }
@@ -701,14 +722,16 @@
     padding: 10px 12px;
     border: 1px solid #cbd5e1;
     border-radius: 6px;
-  font-size: var(--text-input); line-height: var(--lh-input);
+    font-size: var(--text-input);
+    line-height: var(--lh-input);
     color: #1e293b;
   }
 
   .error-subtext {
     color: #ef4444;
-  font-size: var(--text-helper); line-height: var(--lh-helper);
-  font-weight: var(--weight-bold);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
+    font-weight: var(--weight-bold);
     margin-top: 4px;
     display: block;
   }
@@ -730,15 +753,16 @@
   }
 
   .success-title {
-  font-size: var(--text-section-heading); line-height: var(--lh-section-heading);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-section-heading);
+    line-height: var(--lh-section-heading);
+    font-weight: var(--weight-semibold);
     color: #334155;
     margin-bottom: 12px;
   }
 
   .success-text {
-  font-size: var(--text-body);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-body);
+    font-weight: var(--weight-semibold);
     color: #64748b;
     margin-bottom: 25px;
   }
@@ -749,8 +773,9 @@
     border: none;
     padding: 10px 35px;
     border-radius: 4px;
-  font-size: var(--text-button); line-height: var(--lh-button);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
+    font-weight: var(--weight-semibold);
     cursor: pointer;
     transition: background 0.2s;
     text-transform: uppercase;
@@ -770,20 +795,24 @@
     .sidebar-outer {
       display: none;
     }
+
     .main-workspace {
       padding: 15px;
     }
+
     .container {
       padding: 15px;
     }
   }
 }
+
 .edit-zone-btn {
   background: white;
   border: 1px solid #ccc;
   border-radius: 4px;
   padding: 8px 14px;
-  font-size: var(--text-helper); line-height: var(--lh-helper);
+  font-size: var(--text-helper);
+  line-height: var(--lh-helper);
   font-weight: var(--weight-semibold);
   cursor: pointer;
 }
@@ -829,18 +858,18 @@
   background-color: white;
   transition: .4s;
   border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.area-wise-container input:checked + .slider {
+.area-wise-container input:checked+.slider {
   background-color: #0f766e;
 }
 
-.area-wise-container input:focus + .slider {
+.area-wise-container input:focus+.slider {
   box-shadow: 0 0 1px #0f766e;
 }
 
-.area-wise-container input:checked + .slider:before {
+.area-wise-container input:checked+.slider:before {
   transform: translateX(20px);
 }
 
@@ -858,17 +887,20 @@
   text-align: center;
   transition: all 0.2s ease;
   background-color: #ffffff;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
+
 .area-input.time-input {
   width: 100px;
 }
+
 .area-input:focus {
   outline: none;
   border-color: #0f766e;
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
   background-color: #fff;
 }
+
 .area-input:not([readOnly]) {
   background-color: #fff;
   border-color: #94a3b8;
@@ -884,7 +916,7 @@
 
 .circle-action-btn:hover {
   transform: scale(1.05);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 /* Modal Overlay & Custom Modal for Area */
@@ -913,13 +945,25 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideIn {
-  from { transform: translateY(-20px) scale(0.97); opacity: 0; }
-  to { transform: translateY(0) scale(1); opacity: 1; }
+  from {
+    transform: translateY(-20px) scale(0.97);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
 }
 
 .area-modal-title {
@@ -988,7 +1032,13 @@
 }
 
 @keyframes slideInUp {
-  from { transform: translateY(100%); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
 
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
