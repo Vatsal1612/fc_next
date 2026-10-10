@@ -48,7 +48,8 @@ export default function PricingPlanPage() {
             }
         );
     };
-    const currencySymbol = displayCurrency === "Rs." ? "₹" : "$";
+    const isIndianCurrency = displayCurrency === "Rs." || displayCurrency === "INR" || displayCurrency === "₹";
+    const currencySymbol = isIndianCurrency ? "₹" : "$";
 
     const displayPrice = (price: number | string | undefined) => {
         if (price === undefined || price === null || price === "") {
@@ -62,12 +63,16 @@ export default function PricingPlanPage() {
         }
 
         return `${currencySymbol}${numericPrice.toLocaleString(
-            displayCurrency === "Rs." ? "en-IN" : "en-US",
+            isIndianCurrency ? "en-IN" : "en-US",
             {
-                minimumFractionDigits: displayCurrency === "$" ? 2 : 0,
-                maximumFractionDigits: displayCurrency === "$" ? 2 : 0,
+                minimumFractionDigits: !isIndianCurrency ? 2 : 0,
+                maximumFractionDigits: !isIndianCurrency ? 2 : 0,
             }
         )}`;
+    };
+
+    const toggleBilling = (): void => {
+        setIsYearly((prev) => !prev);
     };
 
     const getPricing = (planData: any) => {
@@ -84,7 +89,7 @@ export default function PricingPlanPage() {
             ) || planData.Pricing[0]
         );
     };
-    const handleCreateSubscription = async () => {
+    const handleCreateSubscription = async (selectedPlan: any) => {
         try {
 
             const shopId = Number(sessionStorage.getItem("shop_id"));
@@ -94,14 +99,16 @@ export default function PricingPlanPage() {
                 return;
             }
 
+            const activePricing = getPricing(selectedPlan);
+
             const response = await menuService.createSubscription({
-                amount: 25000,
+                amount: activePricing?.Price || 0,
                 oneTimeAmount: 0,
                 addonIds: "",
-                planId: 1,
-                billingCycle: "YEAR",
-                planName: "Growth Plan",
-                currency: "INR",
+                planId: selectedPlan?.Id || 1,
+                billingCycle: activePricing?.BillingCycle || "YEAR",
+                planName: selectedPlan?.Name || "Growth Plan",
+                currency: displayCurrency === "Rs." ? "INR" : "USD",
                 shopId: shopId,
             });
 
@@ -209,10 +216,6 @@ export default function PricingPlanPage() {
             if (target) {
                 target.style.display = "block";
             }
-        }
-
-        function toggleBilling(): void {
-            setIsYearly((prev) => !prev);
         }
 
         function switchOOTab(btn: HTMLElement, key: string): void {
@@ -528,13 +531,7 @@ export default function PricingPlanPage() {
                     {/* PAGE CONTENT */}
                     <div className="page-content">
                         <div style={{ marginBottom: "15px" }}>
-                            <select
-                                value={currency}
-                                onChange={(e) => setCurrency(e.target.value)}
-                            >
-                                <option value="Rs.">₹ INR</option>
-                                <option value="$">$ USD</option>
-                            </select>
+
                         </div>
                         {/* TABS */}
                         <div className="tab-bar">
@@ -647,7 +644,7 @@ export default function PricingPlanPage() {
                                     </div>
                                     <button
                                         className="buy-btn"
-                                        onClick={handleCreateSubscription}
+                                        onClick={() => handleCreateSubscription(onlineGrowthPlan)}
                                     >
                                         {onlineGrowthPlan?.CTAText}
                                     </button>
@@ -701,7 +698,7 @@ export default function PricingPlanPage() {
                                                 : "Month"}
                                         </span>
                                     </div>
-                                    <button className="pos-buy-btn">
+                                    <button className="pos-buy-btn" onClick={() => handleCreateSubscription(litePlan)}>
                                         {litePlan?.CTAText}
                                     </button>
 
@@ -761,7 +758,7 @@ export default function PricingPlanPage() {
                                                 : "Month"}
                                         </span>
                                     </div>
-                                    <button className="pos-buy-btn premium-btn">
+                                    <button className="pos-buy-btn premium-btn" onClick={() => handleCreateSubscription(premiumPlan)}>
                                         {premiumPlan?.CTAText}
                                         {console.log("PREMIUM FEATURES:", premiumPlan?.Features)}
                                     </button>
@@ -1008,521 +1005,57 @@ export default function PricingPlanPage() {
                                 {/* Add-on Cards Grid */}
                                 <div className="ao-grid-wrap">
                                     <div className="ao-grid">
-                                        {/* Happy Hour */}
-                                        <div className="ao-card">
-                                            <div className="ao-card-header">
-                                                <div className="ao-icon orange">
-                                                    <svg viewBox="0 0 24 24">
-                                                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-                                                    </svg>
-                                                </div>
-                                                <div>
-                                                    <div className="ao-name">
-                                                        {addOns.find((addon) => addon.Name === "Happy Hour")?.Name}
+                                        {addOns?.map((addon, index) => (
+                                            addon ? (
+                                            <div className="ao-card" key={addon.Id || index}>
+                                                {addon.BadgeText && (
+                                                    <div className="ao-badge-wrap">
+                                                        <div className="ao-badge-limited">{addon.BadgeText}</div>
                                                     </div>
-                                                    <div className="ao-price">
-                                                        {currencySymbol}
-                                                        {Number(
-                                                            addOns.find((addon) => addon.Name === "Happy Hour")?.Price
-                                                        ).toLocaleString(
-                                                            displayCurrency === "Rs." ? "en-IN" : "en-US",
-                                                            {
-                                                                minimumFractionDigits: displayCurrency === "$" ? 2 : 0,
-                                                                maximumFractionDigits: displayCurrency === "$" ? 2 : 0,
-                                                            }
-                                                        )}
-                                                        <span>
-                                                            {addOns.find((addon) => addon.Name === "Happy Hour")?.BillingCycle
-                                                                ? ` / ${addOns
-                                                                    .find((addon) => addon.Name === "Happy Hour")
-                                                                    ?.BillingCycle?.toLowerCase()}`
-                                                                : ""}
-                                                        </span>
+                                                )}
+                                                <div className="ao-card-header">
+                                                    <div className="ao-icon blue">
+                                                        <svg viewBox="0 0 24 24">
+                                                            <rect x="2" y="3" width="20" height="14" rx="2" />
+                                                            <line x1="8" y1="21" x2="16" y2="21" />
+                                                            <line x1="12" y1="17" x2="12" y2="21" />
+                                                        </svg>
+                                                    </div>
+                                                    <div>
+                                                        <div className="ao-name">{addon.Name}</div>
+                                                        <div className="ao-price">
+                                                            {displayCurrency === "Rs." || displayCurrency === "INR" || displayCurrency === "₹" ? "₹" : "$"}
+                                                            {Number(addon.Price).toLocaleString(
+                                                                displayCurrency === "Rs." ? "en-IN" : "en-US",
+                                                                {
+                                                                    minimumFractionDigits: displayCurrency === "$" ? 2 : 0,
+                                                                    maximumFractionDigits: displayCurrency === "$" ? 2 : 0,
+                                                                }
+                                                            )}
+                                                            <span>
+                                                                {addon.BillingCycle ? ` / ${addon.BillingCycle.toLowerCase()}` : ""}
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
+                                                <div className="ao-features">
+                                                    <div className="ao-feat-item">
+                                                        <div className="chk">
+                                                            <Check />
+                                                        </div>
+                                                        {addon.Description}
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    className="ao-select-btn"
+                                                    data-name={addon.Name}
+                                                    data-price={addon.Price}
+                                                >
+                                                    Select Add-on
+                                                </button>
                                             </div>
-                                            <div className="ao-features">
-                                                <div className="ao-feat-item">
-                                                    <div className="chk">
-                                                        <Check />
-                                                    </div>
-                                                    {addOns.find((addon) => addon.Name === "Happy Hour")?.Description}
-                                                </div>
-                                            </div>
-                                            <button
-                                                className="ao-select-btn"
-                                                data-name={addOns.find((addon) => addon.Name === "Happy Hour")?.Name}
-                                                data-price={addOns.find((addon) => addon.Name === "Happy Hour")?.Price}
-                                            >
-                                                Select Add-on
-                                            </button>
-                                        </div>
-
-                                        {/* POS Software */}
-                                        <div className="ao-card">
-                                            <div className="ao-badge-wrap">
-
-                                            </div>
-                                            <div className="ao-card-header">
-                                                <div className="ao-icon blue">
-                                                    <svg viewBox="0 0 24 24">
-                                                        <rect x="2" y="3" width="20" height="14" rx="2" />
-                                                        <line x1="8" y1="21" x2="16" y2="21" />
-                                                        <line x1="12" y1="17" x2="12" y2="21" />
-                                                    </svg>
-                                                </div>
-                                                <div>
-                                                    <div className="ao-name">
-                                                        {addOns.find((addon) => addon.Name === "POS Software")?.Name}
-                                                    </div>
-                                                    <div className="ao-price">
-                                                        {currencySymbol}
-                                                        {formatPrice(
-                                                            addOns.find((addon) => addon.Name === "POS Software")?.Price
-                                                        )}
-                                                        <span>
-                                                            {addOns.find((addon) => addon.Name === "POS Software")?.BillingCycle
-                                                                ? ` / ${addOns
-                                                                    .find((addon) => addon.Name === "POS Software")
-                                                                    ?.BillingCycle?.toLowerCase()}`
-                                                                : ""}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="ao-features">
-                                                <div className="ao-feat-item">
-                                                    <div className="chk">
-                                                        <Check />
-                                                    </div>
-                                                    {addOns.find((addon) => addon.Name === "POS Software")?.Description}
-                                                </div>
-                                            </div>
-                                            <button
-                                                className="ao-select-btn"
-                                                data-name={addOns.find((addon) => addon.Name === "POS Software")?.Name}
-                                                data-price={addOns.find((addon) => addon.Name === "POS Software")?.Price}
-                                            >
-                                                Select Add-on
-                                            </button>
-                                        </div>
-
-                                        {/* Bio Link Page */}
-                                        <div className="ao-card">
-                                            <div className="ao-card-header">
-                                                <div className="ao-icon green">
-                                                    <svg viewBox="0 0 24 24">
-                                                        <rect x="5" y="2" width="14" height="20" rx="2" />
-                                                        <line x1="9" y1="7" x2="15" y2="7" />
-                                                        <line x1="9" y1="11" x2="15" y2="11" />
-                                                        <line x1="9" y1="15" x2="12" y2="15" />
-                                                    </svg>
-                                                </div>
-                                                <div>
-                                                    <div className="ao-name">
-                                                        {addOns.find((addon) => addon.Name === "Bio Link Page")?.Name}
-                                                    </div>
-                                                    <div className="ao-price">
-                                                        {currencySymbol}
-                                                        {formatPrice(
-                                                            addOns.find(
-                                                                (addon) => addon.Name === "Bio Link Page"
-                                                            )?.Price
-                                                        )}
-
-                                                        <span>
-                                                            {addOns.find(
-                                                                (addon) => addon.Name === "Bio Link Page"
-                                                            )?.BillingCycle
-                                                                ? ` / ${addOns
-                                                                    .find(
-                                                                        (addon) => addon.Name === "Bio Link Page"
-                                                                    )
-                                                                    ?.BillingCycle?.toLowerCase()}`
-                                                                : ""}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="ao-features">
-                                                <div className="ao-feat-item">
-                                                    <div className="chk">
-                                                        <Check />
-                                                    </div>
-                                                    {addOns.find((addon) => addon.Name === "Bio Link Page")?.Description}
-                                                </div>
-                                            </div>
-                                            <button
-                                                className="ao-select-btn"
-                                                data-name={addOns.find((addon) => addon.Name === "Bio Link Page")?.Name}
-                                                data-price={addOns.find((addon) => addon.Name === "Bio Link Page")?.Price}
-                                            >
-                                                Select Add-on
-                                            </button>
-                                        </div>
-
-                                        {/* WhatsApp Automation */}
-                                        <div className="ao-card">
-                                            <div className="ao-badge-wrap">
-                                                <div className="ao-badge-limited">
-                                                    {addOns.find(
-                                                        (addon) => addon.Name === "WhatsApp Automation"
-                                                    )?.BadgeText}
-                                                </div>
-                                            </div>
-                                            <div className="ao-card-header">
-                                                <div className="ao-icon purple">
-                                                    <svg viewBox="0 0 24 24">
-                                                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-                                                    </svg>
-                                                </div>
-                                                <div>
-                                                    <div className="ao-name">
-                                                        {addOns.find((addon) => addon.Name === "WhatsApp Automation")?.Name}
-                                                    </div>
-                                                    <div className="ao-price">
-                                                        ₹
-                                                        {Number(
-                                                            addOns.find((addon) => addon.Name === "WhatsApp Automation")?.Price
-                                                        ).toLocaleString("en-IN")}
-                                                        <span>
-                                                            {addOns.find((addon) => addon.Name === "WhatsApp Automation")?.BillingCycle
-                                                                ? ` / ${addOns
-                                                                    .find((addon) => addon.Name === "WhatsApp Automation")
-                                                                    ?.BillingCycle?.toLowerCase()}`
-                                                                : ""}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="ao-features">
-                                                <div className="ao-feat-item">
-                                                    <div className="chk">
-                                                        <Check />
-                                                    </div>
-                                                    {addOns.find(
-                                                        (addon) => addon.Name === "WhatsApp Automation"
-                                                    )?.Description}
-                                                </div>
-                                            </div>
-                                            <button
-                                                className="ao-select-btn"
-                                                data-name={
-                                                    addOns.find(
-                                                        (addon) => addon.Name === "WhatsApp Automation"
-                                                    )?.Name
-                                                }
-                                                data-price={
-                                                    addOns.find(
-                                                        (addon) => addon.Name === "WhatsApp Automation"
-                                                    )?.Price
-                                                }
-                                            >
-                                                Select Add-on
-                                            </button>
-                                        </div>
-
-                                        {/* KDS Kitchen Display */}
-                                        <div className="ao-card">
-                                            <div className="ao-card-header">
-                                                <div className="ao-icon teal">
-                                                    <svg viewBox="0 0 24 24">
-                                                        <line x1="12" y1="5" x2="12" y2="19" />
-                                                        <line x1="5" y1="12" x2="19" y2="12" />
-                                                    </svg>
-                                                </div>
-                                                <div>
-                                                    <div className="ao-name">
-                                                        {addOns.find((addon) => addon.Name === "KDS — Kitchen Display")?.Name}
-                                                    </div>
-                                                    <div className="ao-price">
-                                                        ₹
-                                                        {Number(
-                                                            addOns.find(
-                                                                (addon) => addon.Name === "KDS — Kitchen Display"
-                                                            )?.Price
-                                                        ).toLocaleString("en-IN")}
-                                                        <span>
-                                                            {addOns.find(
-                                                                (addon) => addon.Name === "KDS — Kitchen Display"
-                                                            )?.BillingCycle
-                                                                ? ` / ${addOns
-                                                                    .find(
-                                                                        (addon) => addon.Name === "KDS — Kitchen Display"
-                                                                    )
-                                                                    ?.BillingCycle?.toLowerCase()}`
-                                                                : ""}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="ao-features">
-                                                <div className="ao-feat-item">
-                                                    <div className="chk">
-                                                        <Check />
-                                                    </div>
-                                                    {addOns.find(
-                                                        (addon) => addon.Name === "KDS — Kitchen Display"
-                                                    )?.Description}
-                                                </div>
-                                            </div>
-                                            <button
-                                                className="ao-select-btn"
-                                                data-name={
-                                                    addOns.find(
-                                                        (addon) => addon.Name === "KDS — Kitchen Display"
-                                                    )?.Name
-                                                }
-                                                data-price={
-                                                    addOns.find(
-                                                        (addon) => addon.Name === "KDS — Kitchen Display"
-                                                    )?.Price
-                                                }
-                                            >
-                                                Select Add-on
-                                            </button>
-                                        </div>
-
-                                        {/* Additional Menu */}
-                                        <div className="ao-card">
-                                            <div className="ao-card-header">
-                                                <div className="ao-icon yellow">
-                                                    <svg viewBox="0 0 24 24">
-                                                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                                                        <line x1="3" y1="9" x2="21" y2="9" />
-                                                        <line x1="9" y1="21" x2="9" y2="9" />
-                                                    </svg>
-                                                </div>
-                                                <div>
-                                                    <div className="ao-name">
-                                                        {addOns.find((addon) => addon.Name === "Additional Menu")?.Name}
-                                                    </div>
-                                                    <div className="ao-price">
-                                                        ₹
-                                                        {Number(
-                                                            addOns.find((addon) => addon.Name === "Additional Menu")?.Price
-                                                        ).toLocaleString("en-IN")}
-                                                        <span>
-                                                            {addOns.find((addon) => addon.Name === "Additional Menu")?.BillingCycle
-                                                                ? ` / ${addOns
-                                                                    .find((addon) => addon.Name === "Additional Menu")
-                                                                    ?.BillingCycle?.toLowerCase()}`
-                                                                : ""}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="ao-features">
-                                                <div className="ao-feat-item">
-                                                    <div className="chk">
-                                                        <Check />
-                                                    </div>
-                                                    {addOns.find(
-                                                        (addon) => addon.Name === "Additional Menu"
-                                                    )?.Description}
-                                                </div>
-                                            </div>
-                                            <button
-                                                className="ao-select-btn"
-                                                data-name={
-                                                    addOns.find((addon) => addon.Name === "Additional Menu")?.Name
-                                                }
-                                                data-price={
-                                                    addOns.find((addon) => addon.Name === "Additional Menu")?.Price
-                                                }
-                                            >
-                                                Select Add-on
-                                            </button>
-                                        </div>
-
-                                        {/* Snap Dish */}
-                                        <div className="ao-card">
-                                            <div className="ao-card-header">
-                                                <div className="ao-icon gray">
-                                                    <svg viewBox="0 0 24 24">
-                                                        <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
-                                                        <circle cx="12" cy="13" r="4" />
-                                                    </svg>
-                                                </div>
-                                                <div>
-                                                    <div className="ao-name">
-                                                        {addOns.find((addon) => addon.Name === "Snap Dish")?.Name}
-                                                    </div>
-                                                    <div className="ao-price">
-                                                        ₹
-                                                        {Number(
-                                                            addOns.find((addon) => addon.Name === "Snap Dish")?.Price
-                                                        ).toLocaleString("en-IN")}
-                                                        <span>
-                                                            {addOns.find((addon) => addon.Name === "Snap Dish")?.BillingCycle
-                                                                ? ` / ${addOns
-                                                                    .find((addon) => addon.Name === "Snap Dish")
-                                                                    ?.BillingCycle?.toLowerCase()}`
-                                                                : ""}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="ao-features">
-                                                <div className="ao-feat-item">
-                                                    <div className="chk">
-                                                        <Check />
-                                                    </div>
-                                                    {addOns.find((addon) => addon.Name === "Snap Dish")?.Description}
-                                                </div>
-                                            </div>
-                                            <button
-                                                className="ao-select-btn"
-                                                data-name={
-                                                    addOns.find((addon) => addon.Name === "Snap Dish")?.Name
-                                                }
-                                                data-price={
-                                                    addOns.find((addon) => addon.Name === "Snap Dish")?.Price
-                                                }
-                                            >
-                                                Select Add-on
-                                            </button>
-                                        </div>
-
-                                        {/* Customised Digital Audit */}
-                                        <div className="ao-card">
-                                            <div className="ao-card-header">
-                                                <div className="ao-icon pink">
-                                                    <svg viewBox="0 0 24 24">
-                                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                                                    </svg>
-                                                </div>
-                                                <div>
-                                                    <div className="ao-name">
-                                                        {
-                                                            addOns.find(
-                                                                (addon) =>
-                                                                    addon.Name === "Customised Digital audit for restaurant"
-                                                            )?.Name
-                                                        }
-                                                    </div>
-                                                    <div className="ao-price">
-                                                        ₹
-                                                        {Number(
-                                                            addOns.find(
-                                                                (addon) =>
-                                                                    addon.Name === "Customised Digital audit for restaurant"
-                                                            )?.Price
-                                                        ).toLocaleString("en-IN")}
-                                                        <span>
-                                                            {addOns.find(
-                                                                (addon) =>
-                                                                    addon.Name === "Customised Digital audit for restaurant"
-                                                            )?.BillingCycle
-                                                                ? ` / ${addOns
-                                                                    .find(
-                                                                        (addon) =>
-                                                                            addon.Name ===
-                                                                            "Customised Digital audit for restaurant"
-                                                                    )
-                                                                    ?.BillingCycle?.toLowerCase()}`
-                                                                : ""}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="ao-features">
-                                                <div className="ao-feat-item">
-                                                    <div className="chk">
-                                                        <Check />
-                                                    </div>
-                                                    {
-                                                        addOns.find(
-                                                            (addon) =>
-                                                                addon.Name ===
-                                                                "Customised Digital audit for restaurant"
-                                                        )?.Description
-                                                    }
-                                                </div>
-                                            </div>
-                                            <button
-                                                className="ao-select-btn"
-                                                data-name={
-                                                    addOns.find(
-                                                        (addon) =>
-                                                            addon.Name ===
-                                                            "Customised Digital audit for restaurant"
-                                                    )?.Name
-                                                }
-                                                data-price={
-                                                    addOns.find(
-                                                        (addon) =>
-                                                            addon.Name ===
-                                                            "Customised Digital audit for restaurant"
-                                                    )?.Price
-                                                }
-                                            >
-                                                Select Add-on
-                                            </button>
-                                        </div>
-
-                                        {/* Table Reservation */}
-                                        <div className="ao-card">
-                                            <div className="ao-card-header">
-                                                <div className="ao-icon teal">
-                                                    <svg viewBox="0 0 24 24">
-                                                        <path d="M3 10h18M3 14h18M10 10V5a2 2 0 014 0v5M7 10v9a1 1 0 001 1h8a1 1 0 001-1v-9" />
-                                                    </svg>
-                                                </div>
-                                                <div>
-                                                    <div className="ao-name">
-                                                        {addOns.find(
-                                                            (addon) => addon.Name === "Table Reservation module"
-                                                        )?.Name}
-                                                    </div>
-                                                    <div className="ao-price">
-                                                        ₹
-                                                        {Number(
-                                                            addOns.find(
-                                                                (addon) => addon.Name === "Table Reservation module"
-                                                            )?.Price
-                                                        ).toLocaleString("en-IN")}
-                                                        <span>
-                                                            {addOns.find(
-                                                                (addon) => addon.Name === "Table Reservation module"
-                                                            )?.BillingCycle
-                                                                ? ` / ${addOns
-                                                                    .find(
-                                                                        (addon) =>
-                                                                            addon.Name === "Table Reservation module"
-                                                                    )
-                                                                    ?.BillingCycle?.toLowerCase()}`
-                                                                : ""}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="ao-features">
-                                                <div className="ao-feat-item">
-                                                    <div className="chk">
-                                                        <Check />
-                                                    </div>
-                                                    {addOns.find(
-                                                        (addon) => addon.Name === "Table Reservation module"
-                                                    )?.Description}
-                                                </div>
-                                            </div>
-                                            <button
-                                                className="ao-select-btn"
-                                                data-name={
-                                                    addOns.find(
-                                                        (addon) => addon.Name === "Table Reservation module"
-                                                    )?.Name
-                                                }
-                                                data-price={
-                                                    addOns.find(
-                                                        (addon) => addon.Name === "Table Reservation module"
-                                                    )?.Price
-                                                }
-                                            >
-                                                Select Add-on
-                                            </button>
-                                        </div>
+                                            ) : null
+                                        ))}
                                     </div>
                                     {/* end ao-grid */}
                                 </div>
@@ -1621,12 +1154,6 @@ function OOAddons({
     addOns: any[];
 }) {
     const cls = "oo-addon-row" + (teal ? " teal-row" : "");
-    const getAddon = (name: string) =>
-        addOns.find(
-            (addon) =>
-                addon.Name === name &&
-                addon.BillingCycle === "YEAR"
-        );
     const formatPrice = (addon: any) => {
         if (!addon) return "";
 
@@ -1636,150 +1163,27 @@ function OOAddons({
 
         return "";
     };
-    return (
+        return (
         <>
-            <div className={cls}>
-                <div className="oo-addon-icon">
-                    <svg viewBox="0 0 24 24">
-                        <line x1="19" y1="5" x2="5" y2="19" />
-                        <circle cx="6.5" cy="6.5" r="2.5" />
-                        <circle cx="17.5" cy="17.5" r="2.5" />
-                    </svg>
+            {addOns?.map((addon, index) => (
+                addon ? (
+                <div className={cls} key={addon.Id || index}>
+                    <div className="oo-addon-icon">
+                        <svg viewBox="0 0 24 24">
+                            <line x1="19" y1="5" x2="5" y2="19" />
+                            <circle cx="6.5" cy="6.5" r="2.5" />
+                            <circle cx="17.5" cy="17.5" r="2.5" />
+                        </svg>
+                    </div>
+                    <span className="oo-addon-name">
+                        {addon.Name}
+                    </span>
+                    <span className="oo-addon-price">
+                        {formatPrice(addon)}
+                    </span>
                 </div>
-                <span className="oo-addon-name">
-                    {getAddon("Happy Hour")?.Name}
-                </span>
-
-                <span className="oo-addon-price">
-                    {formatPrice(getAddon("Happy Hour"))}
-                </span>
-            </div>
-            <div className={cls}>
-                <div className="oo-addon-icon">
-                    <svg viewBox="0 0 24 24">
-                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                        <line x1="3" y1="9" x2="21" y2="9" />
-                        <line x1="9" y1="21" x2="9" y2="9" />
-                    </svg>
-                </div>
-                <span className="oo-addon-name">
-                    {getAddon("POS Software")?.Name}
-                </span>
-
-                <span className="oo-addon-price">
-                    {formatPrice(getAddon("POS Software"))}
-                </span>
-            </div>
-            <div className={cls}>
-                <div className="oo-addon-icon">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
-                        <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
-                    </svg>
-                </div>
-                <span className="oo-addon-name">
-                    {getAddon("Bio Link Page")?.Name}
-                </span>
-
-                <span className="oo-addon-price">
-                    {formatPrice(getAddon("Bio Link Page"))}
-                </span>
-            </div>
-            <div className={cls}>
-                <div className="oo-addon-icon">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-                    </svg>
-                </div>
-                <span className="oo-addon-name">
-                    {getAddon("WhatsApp Automation")?.Name}
-                </span>
-
-                <span className="oo-addon-price">
-                    {formatPrice(getAddon("WhatsApp Automation"))}
-                </span>
-            </div>
-
-            <div className={cls}>
-                <div className="oo-addon-icon">
-                    <svg viewBox="0 0 24 24">
-                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                        <line x1="3" y1="9" x2="21" y2="9" />
-                        <line x1="9" y1="21" x2="9" y2="9" />
-                    </svg>
-                </div>
-                <span className="oo-addon-name">
-                    {getAddon("KDS — Kitchen Display")?.Name}
-                </span>
-
-                <span className="oo-addon-price">
-                    {formatPrice(getAddon("KDS — Kitchen Display"))}
-                </span>
-            </div>
-            <div className={cls}>
-                <div className="oo-addon-icon">
-                    <svg viewBox="0 0 24 24">
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                </div>
-                <span className="oo-addon-name">
-                    {getAddon("Additional Menu")?.Name}
-                </span>
-
-                <span className="oo-addon-price">
-                    {formatPrice(getAddon("Additional Menu"))}
-                </span>
-            </div>
-
-            <div className={cls}>
-                <div className="oo-addon-icon">
-                    <svg viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="12" y1="8" x2="12" y2="12" />
-                        <line x1="12" y1="16" x2="12.01" y2="16" />
-                    </svg>
-                </div>
-                <span className="oo-addon-name">
-                    {getAddon("Snap Dish")?.Name}
-                </span>
-
-                <span className="oo-addon-price">
-                    {formatPrice(getAddon("Snap Dish"))}
-                </span>
-            </div>
-            <div className={cls}>
-                <div className="oo-addon-icon">
-                    <svg viewBox="0 0 24 24">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                    </svg>
-                </div>
-                <span className="oo-addon-name">
-                    {getAddon("Customised Digital audit for restaurant")?.Name}
-                </span>
-
-                <span className="oo-addon-price">
-                    {formatPrice(
-                        getAddon("Customised Digital audit for restaurant")
-                    )}
-                </span>
-            </div>
-            <div className={cls}>
-                <div className="oo-addon-icon">
-                    <svg viewBox="0 0 24 24">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                    </svg>
-                </div>
-                <span className="oo-addon-name">
-                    {getAddon("Table Reservation module")?.Name}
-                </span>
-
-                <span className="oo-addon-price">
-                    {formatPrice(
-                        getAddon("Table Reservation module")
-                    )}
-                </span>
-            </div>
+                ) : null
+            ))}
         </>
     );
 }

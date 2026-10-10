@@ -164,6 +164,24 @@ export const restaurantService = {
 
       throw error;
     }
+  },
+  
+  async getPlanDetails(planId: string, currency: string = "INR") {
+    try {
+      const { data } = await axios.get(`/api/plan-details?planId=${planId}&currency=${currency}`);
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  async getPointPlanDetails(shopId: string | number) {
+    try {
+      const { data } = await axios.get(`https://www.foodchow.com/api/FoodChowWD/GetPointPlanDetailscurrent?shop_id=${shopId}`);
+      return data;
+    } catch (error) {
+      throw error;
+    }
   }
 };
 
