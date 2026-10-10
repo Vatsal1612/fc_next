@@ -796,6 +796,11 @@ export default function DeliveryPage() {
       const closeDetailsModal = (): void => {
         const modal = byId("detailsFormModal");
         if (modal) modal.style.display = "none";
+
+        // If cancelling a NEW shape creation (no save button on map), abort completely
+        if (!editingZoneRef.current && activeDrawnLayer && !mapCircle) {
+          exitMapEditMode();
+        }
       };
 
       const onAddCircle = (): void => {
@@ -852,7 +857,10 @@ export default function DeliveryPage() {
       byId("saveCircleZoneBtn")?.addEventListener("click", () => {
         openDetailsModal(true);
       });
-      byId("cancelCircleBtn")?.addEventListener("click", clearActiveModes);
+      const onCancelCircle = (): void => {
+        exitMapEditMode();
+      };
+      byId("cancelCircleBtn")?.addEventListener("click", onCancelCircle);
 
       const onAddShape = (): void => {
         editingZoneRef.current = null;
@@ -868,8 +876,12 @@ export default function DeliveryPage() {
 
         if (def) def.style.display = "none";
 
-        // Hide UPDATE ZONE while adding a new shape
-        if (shapeActions) shapeActions.style.display = "none";
+        // Show shape actions but hide the UPDATE ZONE button while drawing
+        if (shapeActions) {
+          shapeActions.style.display = "flex";
+          const updateBtn = document.getElementById("updateMapZoneBtn");
+          if (updateBtn) updateBtn.style.display = "none";
+        }
 
         if (circleLbl) circleLbl.style.display = "none";
         if (shapeLbl) shapeLbl.style.display = "block";
@@ -1490,11 +1502,11 @@ export default function DeliveryPage() {
 
       const onConfirmDelete = async (): Promise<void> => {
         if (!rowPendingDeletion) return;
-        
+
         const zoneIdStr = rowPendingDeletion.replace("row-idx-", "");
         const zoneId = Number(zoneIdStr);
         const shopId = sessionStorage.getItem("shop_id");
-        
+
         if (!shopId) {
           alert("Shop ID not found");
           return;
@@ -1968,655 +1980,657 @@ export default function DeliveryPage() {
 
             {deliveryType === "zone" && (
               <>
-            <div className="page-header" style={{ marginBottom: "15px", marginTop: "24px" }}>
-              <h1 className="header-title typ-page-heading" style={{ margin: 0 }}>
-                Select Delivery Zone{" "}
-                <span className="header-subtitle">
-                  Click On &apos;Add Zone&apos; To Add Zone
-                </span>
-              </h1>
-            </div>
+                <div className="page-header" style={{ marginBottom: "15px", marginTop: "24px" }}>
+                  <h1 className="header-title typ-page-heading" style={{ margin: 0 }}>
+                    Select Delivery Zone{" "}
+                    <span className="header-subtitle">
+                      Click On &apos;Add Zone&apos; To Add Zone
+                    </span>
+                  </h1>
+                </div>
 
-            <div
-              id="default-actions"
-              style={{ display: "flex", gap: "10px", alignItems: "center" }}
-            >
-              <button className="btn-teal" id="addShapeBtn">
-                ADD ZONE IN SHAPE
-              </button>
-              <button className="btn-teal" id="addCircleBtn">
-                ADD ZONE IN CIRCLE
-              </button>
-              <button className="btn-help">
-                <svg viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                  <line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
-                HELP
-              </button>
-            </div>
-
-            <div
-              id="active-circle-actions"
-              style={{ display: "none", gap: "10px", alignItems: "center" }}
-            >
-              <button className="btn-teal" id="saveCircleZoneBtn">
-                SAVE ZONE
-              </button>
-              <button className="btn-red" id="cancelCircleBtn">
-                CANCEL
-              </button>
-              <button className="btn-help">
-                <svg viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                  <line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
-                HELP
-              </button>
-            </div>
-
-            <div
-              id="active-shape-actions"
-              style={{ display: "none", gap: "10px", alignItems: "center" }}
-            >
-              <button className="btn-teal" id="updateMapZoneBtn">
-                UPDATE ZONE
-              </button>
-              <button className="btn-red" id="cancelShapeBtn">
-                CANCEL
-              </button>
-              <button className="btn-help">
-                <svg viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                  <line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
-                HELP
-              </button>
-            </div>
-
-
-          <div className="instruction-text" id="circleInstructionLabel">
-            look at the circle on map and you can resize and move the circle at your
-            preferred location
-          </div>
-          <div className="instruction-text" id="shapeInstructionLabel">
-            start drawing your zone in the map below:
-          </div>
-
-          <div className="map-wrapper-canvas" id="mapWrapper">
-            <div className="custom-map-type-control">
-              <div className="map-type-tabs-row">
-                <button
-                  className="map-tab-btn"
-                  id="mapViewTab"
-                  data-type="map"
+                <div
+                  id="default-actions"
+                  style={{ display: "flex", gap: "10px", alignItems: "center" }}
                 >
-                  Map
-                </button>
-                <button
-                  className="map-tab-btn tab-active"
-                  id="satelliteViewTab"
-                  data-type="satellite"
+                  <button className="btn-teal" id="addShapeBtn">
+                    ADD ZONE IN SHAPE
+                  </button>
+                  <button className="btn-teal" id="addCircleBtn">
+                    ADD ZONE IN CIRCLE
+                  </button>
+                  <button className="btn-help">
+                    <svg viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    HELP
+                  </button>
+                </div>
+
+                <div
+                  id="active-circle-actions"
+                  style={{ display: "none", gap: "10px", alignItems: "center" }}
                 >
-                  Satellite
-                </button>
-              </div>
-              <div className="map-sub-options-panel" id="terrainCheckboxContainer" style={{ visibility: 'hidden', left: 0 }}>
-                <input type="checkbox" id="terrainToggleCheckbox" />
-                <label htmlFor="terrainToggleCheckbox" style={{ cursor: "pointer" }}>
-                  Terrain
-                </label>
-              </div>
-              <div className="map-sub-options-panel" id="labelsCheckboxContainer" style={{ right: 0 }}>
-                <input type="checkbox" id="labelsToggleCheckbox" defaultChecked />
-                <label htmlFor="labelsToggleCheckbox" style={{ cursor: "pointer" }}>
-                  Labels
-                </label>
-              </div>
-            </div>
+                  <button className="btn-teal" id="saveCircleZoneBtn">
+                    SAVE ZONE
+                  </button>
+                  <button className="btn-red" id="cancelCircleBtn">
+                    CANCEL
+                  </button>
+                  <button className="btn-help">
+                    <svg viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    HELP
+                  </button>
+                </div>
 
-            <div className="google-fullscreen-control">
-              <button
-                className="google-control-box"
-                id="fullscreenToggleBtn"
-                title="Toggle Fullscreen"
-              >
-                <i className="fas fa-expand" />
-              </button>
-            </div>
+                <div
+                  id="active-shape-actions"
+                  style={{ display: "none", gap: "10px", alignItems: "center" }}
+                >
+                  <button className="btn-teal" id="updateMapZoneBtn">
+                    UPDATE ZONE
+                  </button>
+                  <button className="btn-red" id="cancelShapeBtn">
+                    CANCEL
+                  </button>
+                  <button className="btn-help">
+                    <svg viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    HELP
+                  </button>
+                </div>
 
-            <div className="google-bottom-right-controls">
-              <div className="google-pan-pad" id="panPad">
-                <i className="fas fa-caret-up pan-up" data-dir="up" />
-                <i className="fas fa-caret-left pan-left" data-dir="left" />
-                <i className="fas fa-caret-right pan-right" data-dir="right" />
-                <i className="fas fa-caret-down pan-down" data-dir="down" />
-              </div>
-              <div className="google-pegman-box" title="Drag to enter Street View">
-                <div className="pegman-icon" />
-              </div>
-            </div>
 
-            <div id="map" />
-          </div>
+                <div className="instruction-text" id="circleInstructionLabel">
+                  look at the circle on map and you can resize and move the circle at your
+                  preferred location
+                </div>
+                <div className="instruction-text" id="shapeInstructionLabel">
+                  start drawing your zone in the map below:
+                </div>
 
-          <div className="table-responsive-container">
-            <table id="deliveryTable">
-              <thead>
-                <tr>
-                  <th>Sr. No.</th>
-                  <th>Zone Name</th>
-                  <th>Minimum Order Amount</th>
-                  <th>Minimum Order Amount for Free Delivery</th>
-                  <th>Delivery Fees</th>
-                  <th>Delivery Time</th>
-                  <th className="action-col-header">ACTION</th>
-                </tr>
-              </thead>
-              <tbody>
-                {zones.length > 0 ? (
-                  paginatedZones.map((zone, index) => (
-                    <tr key={zone.Id} id={`row-idx-${zone.Id}`}>
-                      <td>{(currentPage - 1) * itemsPerPage + index + 1}</td>
+                <div className="map-wrapper-canvas" id="mapWrapper">
+                  <div className="custom-map-type-control">
+                    <div className="map-type-tabs-row">
+                      <button
+                        className="map-tab-btn"
+                        id="mapViewTab"
+                        data-type="map"
+                      >
+                        Map
+                      </button>
+                      <button
+                        className="map-tab-btn tab-active"
+                        id="satelliteViewTab"
+                        data-type="satellite"
+                      >
+                        Satellite
+                      </button>
+                    </div>
+                    <div className="map-sub-options-panel" id="terrainCheckboxContainer" style={{ visibility: 'hidden', left: 0 }}>
+                      <input type="checkbox" id="terrainToggleCheckbox" />
+                      <label htmlFor="terrainToggleCheckbox" style={{ cursor: "pointer" }}>
+                        Terrain
+                      </label>
+                    </div>
+                    <div className="map-sub-options-panel" id="labelsCheckboxContainer" style={{ right: 0 }}>
+                      <input type="checkbox" id="labelsToggleCheckbox" defaultChecked />
+                      <label htmlFor="labelsToggleCheckbox" style={{ cursor: "pointer" }}>
+                        Labels
+                      </label>
+                    </div>
+                  </div>
 
-                      <td>
-                        <div className="cell-flex-center">
-                          <span
-                            className="zone-dot"
-                            style={{ background: zone.color || "#e5a2cb" }}
-                          />
-                          {zone.zone_no}
-                        </div>
-                      </td>
+                  <div className="google-fullscreen-control">
+                    <button
+                      className="google-control-box"
+                      id="fullscreenToggleBtn"
+                      title="Toggle Fullscreen"
+                    >
+                      <i className="fas fa-expand" />
+                    </button>
+                  </div>
 
-                      <td>
-                        <input
-                          type="text"
-                          value={zone.min_order ?? ""}
-                          disabled
-                          readOnly
-                        />
-                      </td>
+                  <div className="google-bottom-right-controls">
+                    <div className="google-pan-pad" id="panPad">
+                      <i className="fas fa-caret-up pan-up" data-dir="up" />
+                      <i className="fas fa-caret-left pan-left" data-dir="left" />
+                      <i className="fas fa-caret-right pan-right" data-dir="right" />
+                      <i className="fas fa-caret-down pan-down" data-dir="down" />
+                    </div>
+                    <div className="google-pegman-box" title="Drag to enter Street View">
+                      <div className="pegman-icon" />
+                    </div>
+                  </div>
 
-                      <td>
-                        <input
-                          type="text"
-                          value={zone.min_order_freedelivery ?? ""}
-                          disabled
-                          readOnly
-                        />
-                      </td>
+                  <div id="map" />
+                </div>
 
-                      <td>
-                        <input
-                          type="text"
-                          value={zone.delivery_fee ?? ""}
-                          disabled
-                          readOnly
-                        />
-                      </td>
+                <div className="table-responsive-container">
+                  <table id="deliveryTable">
+                    <thead>
+                      <tr>
+                        <th>Sr. No.</th>
+                        <th>Zone Name</th>
+                        <th>Minimum Order Amount</th>
+                        <th>Minimum Order Amount for Free Delivery</th>
+                        <th>Delivery Fees</th>
+                        <th>Delivery Time</th>
+                        <th className="action-col-header">ACTION</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {zones.length > 0 ? (
+                        paginatedZones.map((zone, index) => (
+                          <tr key={zone.Id} id={`row-idx-${zone.Id}`}>
+                            <td>{(currentPage - 1) * itemsPerPage + index + 1}</td>
 
-                      <td>
-                        <input
-                          type="text"
-                          value={formatDeliveryTime(zone.delivery_hours, zone.delivery_minute)}
-                          style={{ width: "120px" }}
-                          disabled
-                          readOnly
-                        />
-                      </td>
+                            <td>
+                              <div className="cell-flex-center">
+                                <span
+                                  className="zone-dot"
+                                  style={{ background: zone.color || "#e5a2cb" }}
+                                />
+                                {zone.zone_no}
+                              </div>
+                            </td>
 
-                      <td>
-                        <div
-                          style={{
-                            display: "inline-flex",
-                            gap: "10px",
-                            alignItems: "center",
-                          }}
-                        >
-                          <button
-                            className="icon-btn-edit"
-                            title="Edit"
-                            onClick={() => {
-                              console.log("========== FORM EDIT ==========");
-                              console.log("ZONE:", zone);
+                            <td>
+                              <input
+                                type="text"
+                                value={zone.min_order ?? ""}
+                                disabled
+                                readOnly
+                              />
+                            </td>
 
-                              editingZoneRef.current = zone;
-                              editModeRef.current = "FORM";
+                            <td>
+                              <input
+                                type="text"
+                                value={zone.min_order_freedelivery ?? ""}
+                                disabled
+                                readOnly
+                              />
+                            </td>
 
-                              const zoneName =
-                                document.getElementById("formZoneName") as HTMLInputElement | null;
-                              const minAmt =
-                                document.getElementById("formMinAmt") as HTMLInputElement | null;
-                              const freeAmt =
-                                document.getElementById("formFreeAmt") as HTMLInputElement | null;
-                              const fees =
-                                document.getElementById("formFees") as HTMLInputElement | null;
-                              const time =
-                                document.getElementById("formTime") as HTMLSelectElement | null;
-                              const modal =
-                                document.getElementById("detailsFormModal");
+                            <td>
+                              <input
+                                type="text"
+                                value={zone.delivery_fee ?? ""}
+                                disabled
+                                readOnly
+                              />
+                            </td>
 
-                              if (zoneName) {
-                                zoneName.value = zone.zone_no ?? "";
-                              }
-                              if (minAmt) {
-                                minAmt.value = zone.min_order ?? "";
-                              }
-                              if (freeAmt) {
-                                freeAmt.value = zone.min_order_freedelivery ?? "";
-                              }
-                              if (fees) {
-                                fees.value = zone.delivery_fee ?? "";
-                              }
-                              if (time) {
-                                time.value = `${zone.delivery_minute ?? "10"} Minute`;
-                              }
-                              validateFreeDeliveryAmount();
-                              if (modal) {
-                                modal.style.display = "flex";
-                              }
-                            }}
-                          >
-                            <i className="fa-solid fa-pen-to-square" />
-                          </button>
+                            <td>
+                              <input
+                                type="text"
+                                value={formatDeliveryTime(zone.delivery_hours, zone.delivery_minute)}
+                                style={{ width: "120px" }}
+                                disabled
+                                readOnly
+                              />
+                            </td>
 
-                          <button
-                            className="icon-btn-delete"
-                            data-row={`row-idx-${zone.Id}`}
-                            title="Delete"
-                          >
-                            <i className="fa-solid fa-trash" />
-                          </button>
-                          <button
-                            className="edit-zone-btn"
-                            title="Edit Zone Map"
-                            onClick={() => {
-                              console.log("========== MAP EDIT ==========");
-                              console.log("ZONE:", zone);
+                            <td>
+                              <div
+                                style={{
+                                  display: "inline-flex",
+                                  gap: "10px",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <button
+                                  className="icon-btn-edit"
+                                  title="Edit"
+                                  onClick={() => {
+                                    console.log("========== FORM EDIT ==========");
+                                    console.log("ZONE:", zone);
 
-                              editingZoneRef.current = zone;
-                              editModeRef.current = "MAP";
+                                    editingZoneRef.current = zone;
+                                    editModeRef.current = "FORM";
 
-                              if (!loadZoneOnMapRef.current) {
-                                console.error("loadZoneOnMap is not available");
-                                return;
-                              }
+                                    const zoneName =
+                                      document.getElementById("formZoneName") as HTMLInputElement | null;
+                                    const minAmt =
+                                      document.getElementById("formMinAmt") as HTMLInputElement | null;
+                                    const freeAmt =
+                                      document.getElementById("formFreeAmt") as HTMLInputElement | null;
+                                    const fees =
+                                      document.getElementById("formFees") as HTMLInputElement | null;
+                                    const time =
+                                      document.getElementById("formTime") as HTMLSelectElement | null;
+                                    const modal =
+                                      document.getElementById("detailsFormModal");
 
-                              loadZoneOnMapRef.current(zone);
+                                    if (zoneName) {
+                                      zoneName.value = zone.zone_no ?? "";
+                                    }
+                                    if (minAmt) {
+                                      minAmt.value = zone.min_order ?? "";
+                                    }
+                                    if (freeAmt) {
+                                      freeAmt.value = zone.min_order_freedelivery ?? "";
+                                    }
+                                    if (fees) {
+                                      fees.value = zone.delivery_fee ?? "";
+                                    }
+                                    if (time) {
+                                      time.value = `${zone.delivery_minute ?? "10"} Minute`;
+                                    }
+                                    validateFreeDeliveryAmount();
+                                    if (modal) {
+                                      modal.style.display = "flex";
+                                    }
+                                  }}
+                                >
+                                  <i className="fa-solid fa-pen-to-square" />
+                                </button>
 
-                              const defaultActions =
-                                document.getElementById("default-actions");
+                                <button
+                                  className="icon-btn-delete"
+                                  data-row={`row-idx-${zone.Id}`}
+                                  title="Delete"
+                                >
+                                  <i className="fa-solid fa-trash" />
+                                </button>
+                                <button
+                                  className="edit-zone-btn"
+                                  title="Edit Zone Map"
+                                  onClick={() => {
+                                    console.log("========== MAP EDIT ==========");
+                                    console.log("ZONE:", zone);
 
-                              const mapEditActions =
-                                document.getElementById("active-shape-actions");
+                                    editingZoneRef.current = zone;
+                                    editModeRef.current = "MAP";
 
-                              if (defaultActions) {
-                                defaultActions.style.display = "none";
-                              }
+                                    if (!loadZoneOnMapRef.current) {
+                                      console.error("loadZoneOnMap is not available");
+                                      return;
+                                    }
 
-                              if (mapEditActions) {
-                                mapEditActions.style.display = "flex";
-                              }
-                            }}
-                          >
-                            Edit Zone
-                          </button>
-                        </div>
-                      </td>
+                                    loadZoneOnMapRef.current(zone);
 
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} style={{ textAlign: "center", padding: "20px" }}>
-                      No delivery zones found
-                    </td>
-                  </tr>
+                                    const defaultActions =
+                                      document.getElementById("default-actions");
+
+                                    const mapEditActions =
+                                      document.getElementById("active-shape-actions");
+
+                                    if (defaultActions) {
+                                      defaultActions.style.display = "none";
+                                    }
+
+                                    if (mapEditActions) {
+                                      mapEditActions.style.display = "flex";
+                                      const updateBtn = document.getElementById("updateMapZoneBtn");
+                                      if (updateBtn) updateBtn.style.display = "inline-block";
+                                    }
+                                  }}
+                                >
+                                  Edit Zone
+                                </button>
+                              </div>
+                            </td>
+
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={7} style={{ textAlign: "center", padding: "20px" }}>
+                            No delivery zones found
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {zones.length > 0 && (
+                  <ReportPagination
+                    currentPage={currentPage}
+                    totalPages={Math.ceil(zones.length / itemsPerPage)}
+                    onPageChange={setCurrentPage}
+                  />
                 )}
-              </tbody>
-            </table>
+              </>
+            )}
           </div>
 
-          {zones.length > 0 && (
-            <ReportPagination
-              currentPage={currentPage}
-              totalPages={Math.ceil(zones.length / itemsPerPage)}
-              onPageChange={setCurrentPage}
-            />
-          )}
-        </>
-        )}
+          <WizardFooter />
         </div>
 
-      <WizardFooter />
-    </div>
 
-
-      {/* Delete Modal */ }
-  <div className="modal-overlay" id="deleteModal">
-    <div className="modal-box">
-      <div className="modal-text">
-        This will delete all the zone details and the region that you have just
-        added!!
-      </div>
-      <div className="modal-actions">
-        <button className="modal-btn btn-cancel" id="cancelDeleteBtn">
-          Cancel
-        </button>
-        <button className="modal-btn btn-confirm" id="confirmDeleteBtn">
-          YES, DELETE IT
-        </button>
-      </div>
-    </div>
-  </div>
-
-  {/* Zone Details Form Modal */ }
-  <div className="modal-overlay" id="detailsFormModal">
-    <div className="form-modal-box">
-      <div className="form-title">Enter Zone Details</div>
-      <div className="form-group">
-        <label>Zone Name</label>
-        <input
-          type="text"
-          className="form-control"
-          id="formZoneName"
-          placeholder="Enter Zone Name"
-          style={{ textAlign: "left", fontWeight: "normal", width: "100%" }}
-        />
-      </div>
-      <div className="form-group">
-        <label>Minimum Order Amount</label>
-        <input
-          type="text"
-          className="form-control"
-          id="formMinAmt"
-          placeholder="0.00"
-          style={{ textAlign: "left", fontWeight: "normal", width: "100%" }}
-        />
-      </div>
-      <div className="form-group">
-        <label>Minimum Order Amount for Free Delivery</label>
-        <span
-          className="error-subtext"
-          id="freeDeliveryError"
-          style={{ display: "none" }}
-        >
-          ** Amount must be greater than minimum order amount
-        </span>
-        <input
-          type="text"
-          className="form-control"
-          id="formFreeAmt"
-          placeholder="0.00"
-          style={{
-            textAlign: "left",
-            fontWeight: "normal",
-            width: "100%",
-            marginTop: "4px",
-          }}
-        />
-      </div>
-      <div className="form-row-grid">
-        <div className="form-group">
-          <label>Delivery Fees</label>
-          <input
-            type="text"
-            className="form-control"
-            id="formFees"
-            placeholder="0.00"
-            style={{ textAlign: "left", fontWeight: "normal", width: "100%" }}
-          />
-        </div>
-        <div className="form-group">
-          <label>Delivery Time</label>
-          <select
-            className="form-control"
-            id="formTime"
-            style={{ height: "40px", padding: "5px 10px" }}
-            defaultValue="10 Minute"
-          >
-            <option value="10 Minute">10 Minutes</option>
-            <option value="20 Minute">20 Minutes</option>
-            <option value="30 Minute">30 Minutes</option>
-          </select>
-        </div>
-      </div>
-      <div className="modal-actions" style={{ marginTop: "25px" }}>
-        <button className="btn-teal" style={{ padding: "10px 30px" }} id="saveDetailsBtn">
-          SAVE
-        </button>
-        <button className="btn-red" style={{ padding: "10px 30px" }} id="closeDetailsBtn">
-          CANCEL
-        </button>
-      </div>
-    </div>
-  </div>
-
-  {/* Success Modal */ }
-  <div className="modal-overlay" id="successModal" style={{ zIndex: 10000 }}>
-    <div className="success-box">
-      <div className="success-title">Success</div>
-      <div className="success-text">Your Delivery Zone Save Successfully</div>
-      <button className="btn-success-ok" id="successOkBtn">
-        OK
-      </button>
-    </div>
-  </div>
-
-  {/* ── Area Wise Modal (Add / Edit Area) ── */}
-  {showAreaModal && (
-    <div className="modal-overlay-custom" style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 9999 }}>
-      <div className="area-modal-content" style={{ background: "white", padding: "30px", borderRadius: "8px", width: "90%", maxWidth: "550px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
-        <h3 className="area-modal-title" style={{ marginTop: 0, marginBottom: "20px", fontSize: "1.25rem", textAlign: "center" }}>
-          {isEditingArea ? "Update Area Details" : "Enter Area Details"}
-        </h3>
-
-        <div className="area-modal-field" style={{ marginBottom: "16px" }}>
-          <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>Area Name</label>
-          <input
-            type="text"
-            className="area-modal-input"
-            style={{ width: "100%", padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
-            placeholder="Enter Area Name"
-            value={areaName}
-            onChange={(e) => setAreaName(e.target.value)}
-          />
-        </div>
-
-        <div className="area-modal-field" style={{ marginBottom: "16px" }}>
-          <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>Minimum Order Amount</label>
-          <input
-            type="number"
-            step="any"
-            className="area-modal-input"
-            style={{ width: "100%", padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
-            placeholder="0.00"
-            value={areaMinAmt}
-            onChange={(e) => setAreaMinAmt(e.target.value)}
-          />
-        </div>
-
-        <div className="area-modal-field" style={{ marginBottom: "16px" }}>
-          <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>
-            Minimum Order Amount for Free Delivery
-            <div style={{ color: "#ef4444", fontSize: "0.8rem", fontWeight: 500, marginTop: "4px" }}>
-              ** Amount must be greater than minimum order amount
+        {/* Delete Modal */}
+        <div className="modal-overlay" id="deleteModal">
+          <div className="modal-box">
+            <div className="modal-text">
+              This will delete all the zone details and the region that you have just
+              added!!
             </div>
-          </label>
-          <input
-            type="number"
-            step="any"
-            className="area-modal-input"
-            style={{ width: "100%", padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
-            placeholder="0.00"
-            value={areaFreeAmt}
-            onChange={(e) => setAreaFreeAmt(e.target.value)}
-          />
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-          <div className="area-modal-field" style={{ marginBottom: "16px" }}>
-            <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>Delivery Fees</label>
-            <input
-              type="number"
-              step="any"
-              className="area-modal-input"
-              style={{ width: "100%", padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
-              placeholder="0.00"
-              value={areaFee}
-              onChange={(e) => setAreaFee(e.target.value)}
-            />
-          </div>
-
-          <div className="area-modal-field" style={{ marginBottom: "16px" }}>
-            <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>Delivery Time</label>
-            <select
-              className="area-modal-select"
-              style={{ width: "100%", padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
-              value={areaDeliveryTime}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === "Custom") {
-                  setShowCustomTimeModal(true);
-                } else {
-                  setAreaDeliveryTime(val);
-                }
-              }}
-            >
-              <option value="10 Minute">10 Minutes</option>
-              <option value="20 Minute">20 Minutes</option>
-              <option value="30 Minute">30 Minutes</option>
-              <option value="40 Minute">40 Minutes</option>
-              <option value="50 Minute">50 Minutes</option>
-              <option value="60 Minute">60 Minutes</option>
-              {areaDeliveryTime.includes("Hours") && (
-                <option value={areaDeliveryTime}>{areaDeliveryTime}</option>
-              )}
-              <option value="Custom">Custom Time...</option>
-            </select>
+            <div className="modal-actions">
+              <button className="modal-btn btn-cancel" id="cancelDeleteBtn">
+                Cancel
+              </button>
+              <button className="modal-btn btn-confirm" id="confirmDeleteBtn">
+                YES, DELETE IT
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="area-modal-actions">
-          <button
-            className="btn-teal"
-            onClick={handleSaveArea}
-            style={{ padding: "10px 28px", borderRadius: "6px", fontWeight: 700 }}
-          >
-            {isEditingArea ? "UPDATE" : "SAVE"}
-          </button>
-          <button
-            className="btn-red"
-            onClick={() => setShowAreaModal(false)}
-            style={{ padding: "10px 28px", borderRadius: "6px", fontWeight: 700 }}
-          >
-            CANCEL
-          </button>
+        {/* Zone Details Form Modal */}
+        <div className="modal-overlay" id="detailsFormModal">
+          <div className="form-modal-box">
+            <div className="form-title">Enter Zone Details</div>
+            <div className="form-group">
+              <label>Zone Name</label>
+              <input
+                type="text"
+                className="form-control"
+                id="formZoneName"
+                placeholder="Enter Zone Name"
+                style={{ textAlign: "left", fontWeight: "normal", width: "100%" }}
+              />
+            </div>
+            <div className="form-group">
+              <label>Minimum Order Amount</label>
+              <input
+                type="text"
+                className="form-control"
+                id="formMinAmt"
+                placeholder="0.00"
+                style={{ textAlign: "left", fontWeight: "normal", width: "100%" }}
+              />
+            </div>
+            <div className="form-group">
+              <label>Minimum Order Amount for Free Delivery</label>
+              <span
+                className="error-subtext"
+                id="freeDeliveryError"
+                style={{ display: "none" }}
+              >
+                ** Amount must be greater than minimum order amount
+              </span>
+              <input
+                type="text"
+                className="form-control"
+                id="formFreeAmt"
+                placeholder="0.00"
+                style={{
+                  textAlign: "left",
+                  fontWeight: "normal",
+                  width: "100%",
+                  marginTop: "4px",
+                }}
+              />
+            </div>
+            <div className="form-row-grid">
+              <div className="form-group">
+                <label>Delivery Fees</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  id="formFees"
+                  placeholder="0.00"
+                  style={{ textAlign: "left", fontWeight: "normal", width: "100%" }}
+                />
+              </div>
+              <div className="form-group">
+                <label>Delivery Time</label>
+                <select
+                  className="form-control"
+                  id="formTime"
+                  style={{ height: "40px", padding: "5px 10px" }}
+                  defaultValue="10 Minute"
+                >
+                  <option value="10 Minute">10 Minutes</option>
+                  <option value="20 Minute">20 Minutes</option>
+                  <option value="30 Minute">30 Minutes</option>
+                </select>
+              </div>
+            </div>
+            <div className="modal-actions" style={{ marginTop: "25px" }}>
+              <button className="btn-teal" style={{ padding: "10px 30px" }} id="saveDetailsBtn">
+                SAVE
+              </button>
+              <button className="btn-red" style={{ padding: "10px 30px" }} id="closeDetailsBtn">
+                CANCEL
+              </button>
+            </div>
+          </div>
         </div>
+
+        {/* Success Modal */}
+        <div className="modal-overlay" id="successModal" style={{ zIndex: 10000 }}>
+          <div className="success-box">
+            <div className="success-title">Success</div>
+            <div className="success-text">Your Delivery Zone Save Successfully</div>
+            <button className="btn-success-ok" id="successOkBtn">
+              OK
+            </button>
+          </div>
+        </div>
+
+        {/* ── Area Wise Modal (Add / Edit Area) ── */}
+        {showAreaModal && (
+          <div className="modal-overlay-custom" style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 9999 }}>
+            <div className="area-modal-content" style={{ background: "white", padding: "30px", borderRadius: "8px", width: "90%", maxWidth: "550px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
+              <h3 className="area-modal-title" style={{ marginTop: 0, marginBottom: "20px", fontSize: "1.25rem", textAlign: "center" }}>
+                {isEditingArea ? "Update Area Details" : "Enter Area Details"}
+              </h3>
+
+              <div className="area-modal-field" style={{ marginBottom: "16px" }}>
+                <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>Area Name</label>
+                <input
+                  type="text"
+                  className="area-modal-input"
+                  style={{ width: "100%", padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
+                  placeholder="Enter Area Name"
+                  value={areaName}
+                  onChange={(e) => setAreaName(e.target.value)}
+                />
+              </div>
+
+              <div className="area-modal-field" style={{ marginBottom: "16px" }}>
+                <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>Minimum Order Amount</label>
+                <input
+                  type="number"
+                  step="any"
+                  className="area-modal-input"
+                  style={{ width: "100%", padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
+                  placeholder="0.00"
+                  value={areaMinAmt}
+                  onChange={(e) => setAreaMinAmt(e.target.value)}
+                />
+              </div>
+
+              <div className="area-modal-field" style={{ marginBottom: "16px" }}>
+                <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>
+                  Minimum Order Amount for Free Delivery
+                  <div style={{ color: "#ef4444", fontSize: "0.8rem", fontWeight: 500, marginTop: "4px" }}>
+                    ** Amount must be greater than minimum order amount
+                  </div>
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  className="area-modal-input"
+                  style={{ width: "100%", padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
+                  placeholder="0.00"
+                  value={areaFreeAmt}
+                  onChange={(e) => setAreaFreeAmt(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                <div className="area-modal-field" style={{ marginBottom: "16px" }}>
+                  <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>Delivery Fees</label>
+                  <input
+                    type="number"
+                    step="any"
+                    className="area-modal-input"
+                    style={{ width: "100%", padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
+                    placeholder="0.00"
+                    value={areaFee}
+                    onChange={(e) => setAreaFee(e.target.value)}
+                  />
+                </div>
+
+                <div className="area-modal-field" style={{ marginBottom: "16px" }}>
+                  <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>Delivery Time</label>
+                  <select
+                    className="area-modal-select"
+                    style={{ width: "100%", padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
+                    value={areaDeliveryTime}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "Custom") {
+                        setShowCustomTimeModal(true);
+                      } else {
+                        setAreaDeliveryTime(val);
+                      }
+                    }}
+                  >
+                    <option value="10 Minute">10 Minutes</option>
+                    <option value="20 Minute">20 Minutes</option>
+                    <option value="30 Minute">30 Minutes</option>
+                    <option value="40 Minute">40 Minutes</option>
+                    <option value="50 Minute">50 Minutes</option>
+                    <option value="60 Minute">60 Minutes</option>
+                    {areaDeliveryTime.includes("Hours") && (
+                      <option value={areaDeliveryTime}>{areaDeliveryTime}</option>
+                    )}
+                    <option value="Custom">Custom Time...</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="area-modal-actions">
+                <button
+                  className="btn-teal"
+                  onClick={handleSaveArea}
+                  style={{ padding: "10px 28px", borderRadius: "6px", fontWeight: 700 }}
+                >
+                  {isEditingArea ? "UPDATE" : "SAVE"}
+                </button>
+                <button
+                  className="btn-red"
+                  onClick={() => setShowAreaModal(false)}
+                  style={{ padding: "10px 28px", borderRadius: "6px", fontWeight: 700 }}
+                >
+                  CANCEL
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Custom Delivery Time Sub-Modal ── */}
+        {showCustomTimeModal && (
+          <div className="modal-overlay-custom" style={{ zIndex: 10002 }}>
+            <div className="area-modal-content" style={{ maxWidth: "400px" }}>
+              <h3 className="area-modal-title">Delivery On Time</h3>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "#475569", marginBottom: "6px" }}>Hours</label>
+                  <select
+                    className="area-modal-select"
+                    value={customHours}
+                    onChange={(e) => setCustomHours(e.target.value)}
+                  >
+                    {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")).map((hr) => (
+                      <option key={hr} value={hr}>{hr}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "#475569", marginBottom: "6px" }}>Minutes</label>
+                  <select
+                    className="area-modal-select"
+                    value={customMinutes}
+                    onChange={(e) => setCustomMinutes(e.target.value)}
+                  >
+                    {Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0")).map((mn) => (
+                      <option key={mn} value={mn}>{mn}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="area-modal-actions">
+                <button
+                  className="btn-teal"
+                  onClick={() => {
+                    const formattedTime = `${customHours} Hours ${customMinutes} Minute`;
+                    setAreaDeliveryTime(formattedTime);
+                    setShowCustomTimeModal(false);
+                  }}
+                  style={{ padding: "8px 24px" }}
+                >
+                  SAVE
+                </button>
+                <button
+                  className="btn-red"
+                  onClick={() => setShowCustomTimeModal(false)}
+                  style={{ padding: "8px 24px" }}
+                >
+                  CLOSE
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Delete Confirmation Modal for Area ── */}
+        {showDeleteAreaModal && (
+          <div className="modal-overlay-custom">
+            <div className="area-modal-content" style={{ maxWidth: "450px", textAlign: "center" }}>
+              <div style={{ fontSize: "1rem", fontWeight: 600, color: "#334155", marginBottom: "24px", lineHeight: "1.5" }}>
+                This will delete the delivery area that you have selected!
+              </div>
+              <div className="area-modal-actions">
+                <button
+                  className="btn-red"
+                  onClick={handleDeleteAreaConfirm}
+                  style={{ padding: "10px 24px", borderRadius: "6px", fontWeight: 700 }}
+                >
+                  YES, DELETE IT
+                </button>
+                <button
+                  className="btn-teal"
+                  onClick={() => {
+                    setShowDeleteAreaModal(false);
+                    setDeletingAreaId(null);
+                  }}
+                  style={{ padding: "10px 24px", borderRadius: "6px", fontWeight: 700, background: "#64748b" }}
+                >
+                  CANCEL
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Toast Notification ── */}
+        {showToast && (
+          <div className="delivery-toast">
+            <i className="fa-solid fa-circle-check" style={{ color: "#38bdf8", fontSize: "1.1rem" }}></i>
+            <span>{toastMessage}</span>
+          </div>
+        )}
       </div>
-    </div>
-  )}
-
-  {/* ── Custom Delivery Time Sub-Modal ── */}
-  {showCustomTimeModal && (
-    <div className="modal-overlay-custom" style={{ zIndex: 10002 }}>
-      <div className="area-modal-content" style={{ maxWidth: "400px" }}>
-        <h3 className="area-modal-title">Delivery On Time</h3>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
-          <div>
-            <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "#475569", marginBottom: "6px" }}>Hours</label>
-            <select
-              className="area-modal-select"
-              value={customHours}
-              onChange={(e) => setCustomHours(e.target.value)}
-            >
-              {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")).map((hr) => (
-                <option key={hr} value={hr}>{hr}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "#475569", marginBottom: "6px" }}>Minutes</label>
-            <select
-              className="area-modal-select"
-              value={customMinutes}
-              onChange={(e) => setCustomMinutes(e.target.value)}
-            >
-              {Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0")).map((mn) => (
-                <option key={mn} value={mn}>{mn}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="area-modal-actions">
-          <button
-            className="btn-teal"
-            onClick={() => {
-              const formattedTime = `${customHours} Hours ${customMinutes} Minute`;
-              setAreaDeliveryTime(formattedTime);
-              setShowCustomTimeModal(false);
-            }}
-            style={{ padding: "8px 24px" }}
-          >
-            SAVE
-          </button>
-          <button
-            className="btn-red"
-            onClick={() => setShowCustomTimeModal(false)}
-            style={{ padding: "8px 24px" }}
-          >
-            CLOSE
-          </button>
-        </div>
-      </div>
-    </div>
-  )}
-
-  {/* ── Delete Confirmation Modal for Area ── */}
-  {showDeleteAreaModal && (
-    <div className="modal-overlay-custom">
-      <div className="area-modal-content" style={{ maxWidth: "450px", textAlign: "center" }}>
-        <div style={{ fontSize: "1rem", fontWeight: 600, color: "#334155", marginBottom: "24px", lineHeight: "1.5" }}>
-          This will delete the delivery area that you have selected!
-        </div>
-        <div className="area-modal-actions">
-          <button
-            className="btn-red"
-            onClick={handleDeleteAreaConfirm}
-            style={{ padding: "10px 24px", borderRadius: "6px", fontWeight: 700 }}
-          >
-            YES, DELETE IT
-          </button>
-          <button
-            className="btn-teal"
-            onClick={() => {
-              setShowDeleteAreaModal(false);
-              setDeletingAreaId(null);
-            }}
-            style={{ padding: "10px 24px", borderRadius: "6px", fontWeight: 700, background: "#64748b" }}
-          >
-            CANCEL
-          </button>
-        </div>
-      </div>
-    </div>
-  )}
-
-  {/* ── Toast Notification ── */}
-  {showToast && (
-    <div className="delivery-toast">
-      <i className="fa-solid fa-circle-check" style={{ color: "#38bdf8", fontSize: "1.1rem" }}></i>
-      <span>{toastMessage}</span>
-    </div>
-  )}
-    </div>
     </div>
   );
 }

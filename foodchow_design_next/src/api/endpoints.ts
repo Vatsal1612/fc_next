@@ -403,6 +403,12 @@ export const ENDPOINTS = {
     addToFoodGallery: "/FoodGallery/AddToFoodGallery",
     deleteGalleryPhoto: "/FoodGallery/DeleteGalleryPhoto",
 
+    getShopOverview: "/ShopOverview/GetShopOverview",
+    saveShopOverview: "/ShopOverview/SaveShopOverview",
+    uploadShopOverviewImage: "/ShopOverview/UploadShopOverviewImage", // Keep the one I added just in case
+    uploadRestaurantImageRMS: "/OfferMaster/UploadRestaurantImageRMS", // The real live endpoint
+    deleteShopOverviewImage: "/FoodChowWD/DeleteShopOverviewImageByShopId",
+
     //Delivery 
     getAllDeliveryZone: "/zone/get",
     addDeliveryZone: "/zone/select-zone",
