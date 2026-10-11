@@ -1,11 +1,48 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { WizardFooter } from "@/components/shared/WizardFooter";
+import { useShopId } from "@/utils/shop";
+import { restaurantService } from "@/api/services/setup.service";
 import "./page.css";
 
 export default function MyPlanPage() {
+    const SHOP_ID = useShopId();
+    const [coins, setCoins] = useState<number | null>(null);
+    const [currentPlans, setCurrentPlans] = useState<any[]>([]);
+    const [planDetails, setPlanDetails] = useState<any>(null);
+
     useEffect(() => {
+        const fetchPlanDetails = async () => {
+            try {
+                // Hardcoding planId=1011 as per the requested API call. You can make this dynamic if needed.
+                const res = await restaurantService.getPlanDetails("1011", "INR");
+                if (res) {
+                    setPlanDetails(res);
+                }
+            } catch (err) {
+                console.error("Failed to fetch plan details:", err);
+            }
+        };
+        fetchPlanDetails();
+
+        const fetchPoints = async () => {
+            if (!SHOP_ID) return;
+            try {
+                const res = await restaurantService.getPointPlanDetails(SHOP_ID);
+                if (res?.data) {
+                    const parsedData = JSON.parse(res.data);
+                    if (parsedData && parsedData.length > 0) {
+                        setCoins(parsedData[0].coins);
+                        setCurrentPlans(parsedData);
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to fetch points:", err);
+            }
+        };
+        fetchPoints();
+
         interface InvoiceItem {
             desc: string;
             detail: string;
@@ -232,92 +269,60 @@ export default function MyPlanPage() {
                             <div className="card-sub">
                                 Manage your active subscriptions and billing details
                             </div>
+                            {/* 
+                            {coins !== null && (
+                                // <div style={{ textAlign: "center", marginBottom: "20px", fontWeight: "bold" }}>
+                                //     <div style={{ fontSize: "16px", color: "#333" }}>
+                                //         Only {Math.floor(coins)} points Remaining To Keep Getting Orders.
+                                //     </div>
+                                //     <a href="#" style={{ color: "red", textDecoration: "underline", fontSize: "14px" }}>
+                                //         Upgrade Your plan Now
+                                //     </a>
+                                // </div>
+                            )} */}
+
                             <div className="plans-list">
-                                <div className="plan-card">
-                                    <div className="plan-card-left">
-                                        <div className="plan-name-row">
-                                            <span className="plan-name">
-                                                Commission Plan (LIFETIME)
-                                            </span>
-                                            <span className="plan-badge active">ACTIVE</span>
-                                        </div>
-                                        <div className="plan-meta">Purchase Date: 03 Jun 2026</div>
-                                        <div className="plan-renewal">
-                                            Lifetime Access • No Renewal Needed
-                                        </div>
-                                    </div>
-                                    <div className="plan-card-actions">
-                                        <a href="#" className="btn-invoice" id="inv-link-lifetime">
-                                            <svg viewBox="0 0 24 24">
-                                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                                                <polyline points="14 2 14 8 20 8" />
-                                                <line x1="16" y1="13" x2="8" y2="13" />
-                                                <line x1="16" y1="17" x2="8" y2="17" />
-                                                <polyline points="10 9 9 9 8 9" />
-                                            </svg>
-                                            Invoice
-                                        </a>
-                                        <a href="#" className="btn-manage">
-                                            Manage Plan
-                                        </a>
-                                    </div>
-                                </div>
-                                <div className="plan-card">
-                                    <div className="plan-card-left">
-                                        <div className="plan-name-row">
-                                            <span className="plan-name">Lite (MONTH)</span>
-                                            <span className="plan-badge active">ACTIVE</span>
-                                        </div>
-                                        <div className="plan-meta">Purchase Date: 03 Jun 2026</div>
-                                        <div className="plan-renewal">
-                                            Your plan will renew on 03 Jul 2026
-                                        </div>
-                                    </div>
-                                    <div className="plan-card-actions">
-                                        <a href="#" className="btn-invoice" id="inv-link-monthly">
-                                            <svg viewBox="0 0 24 24">
-                                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                                                <polyline points="14 2 14 8 20 8" />
-                                                <line x1="16" y1="13" x2="8" y2="13" />
-                                                <line x1="16" y1="17" x2="8" y2="17" />
-                                                <polyline points="10 9 9 9 8 9" />
-                                            </svg>
-                                            Invoice
-                                        </a>
-                                        <button className="btn-cancel" id="cancelBtn">
-                                            <svg viewBox="0 0 24 24" fill="none">
-                                                <circle
-                                                    cx="12"
-                                                    cy="12"
-                                                    r="10"
-                                                    fill="#fee2e2"
-                                                    stroke="#ef4444"
-                                                    strokeWidth="1.5"
-                                                />
-                                                <line
-                                                    x1="15"
-                                                    y1="9"
-                                                    x2="9"
-                                                    y2="15"
-                                                    stroke="#ef4444"
-                                                    strokeWidth="2"
-                                                />
-                                                <line
-                                                    x1="9"
-                                                    y1="9"
-                                                    x2="15"
-                                                    y2="15"
-                                                    stroke="#ef4444"
-                                                    strokeWidth="2"
-                                                />
-                                            </svg>
-                                            Cancel
-                                        </button>
-                                        <a href="#" className="btn-manage">
-                                            Manage Plan
-                                        </a>
-                                    </div>
-                                </div>
+                                {currentPlans.length > 0 ? (
+                                    currentPlans.map((plan: any, index: number) => {
+                                        const dateStr = plan.start_date?.Value
+                                            ? new Date(parseInt(plan.start_date.Value.replace(/\/Date\((.*?)\)\//, '$1'))).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                                            : "Unknown";
+
+                                        return (
+                                            <div className="plan-card" key={index}>
+                                                <div className="plan-card-left">
+                                                    <div className="plan-name-row">
+                                                        <span className="plan-name">
+                                                            {plan.plan_name || "Unknown Plan"}
+                                                        </span>
+                                                        <span className="plan-badge active">ACTIVE</span>
+                                                    </div>
+                                                    <div className="plan-meta">Purchase Date: {dateStr}</div>
+                                                    <div className="plan-renewal" style={{ color: "green", fontWeight: 500 }}>
+                                                        {plan.amount === 0 || plan.amount === "0" || !plan.amount ? "Free Plan • No Renewal Needed" : `Amount: ${plan.amount} • Commission: ${plan.commision}`}
+                                                    </div>
+                                                </div>
+                                                <div className="plan-card-actions" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                                    <a href="/menu/pricing-plan" className="btn-primary" style={{ backgroundColor: "#00a896", border: "none", color: "white", padding: "8px 16px", borderRadius: "20px", fontWeight: "bold", cursor: "pointer", textDecoration: "none" }}>
+                                                        Manage Plan
+                                                    </a>
+                                                    <a href="#" className="btn-invoice" onClick={(e) => { e.preventDefault(); document.getElementById("invoiceModal")?.classList.add("show"); }}>
+                                                        <svg viewBox="0 0 24 24">
+                                                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                                                            <polyline points="14 2 14 8 20 8" />
+                                                            <line x1="16" y1="13" x2="8" y2="13" />
+                                                            <line x1="16" y1="17" x2="8" y2="17" />
+                                                            <polyline points="10 9 9 9 8 9" />
+                                                        </svg>
+                                                        Invoice
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                ) : (
+                                    <div style={{ padding: "20px", textAlign: "center", color: "#666" }}>No active plans found.</div>
+                                )}
                             </div>
                         </div>
 

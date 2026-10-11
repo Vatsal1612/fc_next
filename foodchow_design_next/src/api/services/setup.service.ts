@@ -1,5 +1,5 @@
 
-import { foodchowClient, foodchowWDClient } from "@/api/client";
+import { foodchowClient, foodchowWDClient, foodchowRMSClient } from "@/api/client";
 import { ENDPOINTS } from "@/api/endpoints";
 import type { ApiResponse } from "@/api/types";
 import axios from "axios";
@@ -164,6 +164,24 @@ export const restaurantService = {
 
       throw error;
     }
+  },
+  
+  async getPlanDetails(planId: string, currency: string = "INR") {
+    try {
+      const { data } = await axios.get(`/api/plan-details?planId=${planId}&currency=${currency}`);
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  async getPointPlanDetails(shopId: string | number) {
+    try {
+      const { data } = await axios.get(`https://www.foodchow.com/api/FoodChowWD/GetPointPlanDetailscurrent?shop_id=${shopId}`);
+      return data;
+    } catch (error) {
+      throw error;
+    }
   }
 };
 
@@ -294,6 +312,7 @@ export const setupService = {
           ShopId: shopId,
           ImageFlag: imageFlag,
           LastId: 0,
+          t: Date.now(), // Prevent caching
         },
       }
     );
@@ -322,6 +341,50 @@ export const setupService = {
       ENDPOINTS.setup.deleteGalleryPhoto,
       { params: { galleryid: galleryId } }
     );
+    return data;
+  },
+
+  async getShopOverview(shopId: number) {
+    const { data } = await foodchowWDClient.get(
+      `${ENDPOINTS.setup.getShopOverview}?ShopId=${shopId}&flag=1`
+    );
+    return data;
+  },
+
+  async deleteShopOverviewImage(shopId: number) {
+    const { data } = await foodchowWDClient.get(
+      `${ENDPOINTS.setup.deleteShopOverviewImage}?shop_id=${shopId}`
+    );
+    return data;
+  },
+
+  async saveShopOverviewImage(shopId: number, fileBlob: Blob, filename: string = "restaurant_image.jpg") {
+    // 1. Convert Blob to Base64
+    const base64Data = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        resolve(reader.result as string);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(fileBlob);
+    });
+
+    // Strip the Data URL prefix (e.g. "data:image/png;base64,")
+    const cleanBase64 = base64Data.includes(",") ? base64Data.split(",")[1] : base64Data;
+
+    // 2. Call the real LIVE FoodChow.API endpoint (OfferMaster/UploadRestaurantImageRMS)
+    // This API expects shop_id and shop_image (base64). It automatically decodes the image,
+    // saves it to ShopDescriptionImage, and executes USP_UpdateFoodShopOverview.
+    const payload = {
+      shop_id: shopId,
+      shop_image: cleanBase64
+    };
+
+    const { data } = await foodchowRMSClient.post(
+      ENDPOINTS.setup.uploadRestaurantImageRMS,
+      payload
+    );
+
     return data;
   },
 
@@ -380,6 +443,98 @@ export const setupService = {
     );
 
     return response.data;
+  },
+  async deleteDeliveryZone(shopId: number, zoneId: number) {
+    const response = await foodchowClient.delete(
+      ENDPOINTS.setup.deleteDeliveryZone(zoneId),
+      {
+        params: { shopId, zone: zoneId }
+      }
+    );
+    return response.data;
+  },
+
+  // Area Wise Delivery
+  async getDeliverySettingsForShop(shopId: number) {
+    const { data } = await foodchowWDClient.get(
+      ENDPOINTS.setup.getDeliverySettingsForShop,
+      {
+        params: { shop_id: shopId },
+      }
+    );
+    return data;
+  },
+
+  async updateDeliverySettingsForShop(shopId: number, status: number) {
+    const { data } = await foodchowWDClient.get(
+      ENDPOINTS.setup.updateDeliverySettingsForShop,
+      {
+        params: { shop_id: shopId, status },
+      }
+    );
+    return data;
+  },
+
+  async getCustomDeliveryLocations(shopId: number) {
+    const { data } = await foodchowWDClient.get(
+      ENDPOINTS.setup.getCustomDeliveryLocation,
+      {
+        params: { shop_id: shopId },
+      }
+    );
+    return data;
+  },
+
+  async addCustomDeliveryLocation(params: {
+    shop_id: number;
+    location_name: string;
+    min_order: number;
+    delivery_fee: number;
+    min_order_freedelivery: number;
+    delivery_hours: string;
+    delivery_minute: string;
+  }) {
+    const { data } = await foodchowWDClient.get(
+      ENDPOINTS.setup.addCustomDeliveryLocation,
+      { params }
+    );
+    return data;
+  },
+
+  async updateCustomDeliveryLocation(params: {
+    id: number;
+    location_name: string;
+    min_order: number;
+    delivery_fee: number;
+    min_order_freedelivery: number;
+    delivery_hours: string;
+    delivery_minute: string;
+  }) {
+    const { data } = await foodchowWDClient.get(
+      ENDPOINTS.setup.updateCustomDeliveryLocation,
+      { params }
+    );
+    return data;
+  },
+
+  async deleteCustomDeliveryLocation(id: number) {
+    const { data } = await foodchowWDClient.get(
+      ENDPOINTS.setup.deleteCustomDeliveryLocation,
+      {
+        params: { id },
+      }
+    );
+    return data;
+  },
+
+  async changeCustomDeliveryLocationStatus(id: number, status: number) {
+    const { data } = await foodchowWDClient.get(
+      ENDPOINTS.setup.changeCustomDeliveryLocationStatus,
+      {
+        params: { id, status },
+      }
+    );
+    return data;
   },
 
   // Timings 
@@ -476,6 +631,24 @@ export const setupService = {
     );
 
     console.log("ADD FACILITY REQUEST RESPONSE:", data);
+
+    return data;
+  },
+
+  // Support
+  async addSupportTicket(payload: {
+    shop_id: string;
+    subject: string;
+    category: string;
+    priority_level: string;
+    message: string;
+  }) {
+    const { data } = await foodchowClient.post(
+      ENDPOINTS.setup.addSupportTicket,
+      payload
+    );
+
+    console.log("ADD SUPPORT TICKET RESPONSE:", data);
 
     return data;
   },

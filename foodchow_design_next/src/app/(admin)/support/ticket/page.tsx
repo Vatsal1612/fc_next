@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { setupService } from "@/api/services/setup.service";
 import "./page.css";
 
 export default function TicketPage() {
@@ -30,17 +31,11 @@ export default function TicketPage() {
 
     setSubmitting(true);
     
-    // We would use setupService or endpoints here, but keeping it direct 
-    // to match the original endpoint or standard practices if API not defined in endpoints.ts yet.
-    // Assuming backend is at https://api.foodchow.com or similar, but the original used absolute localhost URL. 
-    // We will use relative /api/UserMaster/AddShopSupportTicket if possible or simulate it.
     try {
-      // If there's no defined endpoint in endpoints.ts, just simulating or using fetch to a placeholder
-      // For now, let's just show success as the real endpoint may need CORS config
       console.log("Submitting data:", payload);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await setupService.addSupportTicket(payload);
+      console.log("API Response:", response);
       
       setSuccessMsg("Form submitted successfully.");
       setSubject("");
@@ -52,9 +47,10 @@ export default function TicketPage() {
         setSuccessMsg("");
       }, 5000);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Error submitting ticket. Please try again.");
+      const errorMessage = error?.response?.data?.Message || error?.response?.data?.message || "Error submitting ticket. Please try again.";
+      alert(errorMessage);
     } finally {
       setSubmitting(false);
     }

@@ -1,68 +1,110 @@
-.report-pagination-container {
+.report-pagination-wrapper {
   display: flex !important;
   align-items: center !important;
-  justify-content: flex-end !important;
-  gap: 8px !important;
-  margin-top: 28px !important;
-  margin-bottom: 24px !important;
-  padding-top: 16px !important;
+  justify-content: space-between !important;
+  margin-top: 24px !important;
+  margin-bottom: 20px !important;
   width: 100% !important;
   clear: both !important;
+  font-family: inherit;
+  color: #64748b;
+  font-size: 13px;
 }
 
-.report-pagination-btn {
+.report-pagination-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.report-pagination-select {
+  padding: 4px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background-color: #fff;
+  font-size: 13px;
+  color: #334155;
+  outline: none;
+  cursor: pointer;
+}
+
+.report-pagination-select:focus {
+  border-color: #00a699;
+}
+
+.report-pagination-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  user-select: none;
+}
+
+.report-nav-text-btn {
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: #cbd5e1; /* Default greyish for disabled/inactive */
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s ease-in-out;
+}
+
+.report-nav-text-btn:hover:not(:disabled) {
+  color: #0f766e; /* Teal when hovered */
+}
+
+.report-nav-text-btn:not(:disabled) {
+  color: #94a3b8; /* slightly darker if active */
+}
+
+.report-nav-text-btn:disabled {
+  color: #e2e8f0;
+  cursor: not-allowed;
+}
+
+.report-page-numbers {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.report-num-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 32px;
-  min-width: 32px;
-  padding: 0 10px;
-  font-size: var(--text-helper);
-  line-height: var(--lh-helper);
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 4px; /* Rounded square instead of pill */
+  font-size: 13px;
   font-weight: 500;
-  color: #94a3b8;
-  background-color: #ffffff;
-  border: 1px solid #f1f5f9;
-  border-radius: 6px;
+  color: #64748b;
   cursor: pointer;
   transition: all 0.15s ease-in-out;
-  user-select: none;
 }
 
-.report-pagination-btn:hover:not(:disabled):not(.active) {
-  background-color: #f8fafc;
-  border-color: #e2e8f0;
-  color: #64748b;
+.report-num-btn:hover:not(:disabled):not(.active) {
+  color: #0f172a;
+  background-color: #f1f5f9;
 }
 
-.report-pagination-btn:focus-visible {
-  outline: 2px solid #0d9488;
-  outline-offset: 1px;
-}
-
-.report-pagination-btn.active {
-  background-color: #0d9488;
-  border-color: #0d9488;
+.report-num-btn.active {
+  background-color: #0f766e; /* Teal */
   color: #ffffff;
   font-weight: 600;
+  border-color: #0f766e;
+  box-shadow: 0 1px 2px rgba(15, 118, 110, 0.3);
 }
 
-.report-pagination-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  background-color: #ffffff;
-  border-color: #f8fafc;
-  color: #cbd5e1;
-}
-
-.report-pagination-ellipsis {
+.report-ellipsis {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 32px;
-  width: 24px;
-  font-size: var(--text-label);
-  line-height: var(--lh-label);
-  color: #6b7280;
-  user-select: none;
+  min-width: 20px;
+  height: 28px;
+  font-size: 13px;
+  color: #94a3b8;
 }

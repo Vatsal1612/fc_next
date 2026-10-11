@@ -216,22 +216,14 @@ export default function RestaurantImgaePage() {
       });
 
       try {
-        const base64Data = src.replace(/^data:image\/[a-z]+;base64,/, "");
         const shopId = sessionStorage.getItem("shop_id");
         if (!shopId) throw new Error("No Shop ID");
 
-        const payload = {
-          shop_id: shopId,
-          device_type: "1",
-          imageflag: "1", // 1 = Restaurant Image
-          user_type: "4",
-          photo_count: "1",
-          photo_0: base64Data,
-          user_type_id: shopId,
-          caption: "restaurant_image.jpg",
-        };
+        // Convert base64 to Blob
+        const res = await fetch(src);
+        const blob = await res.blob();
         
-        await setupService.uploadGalleryImage(payload);
+        await setupService.saveShopOverviewImage(Number(shopId), blob, "restaurant_image.jpg");
         
         // Refresh the image
         await fetchRestaurantImage();
@@ -255,16 +247,19 @@ export default function RestaurantImgaePage() {
         const shopId = sessionStorage.getItem("shop_id");
         if (!shopId) return;
 
-        // ImageFlag = 1 for Restaurant Image
-        const res = await setupService.getGalleryImages(Number(shopId), 1);
-        if (res && res.data) {
-          const parsedImages = JSON.parse(res.data);
-          if (parsedImages && parsedImages.length > 0) {
-            const imageObj = parsedImages[0];
-            currentGalleryId = imageObj.gallery_id || imageObj.gallery_Id;
-            
+        const res = await setupService.getShopOverview(Number(shopId));
+        // The API returns the data array inside the `result` property, not `data`
+        const responseData = res?.result || res?.data;
+        if (responseData) {
+          const parsedData = typeof responseData === "string" ? JSON.parse(responseData) : responseData;
+          // Could be array or object
+          const imageObj = Array.isArray(parsedData) ? parsedData[0] : parsedData;
+          
+          const imageName = imageObj?.Image || imageObj?.image;
+
+          if (imageName) {
             if (imagePreview) {
-              imagePreview.src = `https://admin.foodchow.com/AgentImages/${shopId}/${imageObj.gallery_image || imageObj.gallery_Image}`;
+              imagePreview.src = `https://admin.foodchow.com/ShopDescriptionImage/${shopId}/${imageName}`;
               imagePreview.style.display = "block";
             }
             if (placeholderText) placeholderText.style.display = "none";
@@ -321,8 +316,9 @@ export default function RestaurantImgaePage() {
     const onConfirmDelete = async (): Promise<void> => {
       if (deleteModal) deleteModal.style.display = "none";
 
-      if (!currentGalleryId) {
-        Swal.fire("Error", "No image ID found to delete.", "error");
+      const shopId = sessionStorage.getItem("shop_id");
+      if (!shopId) {
+        Swal.fire("Error", "No shop ID found to delete image.", "error");
         return;
       }
 
@@ -335,7 +331,7 @@ export default function RestaurantImgaePage() {
       });
 
       try {
-        await setupService.deleteGalleryPhoto(currentGalleryId);
+        await setupService.deleteShopOverviewImage(Number(shopId));
 
         currentGalleryId = null;
         if (imagePreview) {

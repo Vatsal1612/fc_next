@@ -1,0 +1,827 @@
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<meta http-equiv="content-type" content="text/html;charset=UTF-8" />
+<head>
+    <title>Restaurant Log-in or Sign-up | FoodChow: An Online Food Ordering </title>
+    <!-- BEGIN META -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Restaurant Login on FoodChow.com. Login with your email address and password to manage your restaurant.">
+    <!-- END META -->
+    <!-- BEGIN STYLESHEETS -->
+    <link href="https://fonts.googleapis.com/css?family=Poppins:100,100i,200,200i,300,300i,400,400i,500,500i,600,600i,700,700i,800,800i,900,900i" rel="stylesheet">
+    <link href='https://fonts.googleapis.com/css?family=Roboto:300italic,400italic,300,400,500,700,900'
+          rel='stylesheet' type='text/css' />
+    <link type="text/css" rel="stylesheet" href="../../assets/css/modules/materialadmin/css/theme-default/bootstrap94be.css?1422823238" />
+    <link type="text/css" rel="stylesheet" href="../../assets/css/modules/materialadmin/css/theme-default/materialadminb0e2.css?1422823243" />
+    <link type="text/css" rel="stylesheet" href="../../assets/css/modules/materialadmin/css/theme-default/font-awesome.min753e.css?1422823239" />
+    <link type="text/css" rel="stylesheet" href="../../assets/css/modules/materialadmin/css/theme-default/material-design-iconic-font.mine7ea.css?1422823240" />
+    <link href="../../css/admin-style.css" rel="stylesheet" type="text/css" />
+    <!-- END STYLESHEETS -->
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script type="text/javascript" src="https://www.codecovers.eu/assets/js/modules/materialadmin/libs/utils/html5shiv.js?1422823601"></script>
+    <script type="text/javascript" src="https://www.codecovers.eu/assets/js/modules/materialadmin/libs/utils/respond.min.js?1422823601"></script>
+    <![endif]-->
+
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="/js/jquery-1.11.3.min.js"></script>
+    <script src="../../assets/js/modules/materialadmin/libs/bootstrap/bootstrap.min.js"></script>
+
+    <!------------- Owl Carousel Slider ---------->
+
+  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../css/owl.carousel.min.css">
+    <link rel="stylesheet" type="text/css" href="../../css/owl.theme.default.min.css">
+    <style>
+    @media (min-width: 1400px) {
+    .right-col {
+        height: 100vh !important; /* Full viewport height for screens 1300px and wider */
+        align-content:center;
+    }
+    .left-col {
+        height: 100vh !important; /* Full viewport height for screens 1300px and wider */
+        align-content:center;
+    }
+}
+
+     
+
+ 
+
+        .login-card-width {
+            width: 30%
+        }
+
+        .overlay {
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            position: fixed;
+            background: #0c0c0c78;
+            z-index: 9;
+        }
+
+        .overlay {
+            position: absolute;
+            left: 0;
+            right: 0;
+            padding: 15px;
+        }
+
+        .overlay__inner {
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+        }
+
+        .overlay__content {
+            left: 50%;
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .spinner {
+            width: 95px;
+            height: 95px;
+            display: inline-block;
+            border-width: 10px;
+            border-color: rgba(255, 255, 255, 0.05);
+            border-top-color: #fff;
+            animation: spin 1s infinite linear;
+            border-radius: 100%;
+            border-style: solid;
+        }
+
+        @keyframes spin {
+            to{
+                transform: rotate(1turn)
+                }
+            }
+
+        @media only screen and (max-width: 600px) {
+            .login-card-width {
+                width: 80%
+            }
+        }
+        /*-----------New Style------------*/
+        .main-row {
+            background-color: #0AA89E;
+        }
+
+        .left-head-col {
+            margin-top: 60px;
+            margin-bottom: 30px;
+        }
+
+        .left-col {
+            padding: 0 130px;
+            height:auto;
+        }
+
+        .left-col-subhead {
+            color: white;
+            font-size: 18px;
+            font-weight: 300;
+            line-height: 25px;
+        }
+
+        .left-col-head {
+            color: white;
+            font-weight: 500;
+            font-size: 28px;
+        }
+
+        .right-head-col {
+            margin-top: 7%;
+            margin-bottom: 7%;
+        }
+
+        .logo-col {
+            margin-top: 50px;
+        }
+
+        .right-col {
+            background-color: #fff;
+            padding-left: 7%;
+            padding-right: 7%;
+            padding-bottom: 100px;
+            padding-top: 3%;
+			/* height:100vh;  */
+             height:auto;  
+        }
+
+            .right-col row {
+                width: 100%;
+            }
+
+        .form-control {
+            height: 55px;
+            border: none;
+            background-color: #f2f6f6;
+            box-shadow: none !important;
+            padding: 15px;
+        }
+
+        .form-group {
+            position: relative;
+        }
+
+        .form-group1 {
+            margin-bottom: 50px;
+        }
+
+            .form-group1 input {
+                font-size: 15px;
+                border-radius: 10px;
+            }
+
+        .form-group2 {
+            margin-bottom: 0px;
+        }
+
+            .form-group2 input {
+                font-size: 15px;
+                border-radius: 10px;
+            }
+
+        .form-group3 {
+            padding-top: 0 !important;
+            margin-bottom: 0 !important;
+        }
+
+        .form-control::placeholder {
+            color: lightgrey;
+        }
+
+        .floating-label .form-control:focus ~ label,
+        .floating-label .form-control.dirty ~ label {
+            top: -15px;
+            font-size: 20px !important;
+        }
+
+        #btnforgetpwd {
+            position: inherit;
+            float: right;
+            top: -40px;
+            color: #0aa89e;
+            font-weight: 500;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        .btn-raised {
+            width: 100%;
+            padding: 10px;
+            border-radius: 50px;
+            background-color: #0aa89e;
+            border: none;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .form-check-label {
+            font-size: 18px;
+            margin-left: 10px;
+        }
+
+        .form-check {
+            margin-top: 50px;
+        }
+
+        .owl-img {
+            width: 70% !important;
+            margin-top: 50px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+
+        .owl-nav {
+            display: none;
+        }
+
+        .owl-dot span {
+            width: 15px !important;
+            height: 5px !important;
+            margin: 5px 3px !important;
+            background: rgba(255,255,255,30%) !important;
+        }
+
+        .owl-dots .active span {
+            background: white !important;
+            width: 50px !important;
+        }
+
+        #password-mobile-eye {
+            position: absolute;
+            bottom: 18px;
+            right: 15px;
+            font-size: 20px;
+            color: grey;
+        }
+
+        @media only screen and (max-width: 767px) {
+            .left-col {
+                display: none;
+            }
+
+            .right-col {
+                padding: 30px 0;
+                height: auto;
+            }
+
+            .right-head-col h1 {
+                font-size: 26px;
+            }
+        }
+
+
+
+    </style>
+</head>
+<body>
+
+    <div class="overlay" id="cart-loader-small2">
+        <div class="overlay__inner">
+            <div class="overlay__content">
+                <span class="spinner"></span>
+            </div>
+        </div>
+    </div>
+    <!-- BEGIN LOGIN SECTION -->
+    <div class="container-fluid">
+        <div class="row main-row">
+            <div class="col-lg-6 left-col">
+                <div class="col-md-12">
+                    <div class=" text-center logo-col">
+                        <img src="../../assets/img/modules/materialadmin/fc-logo.png">
+                    </div>
+                </div>
+                <div class="col-md-12 owl-carousel owl-theme owl-row" id="frame-owl-carousel">
+                    <div class=" item">
+                        <div class=" text-center">
+                            <img class=" owl-img" src="../../assets/img/modules/materialadmin/frame1.png">
+                        </div>
+                        <div class=" text-center left-head-col">
+                            <h1 class="left-col-head">Take your restaurant online today</h1>
+                        </div>
+                        <div class=" text-center">
+                            <h5 class="left-col-subhead">Increase your business with your own online ordering platform</h5>
+                        </div>
+                    </div>
+
+                    <div class=" item">
+                        <div class=" text-center">
+                            <img class=" owl-img" src="../../assets/img/modules/materialadmin/frame2.png">
+                        </div>
+                        <div class=" text-center left-head-col">
+                            <h1 class="left-col-head">Be the owner of your data</h1>
+                        </div>
+                        <div class=" text-center">
+                            <h5 class="left-col-subhead">Eliminate third-party intervention with Foodchow</h5>
+                        </div>
+                    </div>
+
+                    <div class="item">
+                        <div class=" text-center">
+                            <img class=" owl-img" src="../../assets/img/modules/materialadmin/frame3.png">
+                        </div>
+                        <div class=" text-center left-head-col">
+                            <h1 class="left-col-head">Start your business online for free</h1>
+                        </div>
+                        <div class=" text-center">
+                            <h5 class="left-col-subhead">Foodchow allows restaurant owners to go online for free</h5>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="col-lg-6 right-col">
+                
+                <div class="col-md-12">
+                    <div class="col-12 text-center">
+                        <img src="../../assets/img/modules/materialadmin/logo-main.png">
+                    </div>
+                </div>
+                <div class="col-md-12">
+                    <div class="col-12 text-center right-head-col">
+                        <h1 style="font-weight:600;">Welcome To FoodChow </h1>
+                    </div>
+                </div>
+                <div class="col-md-12">
+                    <div class="card contain-sm style-transparent" style="margin-bottom:0">
+                        <div class="card-body" style="padding:0">
+                            <div class="row">
+                                <div class="col-sm-12 divLogin">
+                                    <div class="">
+                                        <div class="">
+
+                                            <form action="/RestaurantLogin/Login" enctype="multipart/form-data" method="post" class="form floating-label">
+                                                
+                                                <div class="form-group form-group1">
+                                                    <input type="email" class="form-control dirty required " placeholder="Enter your email address" name="Email_Id" required="" id="txtEmailId">
+                                                    <label for="Email_Id" class="color-black fontbold">
+                                                        Email Address
+                                                    </label>
+                                                </div>
+                                                <div class="form-group form-group2">
+                                                    <input type="password" id="password-field" class="form-control dirty required " placeholder="Enter your password" name="Password" required="">
+                                                    <label for="Password" class="color-black fontbold">
+                                                        Password
+                                                    </label>
+                                                    <i toggle="#password-field" id="password-mobile-eye" class="fa fa-eye"> </i>
+
+                                                </div>
+												
+												
+												
+                                                <div class="form-group form-group3">
+                                                    
+                                                    <input type="hidden" name="SubDomain" />
+                                                    <a id="btnforgetpwd" >Forgot Password?</a>
+                                                    <div class="form-check">
+                                                        <input type="checkbox" class="form-check-input" id="exampleCheck1" onchange="handleRememberMe()">
+                                                        <label class="form-check-label" for="exampleCheck1">Remember Me</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-12">
+                                                    <div id="message-result">
+                                                                                                            </div>
+                                                </div>
+                                                <div class="form-group text-center form-group4">
+                                                    <button class="btn btn-primary btn-raised" type="submit" id="btnsubmit" onclick="submitForm()">
+                                                        Login &nbsp; <span class="roundes"><i class="fa fa-refresh fa-spin" id="loader" style="display: none;"></i></span>
+                                                    </button>
+                                                </div>
+                                            </form>
+                                            
+                                        </div>
+                                    </div>
+                                </div>
+								
+									
+								
+                                <div class="col-sm-6 divForgetPwd" style="display:none">
+                                    <div class="card">
+                                        <div class="body-card padding24">
+                                            <h1 class="text-lg text-bold text-primary">Forgot Password?</h1>
+
+                                            <form class="form floating-label" action="/RestaurantLogin/forgotpassword" enctype="multipart/form-data"
+                                                  method="post">
+                                                <div class="form-group">
+                                                    <input type="email" class="form-control dirty required" name="Email_Id" id="txtEmailId"
+                                                           required>
+                                                    <label for="Email_Id" class="color-black fontbold">
+                                                        Email
+                                                    </label>
+                                                </div>
+                                                <br />
+                                                <div class="form-group">
+                                                    <button class="btn btn-primary btn-raised position-toast" data-position="toast-top-full-width"
+                                                            type="submit" id="btnforgetpwd">
+                                                        Submit
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-lg-12 text-center ">
+                            <h3 style="margin-top:0;">
+                                Don’t have an account?
+                                <a href="https://www.foodchow.com/free-demo" style="color:#0AA89E;">Signup </a>
+                            </h3>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Modal -->
+        <div id="myModal" class="modal fade" role="dialog">
+            <div class="modal-dialog">
+
+                <!-- Modal content-->
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                        <h2 class="modal-title text-center">Forgot password?</h2>
+                        <h4 class="modal-title text-center">  No Worries, Wel'll send you reset instructions. </h4>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <input type="email" class="form-control dirty required " placeholder="Enter your email address" name="Email_Id" required="" id="txtEmailIdForget">
+                            <span id="forget_error" style="color:red;"></span>
+                        </div>
+                        <div class="form-group text-center form-group4">
+                            <button class="btn btn-primary " type="button" id="btnsubmitForget">
+                                Reset password
+                            </button>
+                        </div>
+                        <div id="success_f" class="alert alert-success" style="display:none">
+                            <span id="msg_s"></span>
+                        </div>
+                        <div id="error_f" class="alert alert-danger" style="display:none">
+                            <span id="msg_e"></span>
+                        </div>
+
+                    </div>
+                   
+                </div>
+
+            </div>
+        </div>
+
+
+        <!--<section class="section-account">
+        
+
+        <div class="row " style="padding-top:5%">
+
+            <div id="message-result" class="col-lg-offset-3 col-lg-6" style="margin-top:5px">
+                
+            </div>
+
+
+        </div>
+        <div class="card login-card-width" style="border-radius:15px;margin:0 auto">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-12 text-center">
+                        <img src="/Images/home/logo.png" class="logo-dark default">
+                    </div>
+                    <div class="col-md-12">
+                        <div class="card contain-sm style-transparent" style="margin-bottom:0">
+                            <div class="card-body" style="padding:0">
+                                <div class="row">
+                                    <div class="col-sm-12 divLogin">
+                                        <div class="">
+                                            <div class="">
+                                                <h1 class="text-lg text-bold text-primary" style="font-size:25px">Login</h1>
+
+                                                <form action="/RestaurantLogin/Login" enctype="multipart/form-data" method="post" class="form floating-label">
+                                                    
+                                                    <div class="form-group">
+                                                        <input type="email" class="form-control dirty required " name="Email_Id" required="" id="txtEmailId">
+                                                        <label for="Email_Id" class="color-black fontbold">
+                                                            Email
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <input type="password" class="form-control dirty required " name="Password" required="">
+                                                        <label for="Password" class="color-black fontbold">
+                                                            Password
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <button class="btn btn-primary btn-raised" type="submit" id="btnsubmit">
+                                                            Login
+                                                        </button>
+                                                        
+                                                        <input type="hidden" value="" name="SubDomain" />
+                                                        <a style="position: inherit;float: right;top: 10px;color:#0aa89e;font-weight:700" id="btnforgetpwd">Forgot Password?</a>
+                                                    </div>
+                                                </form>
+                                                
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-6 divForgetPwd" style="display:none">
+                                        <div class="card">
+                                            <div class="body-card padding24">
+                                                <h1 class="text-lg text-bold text-primary">Forgot Password?</h1>
+
+                                                <form class="form floating-label" action="/RestaurantLogin/forgotpassword" enctype="multipart/form-data"
+                                                      method="post">
+                                                    <div class="form-group">
+                                                        <input type="email" class="form-control dirty required" name="Email_Id" id="txtEmailId"
+                                                               required>
+                                                        <label for="Email_Id" class="color-black fontbold">
+                                                            Email
+                                                        </label>
+                                                    </div>
+                                                    <br />
+                                                    <div class="form-group">
+                                                        <button class="btn btn-primary btn-raised position-toast" data-position="toast-top-full-width"
+                                                                type="submit" id="btnforgetpwd">
+                                                            Submit
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </section> -->
+        <!-- ---library
+    <script type="text/javascript" src="../../assets/owl-carousel/js/jquery-3.6.0.min.js"></script>-->
+        <!-- ---owl carousel -->
+        <script type="text/javascript" src="../../js/owl.carousel.min.js"></script>
+
+        <script type="text/javascript">
+
+            $("#password-mobile-eye").click(function () {
+
+                $(this).toggleClass("fa-eye fa-eye-slash");
+                var input = $($(this).attr("toggle"));
+                if (input.attr("type") == "password") {
+                    input.attr("type", "text");
+                } else {
+                    input.attr("type", "password");
+                }
+            });
+
+            $('#frame-owl-carousel').owlCarousel({
+                loop: true,
+                margin: 10,
+                autoplay: true,
+                autoplayTimeout: 3000,
+                autoplaySpeed: 1000,
+
+                nav: true,
+                responsive: {
+                    0: {
+                        items: 1
+                    },
+                    600: {
+                        items: 1
+                    },
+                    1000: {
+                        items: 1
+                    }
+                }
+            })
+
+        </script>
+		
+		
+		<script type="text/javascript">
+
+    $(document).ready(function () {
+
+        $('#cart-loader-small2').hide();
+       /* $("#btnsubmit").on('click', function (e) {
+            debugger;
+            
+            var isValid = true;
+
+            $('.divLogin .required').each(function () {
+                if ($.trim($(this).val()) == "") {
+
+                    isValid = false;
+                    $(this).val("");
+                    $(this).addClass("errorbox");
+                } else {
+                    $(this).removeClass("errorbox");
+                }
+            });
+
+            $('.divLogin .required').each(function () {
+                if ($.trim($(this).val()) == "") {
+                    isValid = false;
+                    $(this).focus();
+                    return false;
+                }
+            });
+            if (isValid == false)
+                return false;
+            $("#loadingDiv").css("display", "block");
+        });*/
+
+
+        
+        $("#btnforgetpwd").on('click', function (e) {
+            $('#myModal').modal('show');
+            
+        });
+
+
+        $("#btnsubmitForget").on('click', function (e) {
+            
+            if ($.trim($("#txtEmailIdForget").val()) == "") {
+                $("#txtEmailIdForget").focus();
+                $("#forget_error").text("Please Enter Your Email Address !!");
+                return false;
+            }
+            else {
+                var xd = $("#txtEmailIdForget").val();
+                $.ajax({
+                    type: "POST",
+                    url: '/RestaurantLogin/forgotpassword',
+                    contentType: "application/json; charset=utf-8",
+                    data: JSON.stringify({ data: xd }),
+                    success: function (data) {
+                        debugger;
+                        var x = data;
+                        const res = x.split("|");
+                        
+                        if (res[0] == "1") {
+                            $("#error_f").hide();
+                            $("#success_f").show();
+                            $("#msg_s").text(res[1]);
+                        }
+                        else {
+                             $("#success_f").hide();
+                             $("#error_f").show();
+                            $("#msg_e").text(res[1]);
+                        }
+
+                    }
+                });
+            }
+        });
+    });
+</script>
+<script>
+    var key = "CIPHERKEY";
+
+    function saveRememberMe(email, pass) {
+        var expirationDate = getCookieExpirationDate();
+        document.cookie = "rememberedEmail=" + CryptoJS.AES.encrypt(email, key) + "; expires=" + expirationDate + "; path=/";
+        document.cookie = "rememberedPassword=" + CryptoJS.AES.encrypt(pass, key) + "; expires=" + expirationDate + "; path=/";
+    }
+
+    function handleRememberMe() {
+        var rememberCheckbox = document.getElementById("exampleCheck1");
+        var emailInput = document.getElementById("txtEmailId");
+        var passwordInput = document.getElementById("password-field");
+
+        if (rememberCheckbox.checked) {
+            var email = emailInput.value;
+            var pass = passwordInput.value;
+            saveRememberMe(email, pass);
+        }
+    }
+
+    function getCookieExpirationDate() {
+        var expirationDate = new Date();
+        expirationDate.setDate(expirationDate.getDate() + 50);
+        return expirationDate.toUTCString();
+    }
+
+    function getCookieValue(cookieName) {
+        var cookies = document.cookie.split('; ');
+        for (var i = 0; i < cookies.length; i++) {
+            var parts = cookies[i].split('=');
+            if (decodeURIComponent(parts[0]) === cookieName) {
+                return decodeURIComponent(parts[1]);
+            }
+        }
+        return null;
+    }
+
+    $(document).ready(function () {
+	
+	
+		//$("#txtEmailId").val('');
+	
+	
+        var rememberCheckbox = document.getElementById("exampleCheck1");
+        var emailInput = document.getElementById("txtEmailId");
+        var passwordInput = document.getElementById("password-field");
+
+        var rememberedEmail = CryptoJS.AES.decrypt(getCookieValue("rememberedEmail"), key).toString(CryptoJS.enc.Utf8);
+        var rememberedPassword = CryptoJS.AES.decrypt(getCookieValue("rememberedPassword"), key).toString(CryptoJS.enc.Utf8);
+
+        if (rememberedEmail && rememberedPassword) {
+			
+			
+            emailInput.value = rememberedEmail;
+            passwordInput.value = rememberedPassword;
+            rememberCheckbox.checked = true;
+			//$("#txtEmailId").val('');
+        }
+
+        $("#btnsubmit").on('click', function () {
+            debugger;
+
+            //$('.fa-refresh').show();
+            $('#cart-loader-small2').show();
+            var newEmail = emailInput.value;
+            var newPassword = passwordInput.value;
+             if(newEmail==""||newPassword=="")
+            {
+                 $('#cart-loader-small2').hide();
+                Swal.fire('please enter email or password');
+                
+            }
+
+            saveRememberMe(newEmail, newPassword);
+            emailInput.value = newEmail;
+            passwordInput.value = newPassword;
+           
+
+            var isValid = true;
+
+            $('.divLogin .required').each(function () {
+                if ($.trim($(this).val()) === "") {
+                    isValid = false;
+                    $(this).val("");
+                    $(this).addClass("errorbox");
+                } else {
+                    $(this).removeClass("errorbox");
+                }
+            });
+
+            if (isValid == false)
+                return false;
+            $("#loadingDiv").css("display", "block");
+            
+        });
+		
+    });
+</script>
+
+
+
+
+<script>
+    function submitForm() {
+        var loaderIcon = document.getElementById('loader');
+        loaderIcon.style.display = 'inline-block'; // Display the loader icon
+        
+        setTimeout(function () {
+           
+            loaderIcon.style.display = 'none';
+           
+        }, 4000); 
+        setTimeout(function () {
+           $('#cart-loader-small2').hide();
+            
+           
+        }, 2000); 
+    }
+</script>
+
+
+		
+</body>
+</html>
+
+

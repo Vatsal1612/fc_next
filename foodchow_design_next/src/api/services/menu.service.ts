@@ -258,9 +258,15 @@ export interface AddStoreCategoryPayload {
   id: number;         // 0 = insert, >0 = update
   shop_id: number;
   cate_name: string;
-  cate_image: string; // base64 string or existing URL, empty string = no image
+  cate_image: string; // image filename or empty string = no image
   description: string;
   parent_id: number;
+}
+
+export interface UploadCategoryImagePayload {
+  id: number | string;
+  shop_id: number | string;
+  base64Image: string; // base64 string without data:image/...;base64, prefix
 }
 
 export interface EditStoreItemPayload {
@@ -788,6 +794,19 @@ export const menuService = {
 
     return setting[0];
   },
+  /** Save Item Code Type Setting (0: numeric, 1: alphanumeric) */
+  async saveItemCodeTypeSetting(shopId: number, itemCodeType: number) {
+    const { data } = await foodchowWDClient.get(
+      ENDPOINTS.menu.saveItemCodeTypeSetting,
+      {
+        params: {
+          shop_id: shopId,
+          item_code: itemCodeType,
+        },
+      }
+    );
+    return data;
+  },
   /** Update Item Code */
   async updateItemCode(
     shopId: number,
@@ -807,6 +826,19 @@ export const menuService = {
 
     console.log("UPDATE ITEM CODE:", data);
 
+    return data;
+  },
+  /** Change Item Position */
+  async changeItemPosition(itemIds: (string | number)[], posIds: (string | number)[]) {
+    const { data } = await foodchowWDClient.get(
+      ENDPOINTS.menu.changeItemPosition,
+      {
+        params: {
+          item_id: itemIds.join(","),
+          pos_id: posIds.join(","),
+        },
+      }
+    );
     return data;
   },
 
@@ -1237,6 +1269,19 @@ export const menuService = {
     const { data } = await foodchowClient.post(
       ENDPOINTS.menu.addStoreCategory,
       payload
+    );
+    return data;
+  },
+
+  /** Upload a category image using base64 string */
+  async uploadCategoryImage(payload: UploadCategoryImagePayload): Promise<any> {
+    const { data } = await foodchowClient.post(
+      ENDPOINTS.menu.categoryImageUpload,
+      {
+        id: String(payload.id),
+        shop_id: String(payload.shop_id),
+        base64Image: payload.base64Image,
+      }
     );
     return data;
   },

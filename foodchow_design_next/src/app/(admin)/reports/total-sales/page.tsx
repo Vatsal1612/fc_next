@@ -504,37 +504,13 @@ export default function TotalSalesPage() {
               </table>
             </div>
 
-            <div
-              style={{
-                marginTop: "16px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ fontSize: "14px", color: "#666" }}>Show</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                  style={{
-                    padding: "4px 8px",
-                    borderRadius: "4px",
-                    border: "1px solid #ccc",
-                  }}
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
-                <span style={{ fontSize: "14px", color: "#666" }}>entries</span>
-              </div>
-
+            <div style={{ width: "100%" }}>
               <ReportPagination
                 currentPage={pageNumber}
                 totalPages={totalPages}
                 totalRecords={totalRecords}
                 pageSize={pageSize}
+                onPageSizeChange={(size) => handlePageSizeChange(size)}
                 onPageChange={(page) => handlePageChange(page)}
               />
             </div>

@@ -1,14 +1,56 @@
-/node_modules
-/.next/
-/out/
-/build
-.DS_Store
-*.pem
+# Dependencies
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Next.js build output
+.next/
+out/
+build/
+next-env.d.ts
+
+# Production / testing
+coverage/
+
+# TypeScript
+*.tsbuildinfo
+
+# Environment files
+.env
+.env*.local
+
+# Vercel
+.vercel
+
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.env*.local
-.env
-.vercel
-*.tsbuildinfo
-next-env.d.ts
+pnpm-debug.log*
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Keys / certificates
+*.pem
+
+# Editor / IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+
+# Archives
+*.zip
+*.gz
+*.tar
+*.tgz
+*.rar
+*.7z

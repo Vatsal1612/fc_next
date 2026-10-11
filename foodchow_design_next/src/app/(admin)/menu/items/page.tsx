@@ -5,6 +5,7 @@ import { AddItemPayload, menuService, type MenuCategory } from "@/api/services/m
 import Swal from "sweetalert2";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import { useShopId } from "@/utils/shop";
+import ReportPagination from "@/components/shared/ReportPagination";
 
 import "./page.css";
 
@@ -18,6 +19,10 @@ export default function ItemsPage() {
   const [isVeg] = useState("1");
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [items, setItems] = useState<MenuCategory[]>([]);
+  const itemsRef = useRef(items);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   // Edit item state
   const [editItemId, setEditItemId] = useState<number | null>(null);
@@ -27,30 +32,122 @@ export default function ItemsPage() {
   const [updatingItem, setUpdatingItem] = useState(false);
   const [togglingItemId, setTogglingItemId] = useState<number | null>(null);
 
+  // Drag and drop state
+  const [draggedItemId, setDraggedItemId] = useState<number | null>(null);
+
+  // Pagination and filtering state
+  const [pageSize, setPageSize] = useState(10);
+  const [page, setPage] = useState(1);
+  const [filterCategoryId, setFilterCategoryId] = useState("all");
+
   // Ref so the useEffect crop logic can push the cropped base64 back to React state
   const setEditBase64ImageRef = useRef(setEditBase64Image);
   useEffect(() => {
     setEditBase64ImageRef.current = setEditBase64Image;
   }, []);
 
-  useEffect(() => {
-    const loadItems = async () => {
-      try {
-        const data = await menuService.getItems(SHOP_ID);
-        setItems(data);
-        console.log("Items:", data);
-      } catch (error) {
-        console.error(error);
-      }
-    };
+  const loadItems = async () => {
+    try {
+      const data = await menuService.getItems(SHOP_ID);
+      setItems(data);
+      console.log("Items:", data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
+  const loadItemsRef = useRef(loadItems);
+  useEffect(() => {
+    loadItemsRef.current = loadItems;
+  });
+
+  // Drag and Drop handlers for position reordering
+  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, itemId: number) => {
+    setDraggedItemId(itemId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(itemId));
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLTableRowElement>, targetItemId: number) => {
+    e.preventDefault();
+    const sourceIdStr = e.dataTransfer.getData("text/plain");
+    const sourceItemId = Number(sourceIdStr);
+
+    if (!sourceItemId || sourceItemId === targetItemId) {
+      setDraggedItemId(null);
+      return;
+    }
+
+    // Find which category both items belong to
+    let targetCategory: MenuCategory | null = null;
+    for (const cat of items) {
+      const hasSource = cat.item_list?.some((it: any) => it.item_Id === sourceItemId);
+      const hasTarget = cat.item_list?.some((it: any) => it.item_Id === targetItemId);
+      if (hasSource && hasTarget) {
+        targetCategory = cat;
+        break;
+      }
+    }
+
+    if (!targetCategory || !targetCategory.item_list) {
+      setDraggedItemId(null);
+      return;
+    }
+
+    const currentList = [...targetCategory.item_list];
+    const sourceIdx = currentList.findIndex((it: any) => it.item_Id === sourceItemId);
+    const targetIdx = currentList.findIndex((it: any) => it.item_Id === targetItemId);
+
+    if (sourceIdx === -1 || targetIdx === -1) {
+      setDraggedItemId(null);
+      return;
+    }
+
+    const [movedItem] = currentList.splice(sourceIdx, 1);
+    currentList.splice(targetIdx, 0, movedItem);
+
+    // Optimistically update React state
+    setItems((prev) =>
+      prev.map((c) => (c.id === targetCategory!.id ? { ...c, item_list: currentList } : c))
+    );
+    setDraggedItemId(null);
+
+    // Prepare item_id and pos_id arrays for backend
+    const itemIds = currentList.map((it: any) => it.item_Id);
+    const posIds = currentList.map((_, idx) => idx + 1);
+
+    try {
+      await menuService.changeItemPosition(itemIds, posIds);
+      Swal.fire({
+        icon: "success",
+        title: "Position Updated",
+        text: "Item position reordered successfully.",
+        timer: 1500,
+        showConfirmButton: false,
+        toast: true,
+        position: "top-end",
+      });
+    } catch (err) {
+      console.error("Failed to update item position:", err);
+      // Reload on failure
+      loadItems();
+    }
+  };
+
+  const getImageUrl = (img: string | null | undefined) => {
+    if (!img) return "";
+    if (img.startsWith("http")) return img;
+    return `https://admin.foodchow.com/FoodItemImages/${img}`;
+  };
+
+  useEffect(() => {
     loadItems();
   }, []);
-
-  const totalItems = items.reduce(
-    (total, category) => total + (category.item_list?.length ?? 0),
-    0
-  );
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -156,6 +253,10 @@ export default function ItemsPage() {
 
     setUpdatingItem(true);
     try {
+      const generatedImageName = editBase64Image
+        ? `${SHOP_ID}_${Date.now()}_item.jpg`
+        : editItemImage;
+
       await menuService.editStoreItem({
         Item_Id: editItemId,
         Cate_Id: editCateId,
@@ -164,11 +265,10 @@ export default function ItemsPage() {
         Is_Veg: isVegActive ? 1 : 0,
         barcode: "",
         base64Image: editBase64Image,
-        Item_Image: editItemImage,
+        Item_Image: generatedImageName,
       });
       // Refresh items from API so the table shows updated data
-      const data = await menuService.getItems(SHOP_ID);
-      setItems(data);
+      await loadItems();
       // Switch back to list view
       document.getElementById("editItemFormView")?.classList.remove("active-view");
       document.getElementById("mainDirectoryView")?.classList.add("active-view");
@@ -470,6 +570,29 @@ export default function ItemsPage() {
             row.querySelector<HTMLElement>(".placeholder-img");
           if (placeholderDiv)
             placeholderDiv.innerHTML = `<img src="${ucmPreviewImg.src}" style="width:52px;height:52px;object-fit:cover;border-radius:4px;">`;
+
+          const rowItemId = Number(row.dataset.itemId || "0");
+          const rowCateId = Number(row.dataset.cateId || "0");
+          const rowItemName = row.querySelector<HTMLElement>(".item-name")?.innerText || "";
+          const pureBase64 = ucmPreviewImg.src.replace(/^data:image\/[a-z]+;base64,/, "");
+          const generatedName = `${SHOP_ID}_${Date.now()}_item.jpg`;
+
+          if (rowItemId) {
+            menuService.editStoreItem({
+              Item_Id: rowItemId,
+              Cate_Id: rowCateId,
+              Item_Name: rowItemName,
+              Description: "",
+              Is_Veg: 1,
+              barcode: "",
+              base64Image: pureBase64,
+              Item_Image: generatedName,
+            }).then(() => {
+              loadItemsRef.current();
+            }).catch((err) => {
+              console.error("Failed to upload item image:", err);
+            });
+          }
         }
       } else {
         const formThumb = document.querySelector<HTMLElement>(
@@ -479,6 +602,7 @@ export default function ItemsPage() {
           formThumb.innerHTML = `<img src="${ucmPreviewImg.src}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;">`;
       }
       uploadCropOverlay?.classList.remove("open");
+      currentAddImgBtn = null;
     };
     ucmCropUploadBtn?.addEventListener("click", cropUploadHandler);
 
@@ -591,25 +715,49 @@ export default function ItemsPage() {
 
     const openQuickEditHandler = () => {
       if (!mainItemsTable || !quickEditTableBody || !quickEditModal) return;
-      const rows = mainItemsTable.querySelectorAll<HTMLElement>("tbody tr");
       quickEditTableBody.innerHTML = "";
+      const allItems = itemsRef.current.flatMap((c) => c.item_list || []);
+      const rows = mainItemsTable.querySelectorAll<HTMLElement>("tbody tr");
+      
       rows.forEach((row, index) => {
-        const itemName =
-          row.querySelector<HTMLElement>(".item-name")?.innerText ?? "";
-        const priceValue =
-          row
-            .querySelector<HTMLElement>(".item-price")
-            ?.innerText.replace(/[^0-9]/g, "") ?? "";
+        const itemId = Number(row.dataset.itemId);
+        const item = allItems.find((i: any) => i.item_Id === itemId);
+        const itemName = row.querySelector<HTMLElement>(".item-name")?.innerText ?? "";
+        
+        let sizesHtml = "";
+        let inputsHtml = "";
+        
+        if (item && (item.is_size_available === 1 || item.Is_size_available === 1) && ((item.FoodItemSizeList && item.FoodItemSizeList.length > 0) || (item.foodItemSizeList && item.foodItemSizeList.length > 0))) {
+           const sizesList = item.FoodItemSizeList || item.foodItemSizeList;
+           sizesList.forEach((size: any) => {
+              const sName = size.size_name ?? size.Size_Name ?? "Size";
+              const sPrice = size.Net_Price ?? size.net_price ?? size.Net_Prices ?? size.price ?? size.Total_Price ?? 0;
+              sizesHtml += `<div style="margin-bottom: 6px;">${sName}</div>`;
+              inputsHtml += `<input type="number" class="table-input item-price-input" data-is-variant="true" style="margin-bottom: 6px;" value="${sPrice}">`;
+           });
+        } else {
+           const priceValue = row.querySelector<HTMLElement>(".item-price")?.innerText.replace(/[^0-9]/g, "") ?? "0";
+           sizesHtml = "No Size Available";
+           inputsHtml = `<input type="number" class="table-input item-price-input" value="${priceValue}">`;
+        }
+
         quickEditTableBody.insertAdjacentHTML(
           "beforeend",
           `
                 <tr>
                     <td>${index + 1}</td>
-                    <td class="edit-item-name">${itemName}</td>
-                    <td class="edit-item-size">No Size Available</td>
-                    <td><input type="number" class="table-input item-price-input" value="${priceValue}"></td>
-                    <td><input type="number" class="table-input" value="0"></td>
-                    <td>
+                    <td class="edit-item-name" style="width: 250px;">
+                        <textarea class="form-input" style="resize: none; height: 40px; margin-bottom: 5px; width: 100%; border-radius: 6px; border: 1px solid darkgray;">${itemName}</textarea>
+                        <textarea class="form-input" style="resize: none; height: 50px; width: 100%; border-radius: 6px; border: 1px solid darkgray;" placeholder="Description"></textarea>
+                    </td>
+                    <td class="edit-item-size" style="vertical-align: top; padding-top: 15px; font-weight: bold;">${sizesHtml}</td>
+                    <td style="vertical-align: top; padding-top: 10px;"><div style="display: flex; flex-direction: column;">${inputsHtml}</div></td>
+                    <td style="vertical-align: top; padding-top: 10px;">
+                        <div style="display: flex; flex-direction: column;">
+                           ${sizesHtml === "No Size Available" ? `<input type="text" class="table-input" value="0" style="margin-bottom:6px;">` : item.FoodItemSizeList?.map((s:any) => `<input type="text" class="table-input" value="${s.Weight ?? 0}" style="margin-bottom:6px;">`).join('') || `<input type="text" class="table-input" value="0">`}
+                        </div>
+                    </td>
+                    <td style="vertical-align: top; padding-top: 10px;">
                         <div class="dropdown-container">
                             <div class="dropdown-trigger"><span>Select Unit</span><i class="fa-solid fa-caret-down"></i></div>
                             <div class="dropdown-menu">
@@ -618,9 +766,11 @@ export default function ItemsPage() {
                                 <div class="dropdown-item">Gram</div>
                                 <div class="dropdown-item">Pound</div>
                                 <div class="dropdown-item">Ounce</div>
-                                <div class="dropdown-item active-selection">Min. Order</div>
                             </div>
                         </div>
+                    </td>
+                    <td style="vertical-align: top; padding-top: 10px;">
+                        <input type="number" class="table-input" placeholder="Min Qty" value="1">
                     </td>
                 </tr>`
         );
@@ -635,6 +785,29 @@ export default function ItemsPage() {
     };
     cancelQuickChangesBtn?.addEventListener("click", cancelQuickHandler);
 
+    // Edit Item Variant toggles
+    const editContainVariantCheckbox = document.getElementById(
+      "editContainVariantCheckbox"
+    ) as HTMLInputElement | null;
+    const editVariantSection = document.getElementById("editVariantSection");
+    const editSinglePriceSection = document.getElementById("editSinglePriceSection");
+    
+    const handleEditVariantToggle = () => {
+      if (editContainVariantCheckbox?.checked) {
+        editVariantSection!.style.display = "block";
+        editSinglePriceSection!.style.display = "none";
+        const rowsContainer = document.getElementById("editVariantRows");
+        if (rowsContainer && rowsContainer.children.length === 0) {
+          addVariantRow("editVariantRows");
+        }
+      } else {
+        editVariantSection!.style.display = "none";
+        editSinglePriceSection!.style.display = "block";
+      }
+    };
+
+    editContainVariantCheckbox?.addEventListener("change", handleEditVariantToggle);
+
     const saveQuickHandler = () => {
       if (confirmUpdateModal) confirmUpdateModal.style.display = "flex";
     };
@@ -647,16 +820,27 @@ export default function ItemsPage() {
 
     const confirmYesHandler = () => {
       if (!quickEditTableBody || !mainItemsTable) return;
-      const editInputs = quickEditTableBody.querySelectorAll<HTMLInputElement>(
-        ".item-price-input"
-      );
+      
+      const editRows = quickEditTableBody.querySelectorAll<HTMLElement>("tr");
       const mainRows = mainItemsTable.querySelectorAll<HTMLElement>("tbody tr");
-      editInputs.forEach((input, index) => {
-        const priceCell = mainRows[index]?.querySelector<HTMLElement>(
-          ".item-price"
-        );
-        if (priceCell) priceCell.innerText = `Rs.${input.value || 0}`;
+      
+      editRows.forEach((editRow, index) => {
+        const inputs = editRow.querySelectorAll<HTMLInputElement>(".item-price-input");
+        const priceCell = mainRows[index]?.querySelector<HTMLElement>(".item-price");
+        if (!priceCell) return;
+        
+        if (inputs.length > 1 || (inputs.length === 1 && inputs[0].dataset.isVariant)) {
+           const priceSpans = priceCell.querySelectorAll<HTMLElement>("div > div > span:nth-child(2)");
+           inputs.forEach((input, i) => {
+              if (priceSpans[i]) {
+                 priceSpans[i].innerText = `Rs.${input.value || 0}`;
+              }
+           });
+        } else if (inputs.length === 1) {
+           priceCell.innerHTML = `<span>Rs.${inputs[0].value || 0}</span>`;
+        }
       });
+      
       if (confirmUpdateModal) confirmUpdateModal.style.display = "none";
       if (quickEditModal) quickEditModal.style.display = "none";
     };
@@ -667,7 +851,6 @@ export default function ItemsPage() {
     const cancelEditItemFormBtn = document.getElementById(
       "cancelEditItemFormBtn"
     );
-    const updateItemFormBtn = document.getElementById("updateItemFormBtn");
     const editUploadImageBtn = document.getElementById("editUploadImageBtn");
     let currentEditRow: HTMLElement | null = null;
 
@@ -727,6 +910,62 @@ export default function ItemsPage() {
         else
           editThumb.innerHTML = `<i class="fa-solid fa-concierge-bell" style="font-size:32px;"></i><span style="font-size:9px;">No Image</span>`;
       }
+      
+      // Populate Categories dynamically
+      const editCategoryInput = document.getElementById("editCategoryInput") as HTMLSelectElement | null;
+      if (editCategoryInput) {
+        editCategoryInput.innerHTML = '<option value="">Select Category</option>';
+        categories.forEach(cat => {
+          const option = document.createElement("option");
+          option.value = String(cat.id);
+          option.textContent = cat.cate_name;
+          if (cat.id === cateId) {
+            option.selected = true;
+          }
+          editCategoryInput.appendChild(option);
+        });
+      }
+
+      // Populate Sizes dynamically if they exist
+      const itemToEdit = itemsRef.current.flatMap((c) => c.item_list || []).find((i: any) => i.item_Id === itemId);
+      const sizesList = itemToEdit?.FoodItemSizeList || itemToEdit?.foodItemSizeList || [];
+      const isSizeAvailable = itemToEdit?.is_size_available === 1 || itemToEdit?.Is_size_available === 1;
+      
+      const editContainVariantCheckbox = document.getElementById("editContainVariantCheckbox") as HTMLInputElement | null;
+      const editVariantRowsContainer = document.getElementById("editVariantRows");
+      
+      if (editContainVariantCheckbox && editVariantRowsContainer) {
+        const editSinglePriceSection = document.getElementById("editSinglePriceSection");
+        if (isSizeAvailable && sizesList.length > 0) {
+          editContainVariantCheckbox.checked = true;
+          if (editVariantSection) editVariantSection.style.display = "block";
+          if (editSinglePriceSection) editSinglePriceSection.style.display = "none";
+          
+          editVariantRowsContainer.innerHTML = sizesList.map((size: any) => `
+            <div class="variant-row" style="display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 15px; align-items: center; margin-bottom: 15px;">
+              <div>
+                <label>Price</label>
+                <div class="price-input-wrapper">
+                  <span class="price-prefix-badge">Rs.</span>
+                  <input type="text" class="form-input variant-price" value="${size.Net_Price ?? size.net_price ?? size.price ?? 0}" />
+                </div>
+              </div>
+              <div>
+                <label>Item Variant</label>
+                <input type="text" class="form-input variant-select" value="${size.size_name ?? size.Size_Name ?? ""}" />
+              </div>
+              <button type="button" class="circle-action-btn add-variant-btn" style="margin-top: 25px;"><i class="fa-solid fa-plus"></i></button>
+              <button type="button" class="circle-action-btn delete-variant-btn" style="margin-top: 25px; background: #222; color: #fff;"><i class="fa-solid fa-trash"></i></button>
+            </div>
+          `).join("");
+        } else {
+          editContainVariantCheckbox.checked = false;
+          if (editVariantSection) editVariantSection.style.display = "none";
+          if (editSinglePriceSection) editSinglePriceSection.style.display = "block";
+          editVariantRowsContainer.innerHTML = ""; // Or add a default blank row like in Add Item
+        }
+      }
+
       mainDirectoryView?.classList.remove("active-view");
       addNewItemFormView?.classList.remove("active-view");
       editItemFormView?.classList.add("active-view");
@@ -770,22 +1009,22 @@ export default function ItemsPage() {
       document.getElementById("variantSection");
 
     const handleVariantToggle = () => {
-      if (
-        containVariantCheckbox?.checked
-      ) {
+      if (containVariantCheckbox?.checked) {
         singlePriceSection!.style.display = "none";
         variantSection!.style.display = "block";
+        const rowsContainer = document.getElementById("variantRows");
+        if (rowsContainer && rowsContainer.children.length === 0) {
+          addVariantRow("variantRows");
+        }
       } else {
         singlePriceSection!.style.display = "block";
         variantSection!.style.display = "none";
       }
     };
 
-    const variantRowsContainer =
-      document.getElementById("variantRows");
-
-    const addVariantRow = () => {
-      if (!variantRowsContainer) return;
+    function addVariantRow(containerId: string = "variantRows") {
+      const container = document.getElementById(containerId);
+      if (!container) return;
 
       const row = document.createElement("div");
 
@@ -833,7 +1072,7 @@ export default function ItemsPage() {
           </button>
       `;
 
-      variantRowsContainer.appendChild(row);
+      container.appendChild(row);
     };
 
     const variantClickHandler = (e: Event) => {
@@ -843,15 +1082,17 @@ export default function ItemsPage() {
       const deleteBtn = target.closest(".delete-variant-btn");
 
       if (addBtn) {
-        addVariantRow();
+        const isEditForm = addBtn.closest("#editVariantSection");
+        addVariantRow(isEditForm ? "editVariantRows" : "variantRows");
       }
 
       if (deleteBtn) {
         const row = deleteBtn.closest(".variant-row");
+        const container = deleteBtn.closest("#variantRows, #editVariantRows");
 
         if (
           row &&
-          document.querySelectorAll(".variant-row").length > 1
+          container && container.querySelectorAll(".variant-row").length > 1
         ) {
           row.remove();
         }
@@ -870,7 +1111,7 @@ export default function ItemsPage() {
 
     document
       .getElementById("addVariantBtn")
-      ?.addEventListener("click", addVariantRow);
+      ?.addEventListener("click", () => addVariantRow());
 
 
 
@@ -1022,7 +1263,11 @@ export default function ItemsPage() {
                 <select
                   className="category-select"
                   id="categoryFilterSelect"
-                  defaultValue="all"
+                  value={filterCategoryId}
+                  onChange={(e) => {
+                    setFilterCategoryId(e.target.value);
+                    setPage(1); // Reset to page 1 on filter change
+                  }}
                 >
                   <option value="all">ALL CATEGORIES</option>
 
@@ -1037,7 +1282,7 @@ export default function ItemsPage() {
                 <button className="btn" id="headerAddNewItemBtn">
                   <i className="fa-solid fa-plus"></i> Add New Item
                 </button>
-                <button className="btn btn-help">
+                <button className="btn btn-help" onClick={() => window.open('https://vimeo.com/1075943647', '_blank')}>
                   <i className="fa-regular fa-circle-question"></i> Help
                 </button>
               </div>
@@ -1242,37 +1487,86 @@ export default function ItemsPage() {
                       </tr>
                     </tbody> */}
                     <tbody>
-                      {items.map((category) =>
-                        category.item_list?.map((item: any) => (
+                      {(() => {
+                        const filteredCategories = filterCategoryId === "all" 
+                          ? items 
+                          : items.filter(c => String(c.id) === filterCategoryId);
+
+                        const allItems = filteredCategories.flatMap((category) =>
+                          (category.item_list || []).map((item: any) => ({ ...item, _category: category }))
+                        );
+                        
+                        const pageStart = (page - 1) * pageSize;
+                        const visibleItems = allItems.slice(pageStart, pageStart + pageSize);
+                        
+                        return visibleItems.map((item: any) => {
+                          const category = item._category;
+                          return (
                           <tr
                             key={item.item_Id}
                             data-item-id={item.item_Id}
                             data-cate-id={category.id}
-                            data-item-image={item.item_Image ?? item.Item_Image ?? ""}
+                            data-item-image={getImageUrl(item.item_Image ?? item.Item_Image)}
                             data-category={String(category.id)}
+                            draggable={true}
+                            onDragStart={(e) => handleDragStart(e, item.item_Id)}
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, item.item_Id)}
+                            onDragEnd={() => setDraggedItemId(null)}
+                            style={{
+                              opacity: draggedItemId === item.item_Id ? 0.4 : 1,
+                              cursor: "default",
+                              transition: "opacity 0.2s ease",
+                            }}
                           >
                             <td>
-                              <div className="drag-handle">
+                              <div className="drag-handle" style={{ cursor: "grab" }} title="Drag to reorder position">
                                 <i className="fa-solid fa-bars"></i>
                               </div>
                             </td>
                             <td className="item-name">{item.item_Name ?? item.Item_Name}</td>
-                            <td className="item-price">Rs.{item.price ?? 0}</td>
+                            <td className="item-price">
+                              {(() => {
+                                const isSizeAvailable = item.is_size_available === 1 || item.Is_size_available === 1 || item.is_size_available === true || item.Is_size_available === true;
+                                const sizeList = item.FoodItemSizeList || item.foodItemSizeList || item.fooditemSizeList || [];
+                                
+                                if (isSizeAvailable && sizeList.length > 0) {
+                                  return (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "120px" }}>
+                                      {sizeList.map((size: any, idx: number) => (
+                                        <div key={idx} style={{ display: "flex", justifyContent: "space-between", background: "#f8f9fa", padding: "4px 8px", borderRadius: "4px", fontSize: "13px" }}>
+                                          <span style={{ fontWeight: 500 }}>{size.size_name ?? size.Size_Name ?? size.Size_name ?? "Size"}</span>
+                                          <span>Rs.{size.Net_Price ?? size.net_price ?? size.Net_Prices ?? size.price ?? size.Total_Price ?? 0}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  );
+                                }
+                                
+                                return <span>Rs.{item.price ?? item.Price ?? item.net_price ?? item.Net_Price ?? 0}</span>;
+                              })()}
+                            </td>
 
                             <td>
                               <div className="placeholder-img">
                                 {(item.item_Image || item.Item_Image) ? (
                                   <img
-                                    src={item.item_Image ?? item.Item_Image}
+                                    src={getImageUrl(item.item_Image ?? item.Item_Image)}
                                     style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 4 }}
-                                    alt={item.item_Name ?? item.Item_Name}
+                                    alt={item.item_Name ?? item.Item_Name ?? "Item"}
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.style.display = "none";
+                                      if (target.nextElementSibling) {
+                                        (target.nextElementSibling as HTMLElement).style.display = "flex";
+                                      }
+                                    }}
                                   />
-                                ) : (
-                                  <>
-                                    <i className="fa-solid fa-concierge-bell"></i>
-                                    <span>No Image</span>
-                                  </>
-                                )}
+                                ) : null}
+                                <div style={{ display: (item.item_Image || item.Item_Image) ? "none" : "flex", flexDirection: "column", alignItems: "center" }}>
+                                  <i className="fa-solid fa-concierge-bell"></i>
+                                  <span>No Image</span>
+                                </div>
                               </div>
                             </td>
 
@@ -1318,16 +1612,38 @@ export default function ItemsPage() {
                               </label>
                             </td>
                           </tr>
-                        ))
-                      )}
+                          );
+                        });
+                      })()}
                     </tbody>
                   </table>
                 </div>
 
-                <div className="table-footer">
-                  <div id="showingEntriesText">
-                    Showing {totalItems > 0 ? 1 : 0} to {totalItems} of {totalItems} entries
+                <div className="table-footer" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", minHeight: "50px", width: "100%" }}>
+                  <div id="showingEntriesText" style={{ width: "100%" }}>
+                    {(() => {
+                      const filteredCategories = filterCategoryId === "all" 
+                        ? items 
+                        : items.filter(c => String(c.id) === filterCategoryId);
 
+                      const allItems = filteredCategories.flatMap((c) => c.item_list || []);
+                      const totalItems = allItems.length;
+                      const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+                      
+                      return (
+                        <ReportPagination
+                          currentPage={page}
+                          totalPages={totalPages}
+                          totalRecords={totalItems}
+                          pageSize={pageSize}
+                          onPageChange={(p) => setPage(p)}
+                          onPageSizeChange={(size) => {
+                            setPageSize(size);
+                            setPage(1);
+                          }}
+                        />
+                      );
+                    })()}
                   </div>
                   <div className="custom-scrollbar-container">
                     <span className="scrollbar-arrow" id="scrollLeftBtn">
@@ -1649,7 +1965,7 @@ export default function ItemsPage() {
                       </label>
                     </div>
                   </div>
-                  <div className="form-group">
+                  <div className="form-group" id="editSinglePriceSection">
                     <label className="form-label">Price</label>
                     <div className="price-input-wrapper">
                       <span className="price-prefix-badge">Rs.</span>
@@ -1658,8 +1974,16 @@ export default function ItemsPage() {
                   </div>
                   <div className="form-group">
                     <label className="checkbox-container-label">
-                      <input type="checkbox" id="editContainSize" /> Contain Size
+                      <input type="checkbox" id="editContainVariantCheckbox" /> Contain Variant
                     </label>
+                  </div>
+                  <div
+                    id="editVariantSection"
+                    style={{ display: "none", marginTop: "15px" }}
+                  >
+                    <div id="editVariantRows">
+                      {/* Dynamic rows will be injected here via JS */}
+                    </div>
                   </div>
                   <div className="segmented-block" style={{ marginTop: "4px" }}>
                     <label className="form-label">
@@ -1819,6 +2143,7 @@ export default function ItemsPage() {
                   <th>Item Price (Rs.)</th>
                   <th>Weight</th>
                   <th>Unit</th>
+                  <th>Min. Order Qty</th>
                 </tr>
               </thead>
               <tbody id="quickEditTableBody"></tbody>

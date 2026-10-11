@@ -45,7 +45,9 @@ export const ENDPOINTS = {
     //item code
     getItemNames: "/FoodChowRMS/GetItemName",
     getItemCodeTypeSetting: "/FoodChowWD/GetItemCodeTypeSetting",
+    saveItemCodeTypeSetting: "/FoodChowRMS/ItemCodeTypeSetting",
     updateItemCode: "/FoodChowRMS/UpdateItemCode",
+    changeItemPosition: "/FoodItem/ChangeItemPosition",
 
     // Tax
     getAllTax: "/TaxMaster/GetAllStoreTax",
@@ -85,6 +87,7 @@ export const ENDPOINTS = {
 
     // Store Category CRUD
     addStoreCategory: "/MenuMaster/AddStoreCategory",
+    categoryImageUpload: "/MenuMaster/CategoryImageUpload",
     deleteCategory: "/MenuMaster/DeleteCategory",
     changeStoreCategoryStatus: "/MenuMaster/ChangeStoreCategoryStatus",
 
@@ -400,10 +403,24 @@ export const ENDPOINTS = {
     addToFoodGallery: "/FoodGallery/AddToFoodGallery",
     deleteGalleryPhoto: "/FoodGallery/DeleteGalleryPhoto",
 
+    getShopOverview: "/ShopOverview/GetShopOverview",
+    saveShopOverview: "/ShopOverview/SaveShopOverview",
+    uploadShopOverviewImage: "/ShopOverview/UploadShopOverviewImage", // Keep the one I added just in case
+    uploadRestaurantImageRMS: "/OfferMaster/UploadRestaurantImageRMS", // The real live endpoint
+    deleteShopOverviewImage: "/FoodChowWD/DeleteShopOverviewImageByShopId",
+
     //Delivery 
     getAllDeliveryZone: "/zone/get",
     addDeliveryZone: "/zone/select-zone",
     updateDeliveryZone: "/zone/update-zone",
+    deleteDeliveryZone: (zoneId: string | number) => `/zone/delete/${zoneId}`,
+    getDeliverySettingsForShop: "/FoodChowWD/GetDeliverySettingsForShop",
+    updateDeliverySettingsForShop: "/FoodChowWD/UpdateDeliverySettingsForShop",
+    getCustomDeliveryLocation: "/FoodChowWD/GetCustomDeliveryLocation",
+    addCustomDeliveryLocation: "/FoodChowWD/AddCustomDeliveryLocation",
+    updateCustomDeliveryLocation: "/FoodChowWD/UpdateCustomDeliveryLocation",
+    deleteCustomDeliveryLocation: "/FoodChowWD/DeleteCustomDeliveryLocation",
+    changeCustomDeliveryLocationStatus: "/FoodChowWD/ChangeCustomDeliveryLocationStatus",
 
     //Timings
     getRestaurantTimings: "/RestaurantProfile/GetShopTimings",
@@ -415,6 +432,9 @@ export const ENDPOINTS = {
     addShopFacilitiesRequest: "/RestaurantProfile/AddShopFacilitiesRequest",
     addShopFacilities: "/RestaurantProfile/AddShopFacilities",
     deleteShopFacilities: "/RestaurantProfile/DeleteShopFacilities",
+
+    // Support
+    addSupportTicket: "/UserMaster/AddShopSupportTicket",
   },
 
 

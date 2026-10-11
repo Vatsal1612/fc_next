@@ -1,10 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/utils";
 import { restaurantService } from "@/api/services/setup.service";
 import styles from "./shell.module.css";
+
+const HELP_VIDEOS: Record<string, string> = {
+  "/setup/delivery": "https://vimeo.com/1075943475",
+  "/menu/item-code": "https://vimeo.com/1075945406",
+  "/menu/category": "https://vimeo.com/1075943159",
+  "/setup/my-profile": "https://vimeo.com/1075943230",
+  "/setup/restaurant-logo": "https://vimeo.com/1075943601",
+  "/setup/category-item-view": "https://vimeo.com/1075945245",
+  "/setup/restaurant-image": "https://vimeo.com/1075943416", // FoodGallery
+  "/setup/timings": "https://vimeo.com/1075943517", // ShopTimings
+  "/setup/payment-gateway": "https://vimeo.com/1075943559", // ShopOverview ? (Maybe)
+  "/menu/items": "https://vimeo.com/1075943647", // IngredientItems
+};
 
 const VIEW_OPTIONS = ["View", "Webpage", "Order Online Page"] as const;
 
@@ -20,6 +33,7 @@ interface HeaderProps {
  */
 export function Header({ onToggleSidebar }: HeaderProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedView, setSelectedView] = useState<string>("View");
   const [subdomain, setSubdomain] = useState<string>("");
@@ -63,7 +77,9 @@ export function Header({ onToggleSidebar }: HeaderProps) {
   }, [dropdownOpen]);
 
   const openHelpModal = () => {
-    window.alert("Help & Support");
+    // Find matching video or fallback to the live dashboard help
+    const videoUrl = HELP_VIDEOS[pathname] || "https://vimeo.com/1075945406";
+    window.open(videoUrl, "_blank");
   };
 
   return (
