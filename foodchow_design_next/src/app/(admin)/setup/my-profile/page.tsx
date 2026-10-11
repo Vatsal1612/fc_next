@@ -1004,29 +1004,7 @@ export default function MyProfilePage() {
                       />
                     </div>
                   </div>
-                  <div className="field full" style={{ marginBottom: 0 }}>
-                    <span className="lab2">
-                      Find your restaurant{" "}
-                      <span className="pill go">Needed for delivery &amp; listing</span>
-                    </span>
-                    <div className="searchwrap">
-                      <svg className="s" viewBox="0 0 24 24">
-                        <circle cx="11" cy="11" r="7" />
-                        <path d="M21 21l-4-4" />
-                      </svg>
-                      <input
-                        className="inp"
-                        type="text"
-                        value={address.search_query || ""}
-                        onChange={(e) => setAddress({ ...address, search_query: e.target.value })}
-                        placeholder="Search your restaurant address…"
-                      />
-                    </div>
-                    <span className="helper">
-                      {/* Auto-fills area, city, state, pincode &amp; timezone — no separate
-                      fields needed. */}
-                    </span>
-                  </div>
+
                   <div className="map-wrapper-canvas" id="mapWrapper">
                     <div className="custom-map-type-control">
                       <div className="map-type-tabs-row">
