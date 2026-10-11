@@ -2,30 +2,18 @@
 
 import { useEffect, useState, useRef } from "react";
 import Script from "next/script";
-import { restaurantService } from "@/api/services/setup.service";
+import { restaurantService, setupService } from "@/api/services/setup.service";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import Swal from "sweetalert2";
 import "./page.css";
 
-/**
- * setup/restaurantlogo.html → React.
- *
- * Static markup rendered; the inline <script> logic (dynamic remove/upload
- * state, delete-confirm modal, inline upload panel, CropperJS crop & upload)
- * ported into one useEffect wired with addEventListener. CropperJS is a
- * page-specific CDN lib: its stylesheet is linked in JSX (React hoists it) and
- * the library is loaded with next/script (afterInteractive), then read off
- * window inside the effect. The DOMContentLoaded sidebar/dropdown helpers (which
- * targeted shell-only elements) are dropped.
- */
-
-// Minimal structural type for the global CropperJS constructor (avoids `any`).
 interface CropperInstance {
   destroy(): void;
   getData(): { scaleX?: number };
   zoomTo(ratio: number): void;
   getCroppedCanvas(opts: { width: number; height: number }): HTMLCanvasElement;
 }
+
 interface CropperOptions {
   aspectRatio?: number;
   viewMode?: number;
@@ -40,10 +28,12 @@ interface CropperOptions {
   toggleDragModeOnDblclick?: boolean;
   ready?: () => void;
 }
+
 type CropperConstructor = new (
   el: HTMLImageElement,
   opts: CropperOptions,
 ) => CropperInstance;
+
 declare global {
   interface Window {
     Cropper?: CropperConstructor;
@@ -51,12 +41,24 @@ declare global {
 }
 
 export default function RestaurantLogoPage() {
-  const [logo, setLogo] = useState("");
-  const logoRef = useRef("");
-  const pendingActionRef = useRef<string | null>(null);
-  const [, setLoading] = useState(true);
-  const [websiteName, setWebsiteName] = useState("");
+  const [logo, setLogo] = useState<string>("");
+  const logoRef = useRef<string>("");
+  const [websiteName, setWebsiteName] = useState<string>("");
   const infoRef = useRef<any>(null);
+  const [, setLoading] = useState<boolean>(true);
+
+  // Modals & Cropper state
+  const [isCropOpen, setIsCropOpen] = useState<boolean>(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState<boolean>(false);
+  const [selectedImageSrc, setSelectedImageSrc] = useState<string>("");
+  const [zoomValue, setZoomValue] = useState<number>(1);
+  const [zoomMin, setZoomMin] = useState<number>(0.5);
+  const [isSavingLogo, setIsSavingLogo] = useState<boolean>(false);
+  const [isSavingWebsite, setIsSavingWebsite] = useState<boolean>(false);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const cropImageRef = useRef<HTMLImageElement | null>(null);
+  const cropperInstanceRef = useRef<CropperInstance | null>(null);
 
   const logoUrl = logo.startsWith("data:image")
     ? logo
@@ -69,15 +71,13 @@ export default function RestaurantLogoPage() {
       try {
         const sessionShopId = sessionStorage.getItem("shop_id");
         if (!sessionShopId) {
-          console.error("Shop ID not found.");
+          console.error("Shop ID not found in session.");
           return;
         }
-        const info = await restaurantService.getRestaurantInformation(Number(sessionShopId));
-        console.log(info);
 
-        // if (info?.shoplogo) {
-        //   setLogo(info.shoplogo);
-        // }
+        const info = await restaurantService.getRestaurantInformation(
+          Number(sessionShopId),
+        );
         if (info) {
           infoRef.current = info;
           setWebsiteName(info.domain_name || info.subdomain || "");
@@ -87,156 +87,94 @@ export default function RestaurantLogoPage() {
           }
         }
       } catch (error) {
-        console.error(error);
+        console.error("Error fetching restaurant info:", error);
       } finally {
         setLoading(false);
       }
     };
+
     fetchRestaurant();
+  }, []);
 
-    const globalOverlay = document.getElementById("global-modal-overlay");
-    const deleteBox = document.getElementById("popup-confirm-delete");
-    const inlineUploadPanel = document.getElementById("inline-upload-panel");
-    const cropPanelBox = document.getElementById("popup-crop-panel");
-    const dynamicActionBtn = document.getElementById("dynamic-action-btn");
-    const triggerBadge = document.getElementById("trigger-remove-badge");
-    const cancelModalBtn = document.getElementById("btn-modal-cancel");
-    const yesModalBtn = document.getElementById("btn-modal-yes");
-    const closeInlinePanelBtn = document.getElementById("btn-popup-close");
-    const btnTriggerFileExplorer = document.getElementById(
-      "btn-trigger-file-explorer",
-    );
-    const logoFileInput = document.getElementById(
-      "logo-file-input",
-    ) as HTMLInputElement | null;
-    const cropZoomSlider = document.getElementById(
-      "crop-zoom-slider",
-    ) as HTMLInputElement | null;
-    const cropImageRenderNode = document.getElementById(
-      "crop-image-render-node",
-    ) as HTMLImageElement | null;
-    const btnCropAndUpload = document.getElementById("btn-crop-and-upload");
-    const btnCropCancel = document.getElementById("btn-crop-cancel");
-    const logoClickableZone = document.getElementById("logo-clickable-zone");
-    const logoSvgAsset = document.getElementById("logo-svg-asset");
-    const uploadPlaceholder = document.getElementById("upload-placeholder");
-    const warningSpecText = document.getElementById("warning-spec-text");
-    const uploadNewBtn = document.getElementById("btn-upload-new");
+  // Initialize Cropper when crop modal opens and image is loaded
+  useEffect(() => {
+    if (isCropOpen && selectedImageSrc && cropImageRef.current && window.Cropper) {
+      if (cropperInstanceRef.current) {
+        cropperInstanceRef.current.destroy();
+      }
 
-    let dynamicStateWithLogo = true;
-    let cropperInstance: CropperInstance | null = null;
-
-    const openDeleteConfirmation = (): void => {
-      globalOverlay?.classList.add("active");
-      if (deleteBox) deleteBox.style.display = "block";
-      if (cropPanelBox) cropPanelBox.style.display = "none";
-    };
-    const toggleInlineUploadPanel = (): void => {
-      if (inlineUploadPanel)
-        inlineUploadPanel.style.display =
-          inlineUploadPanel.style.display === "block" ? "none" : "block";
-    };
-    const openCropEngineSuite = (): void => {
-      globalOverlay?.classList.add("active");
-      if (deleteBox) deleteBox.style.display = "none";
-      if (cropPanelBox) cropPanelBox.style.display = "block";
-    };
-    const closeAllModals = (): void => {
-      globalOverlay?.classList.remove("active");
-      setTimeout(() => {
-        if (deleteBox) deleteBox.style.display = "none";
-        if (cropPanelBox) cropPanelBox.style.display = "none";
-        if (cropperInstance) {
-          cropperInstance.destroy();
-          cropperInstance = null;
-        }
-      }, 200);
-    };
-
-    const onDynamicAction = (): void => {
-      if (dynamicStateWithLogo) openDeleteConfirmation();
-      else toggleInlineUploadPanel();
-    };
-    const onTriggerBadge = (e: Event): void => {
-      e.stopPropagation();
-      openDeleteConfirmation();
-    };
-    const onZoneClick = (): void => {
-      if (!dynamicStateWithLogo) toggleInlineUploadPanel();
-    };
-    const onCloseInline = (): void => {
-      if (inlineUploadPanel) inlineUploadPanel.style.display = "none";
-    };
-    const onTriggerExplorer = (): void => logoFileInput?.click();
-    const onUploadNew = (): void => logoFileInput?.click();
-
-    const onFileChange = function (this: HTMLInputElement): void {
-      if (this.files && this.files[0]) {
-        const fileReader = new FileReader();
-        fileReader.onload = (e) => {
-          if (inlineUploadPanel) inlineUploadPanel.style.display = "none";
-          if (cropImageRenderNode)
-            cropImageRenderNode.src = String(e.target?.result ?? "");
-          openCropEngineSuite();
-          if (window.Cropper && cropImageRenderNode) {
-            cropperInstance = new window.Cropper(cropImageRenderNode, {
-              aspectRatio: 400 / 250,
-              viewMode: 1,
-              dragMode: "move",
-              autoCropArea: 1,
-              restore: false,
-              guides: false,
-              center: true,
-              highlight: false,
-              cropBoxMovable: false,
-              cropBoxResizable: false,
-              toggleDragModeOnDblclick: false,
-              ready: () => {
-                if (cropZoomSlider && cropperInstance) {
-                  cropZoomSlider.min = String(
-                    cropperInstance.getData().scaleX ?? 0.5,
-                  );
-                  cropZoomSlider.max = "3";
-                  cropZoomSlider.value = "1";
-                }
-              },
-            });
+      cropperInstanceRef.current = new window.Cropper(cropImageRef.current, {
+        aspectRatio: 400 / 250,
+        viewMode: 1,
+        dragMode: "move",
+        autoCropArea: 1,
+        restore: false,
+        guides: false,
+        center: true,
+        highlight: false,
+        cropBoxMovable: false,
+        cropBoxResizable: false,
+        toggleDragModeOnDblclick: false,
+        ready() {
+          if (cropperInstanceRef.current) {
+            const minScale =
+              cropperInstanceRef.current.getData().scaleX ?? 0.5;
+            setZoomMin(minScale);
+            setZoomValue(1);
           }
-        };
-        fileReader.readAsDataURL(this.files[0]);
+        },
+      });
+    }
+
+    return () => {
+      if (cropperInstanceRef.current) {
+        cropperInstanceRef.current.destroy();
+        cropperInstanceRef.current = null;
       }
     };
+  }, [isCropOpen, selectedImageSrc]);
 
-    const onZoom = (e: Event): void => {
-      if (cropperInstance)
-        cropperInstance.zoomTo(Number((e.target as HTMLInputElement).value));
-    };
+  const handleTriggerFileExplorer = () => {
+    fileInputRef.current?.click();
+  };
 
-    const onYes = async (): Promise<void> => {
-      pendingActionRef.current = "";
-      setLogo("");
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setSelectedImageSrc(String(event.target?.result ?? ""));
+        setIsCropOpen(true);
+      };
+      reader.readAsDataURL(file);
+      e.target.value = "";
+    }
+  };
 
-      Swal.fire({ icon: "info", title: "Logo Removed", text: "Click 'Save Changes' to update the restaurant logo.", confirmButtonColor: "#00a896" });
+  const handleZoom = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = Number(e.target.value);
+    setZoomValue(val);
+    if (cropperInstanceRef.current) {
+      cropperInstanceRef.current.zoomTo(val);
+    }
+  };
 
-      dynamicStateWithLogo = false;
-      closeAllModals();
-      logoClickableZone?.classList.add("empty-state");
-      if (logoSvgAsset) logoSvgAsset.style.display = "none";
-      if (triggerBadge) triggerBadge.style.display = "none";
-      const dynamicCroppedImg = logoClickableZone?.querySelector(
-        ".uploaded-cropped-logo",
-      );
-      dynamicCroppedImg?.remove();
-      if (uploadPlaceholder) uploadPlaceholder.style.display = "flex";
-      if (warningSpecText) warningSpecText.style.display = "flex";
-      if (dynamicActionBtn)
-        dynamicActionBtn.innerHTML =
-          '<i class="fas fa-upload" style="font-size:12px;"></i> Upload New Logo';
-    };
-    const onCropAndUpload = async (): Promise<void> => {
-      if (!cropperInstance) return;
+  const handleCloseCrop = () => {
+    if (cropperInstanceRef.current) {
+      cropperInstanceRef.current.destroy();
+      cropperInstanceRef.current = null;
+    }
+    setIsCropOpen(false);
+    setSelectedImageSrc("");
+  };
 
-      const croppedCanvas = cropperInstance.getCroppedCanvas({
+  // Direct Crop & Upload — immediately uploads to live API without any secondary save button
+  const handleCropAndUpload = async () => {
+    if (!cropperInstanceRef.current) return;
+
+    try {
+      setIsSavingLogo(true);
+      const croppedCanvas = cropperInstanceRef.current.getCroppedCanvas({
         width: 400,
         height: 250,
       });
@@ -245,50 +183,168 @@ export default function RestaurantLogoPage() {
         .toDataURL("image/png")
         .replace(/^data:image\/png;base64,/, "");
 
-      pendingActionRef.current = base64;
-      setLogo(`data:image/png;base64,${base64}`);
-
-      if (logoFileInput) {
-        logoFileInput.value = "";
+      const sessionShopId = sessionStorage.getItem("shop_id");
+      if (!sessionShopId) {
+        Swal.fire({
+          icon: "error",
+          title: "Session Expired",
+          text: "Shop ID not found in session.",
+          confirmButtonColor: "#00a896",
+        });
+        return;
       }
 
-      closeAllModals();
+      const response = await restaurantService.updateShopLogo({
+        shop_id: String(sessionShopId),
+        new_logo: base64,
+        old_logo_name: logoRef.current,
+      });
 
-      Swal.fire({ icon: "info", title: "Image Cropped", text: "Click 'Save Changes' to update the restaurant logo.", confirmButtonColor: "#00a896" });
-    };
+      if (response?.success || response?.status === 200 || !response?.error) {
+        const info = await restaurantService.getRestaurantInformation(
+          Number(sessionShopId),
+        );
+        if (info?.shoplogo) {
+          setLogo(info.shoplogo);
+          logoRef.current = info.shoplogo;
+        } else {
+          setLogo(`data:image/png;base64,${base64}`);
+        }
 
-    dynamicActionBtn?.addEventListener("click", onDynamicAction);
-    triggerBadge?.addEventListener("click", onTriggerBadge);
-    logoClickableZone?.addEventListener("click", onZoneClick);
-    cancelModalBtn?.addEventListener("click", closeAllModals);
-    btnCropCancel?.addEventListener("click", closeAllModals);
-    closeInlinePanelBtn?.addEventListener("click", onCloseInline);
-    btnTriggerFileExplorer?.addEventListener("click", onTriggerExplorer);
-    uploadNewBtn?.addEventListener("click", onUploadNew);
-    logoFileInput?.addEventListener("change", onFileChange);
-    cropZoomSlider?.addEventListener("input", onZoom);
-    yesModalBtn?.addEventListener("click", onYes);
-    btnCropAndUpload?.addEventListener("click", onCropAndUpload);
+        handleCloseCrop();
 
-    return () => {
-      dynamicActionBtn?.removeEventListener("click", onDynamicAction);
-      triggerBadge?.removeEventListener("click", onTriggerBadge);
-      logoClickableZone?.removeEventListener("click", onZoneClick);
-      cancelModalBtn?.removeEventListener("click", closeAllModals);
-      btnCropCancel?.removeEventListener("click", closeAllModals);
-      closeInlinePanelBtn?.removeEventListener("click", onCloseInline);
-      btnTriggerFileExplorer?.removeEventListener("click", onTriggerExplorer);
-      uploadNewBtn?.removeEventListener("click", onUploadNew);
-      logoFileInput?.removeEventListener("change", onFileChange);
-      cropZoomSlider?.removeEventListener("input", onZoom);
-      yesModalBtn?.removeEventListener("click", onYes);
-      btnCropAndUpload?.removeEventListener("click", onCropAndUpload);
-      if (cropperInstance) {
-        cropperInstance.destroy();
-        cropperInstance = null;
+        Swal.fire({
+          icon: "success",
+          title: "Logo Uploaded!",
+          text: "Your restaurant logo has been saved and is now live.",
+          confirmButtonColor: "#00a896",
+          timer: 2000,
+        });
+      } else {
+        Swal.fire({
+          icon: "error",
+          title: "Upload Failed",
+          text: response?.message || "Failed to save logo.",
+          confirmButtonColor: "#00a896",
+        });
       }
-    };
-  }, []);
+    } catch (err: any) {
+      console.error("Direct upload failed:", err);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err?.response?.data?.message || "Failed to update restaurant logo.",
+        confirmButtonColor: "#00a896",
+      });
+    } finally {
+      setIsSavingLogo(false);
+    }
+  };
+
+  // Direct Delete — immediately deletes logo via API upon confirmation
+  const handleConfirmDelete = async () => {
+    try {
+      setIsSavingLogo(true);
+      const sessionShopId = sessionStorage.getItem("shop_id");
+      if (!sessionShopId) return;
+
+      await restaurantService.updateShopLogo({
+        shop_id: String(sessionShopId),
+        new_logo: "",
+        old_logo_name: logoRef.current,
+      });
+
+      setLogo("");
+      logoRef.current = "";
+      setIsDeleteOpen(false);
+
+      Swal.fire({
+        icon: "success",
+        title: "Logo Removed",
+        text: "The restaurant logo has been deleted successfully.",
+        confirmButtonColor: "#00a896",
+        timer: 2000,
+      });
+    } catch (err: any) {
+      console.error("Failed to delete logo:", err);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to delete restaurant logo.",
+        confirmButtonColor: "#00a896",
+      });
+    } finally {
+      setIsSavingLogo(false);
+    }
+  };
+
+  // Website Name Save
+  const handleSaveWebsiteName = async () => {
+    try {
+      setIsSavingWebsite(true);
+      const sessionShopId = sessionStorage.getItem("shop_id");
+      if (!sessionShopId) return;
+
+      await setupService.updateShopProfile({
+        shop_id: String(sessionShopId),
+        shop_name: infoRef.current?.shop_name || "",
+        email_id: infoRef.current?.email_id || "",
+        mobileno: infoRef.current?.mobileno || "",
+        CountryCode: infoRef.current?.CountryCode || "",
+        timezone: infoRef.current?.timezone || "",
+        subdomain: websiteName.trim(),
+        shoplogo: logoRef.current || "",
+        business_type_id: infoRef.current?.business_type_id || 0,
+        cuisine_type: infoRef.current?.cuisine_type || "",
+        shop_type: infoRef.current?.shop_type || "",
+        insta_url: infoRef.current?.insta_url || "",
+      });
+
+      sessionStorage.setItem("subdomain", websiteName.trim());
+      sessionStorage.setItem("subdomain_for", String(sessionShopId));
+
+      Swal.fire({
+        icon: "success",
+        title: "Saved Successfully!",
+        text: "Website name has been updated.",
+        confirmButtonColor: "#00a896",
+        timer: 2000,
+      });
+    } catch (err: any) {
+      console.error("Failed to save website name:", err);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err?.response?.data?.message || "Failed to update website name.",
+        confirmButtonColor: "#00a896",
+      });
+    } finally {
+      setIsSavingWebsite(false);
+    }
+  };
+
+  const handleHelpClick = () => {
+    Swal.fire({
+      title: "How to set up Restaurant Logo",
+      html: `
+        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px;">
+          <iframe 
+            src="https://player.vimeo.com/video/1075943601?autoplay=1" 
+            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
+            frameborder="0" 
+            allow="autoplay; fullscreen; picture-in-picture" 
+            allowfullscreen>
+          </iframe>
+        </div>
+        <p style="margin-top: 15px; font-size: 14px; color: #475569;">
+          Follow these steps to upload and position your restaurant's logo perfectly.
+        </p>
+      `,
+      width: 700,
+      showCloseButton: true,
+      showConfirmButton: false,
+    });
+  };
 
   return (
     <div id="pg-setup-restaurantlogo">
@@ -305,9 +361,11 @@ export default function RestaurantLogoPage() {
         strategy="afterInteractive"
       />
 
+      {/* Hidden file input */}
       <input
         type="file"
-        id="logo-file-input"
+        ref={fileInputRef}
+        onChange={handleFileChange}
         accept=".gif,.png,.jpeg,.jpg"
         style={{ display: "none" }}
       />
@@ -316,314 +374,193 @@ export default function RestaurantLogoPage() {
         <main className="main-workspace-content">
           <div className="page-wrapper">
             <div className="dashboard-card">
-              {/* Card Title Bar */}
-              <div
-                className="page-title-bar"
-                style={{ padding: "24px 32px 0", marginBottom: 0 }}
-              >
-                <div>
-                  <h1 className="typ-page-heading" style={{ color: "var(--ink)", margin: 0 }}>
-                    Restaurant Logo
-                  </h1>
-                </div>
-                <button
-                  className="btn-help"
-                  onClick={() => {
-                    Swal.fire({
-                      title: "How to set up Restaurant Logo",
-                      html: `
-                        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px;">
-                          <iframe 
-                            src="https://www.youtube.com/embed/dQw4w9WgXcQ" 
-                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
-                            frameborder="0" 
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                            allowfullscreen>
-                          </iframe>
-                        </div>
-                        <p style="margin-top: 15px; font-size: 14px; color: #475569;">
-                          Follow these steps to upload and position your restaurant's logo perfectly.
-                        </p>
-                      `,
-                      width: 700,
-                      showCloseButton: true,
-                      showConfirmButton: false,
-                    });
-                  }}
-                >
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+              {/* Header Bar */}
+              <div className="card-header-bar">
+                <h1 className="header-page-title">Restaurant Logo</h1>
+
+                <div className="header-actions-group">
+                  <button
+                    type="button"
+                    className="btn-live-action"
+                    onClick={handleHelpClick}
                   >
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                    <line x1="12" y1="17" x2="12.01" y2="17" />
-                  </svg>
-                  Help
-                </button>
+                    <i className="fas fa-hand-holding-heart" />
+                    <span>HELP</span>
+                  </button>
+
+                  {!logo && (
+                    <button
+                      type="button"
+                      className="btn-live-action"
+                      onClick={handleTriggerFileExplorer}
+                    >
+                      <i className="fas fa-plus" />
+                      <span>ADD NEW RESTAURANT LOGO</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* Logo Section */}
-              <div className="card-section">
-                <div className="logo-section-layout">
-                  <div className="logo-left-col">
-                    {/* <div className="logo-col-label">Current Logo</div> */}
-                    <div className="logo-display-frame" id="logo-clickable-zone" style={{ border: logo ? "none" : "" }}>
-                      <button
-                        className="badge-dismiss-trigger"
-                        id="trigger-remove-badge"
-                        title="Remove logo"
-                        style={{ display: logo ? "block" : "none" }}
-                      >
-                        <i className="fas fa-times"></i>
-                      </button>
-                      {logo ? (
-                        <img
-                          src={logoUrl}
-                          alt="Restaurant Logo"
-                          className="vector-logo-asset"
-                        />
-                      ) : null}
-                      <div className="upload-placeholder-ui" id="upload-placeholder" style={{ display: logo ? "none" : "flex" }}>
-                        <svg
-                          width="40"
-                          height="40"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#c8d8e8"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <rect width="18" height="18" x="3" y="3" rx="2" />
-                          <circle cx="9" cy="9" r="2" />
-                          <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                        </svg>
-                        <div className="placeholder-text"></div>
-                        <div className="placeholder-sub">PNG, JPG, GIF up to 3MB</div>
-                      </div>
-                    </div>
-                    <div className="logo-spec-tag">
-                      <i className="fas fa-ruler-combined" style={{ fontSize: "11px" }} />
-                      Recommended: 400 × 250 px
-                    </div>
-                    <div className="dimension-warning-text" id="warning-spec-text">
-                      <i className="fas fa-exclamation-triangle" />
-                      Image should be 400×250 px for best results
-                    </div>
-                    <div className="logo-action-row">
-                      <button
-                        className="action-button-base btn-action-primary"
-                        id="dynamic-action-btn"
-                      >
-                        <i className="fas fa-trash-alt" style={{ fontSize: "12px" }} />
-                        Remove Logo
-                      </button>
-                      <button
-                        className="action-button-base"
-                        id="btn-upload-new"
-                        style={{ background: "#f1f5f9", color: "#475569", border: "none" }}
-                      >
-                        <i className="fas fa-upload" style={{ fontSize: "12px" }} />
-                        Upload New
-                      </button>
-                    </div>
-                    <div className="inline-upload-panel" id="inline-upload-panel">
-                      <div className="popup-header-row">
-                        <div className="popup-title-text">Add New Restaurant Logo</div>
-                        <button className="popup-close-icon-btn" id="btn-popup-close">
-                          ×
-                        </button>
-                      </div>
-                      <div className="popup-alert-message-box">
-                        Only .gif, .png, .jpeg, .jpg — max 3MB
-                      </div>
-                      <div className="popup-center-action-row">
-                        <button
-                          className="btn-click-to-upload"
-                          id="btn-trigger-file-explorer"
-                        >
-                          CLICK TO UPLOAD
-                        </button>
-                      </div>
-                    </div>
-                    
-                    {/* Website Name Section */}
-                    <div className="website-name-section" style={{ marginTop: '24px' }}>
-                      <p style={{ color: '#ef4444', fontSize: '13px', fontWeight: 'bold', marginBottom: '16px' }}>
-                        **Images should be 400x250**
-                      </p>
-                      <label style={{ display: 'block', fontSize: '13px', color: '#475569', marginBottom: '8px', fontWeight: 500 }}>
-                        Website Name
-                      </label>
-                      <input 
-                        type="text" 
-                        value={websiteName}
-                        onChange={(e) => setWebsiteName(e.target.value)}
-                        placeholder="www.cospace.com" 
-                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #c8d8e8', borderRadius: '4px', fontSize: '14px', outline: 'none', marginBottom: '16px' }}
+              {/* Main Content Body */}
+              <div className="logo-card-body">
+                {/* Logo Display Box */}
+                <div
+                  className="logo-preview-box"
+                  onClick={!logo ? handleTriggerFileExplorer : undefined}
+                >
+                  {logo ? (
+                    <>
+                      <img
+                        src={logoUrl}
+                        alt="Restaurant Logo"
+                        className="preview-logo-img"
                       />
-                      <button 
-                        className="btn-action-primary" 
-                        style={{ padding: '8px 24px', fontSize: '14px', fontWeight: 'bold', borderRadius: '4px', border: 'none', background: '#00a896', color: 'white', cursor: 'pointer' }}
-                        onClick={async () => {
-                          if (!infoRef.current) return;
-                          try {
-                            const sessionShopId = sessionStorage.getItem("shop_id");
-                            const response = await restaurantService.updateShopProfile({
-                                shop_id: String(sessionShopId),
-                                shop_name: infoRef.current.shop_name,
-                                email_id: infoRef.current.email,
-                                mobileno: infoRef.current.mobileno,
-                                CountryCode: "",
-                                timezone: infoRef.current.timezone,
-                                subdomain: websiteName,
-                                shoplogo: infoRef.current.shoplogo || "",
-                                business_type_id: infoRef.current.business_type_id || 0,
-                                cuisine_type: infoRef.current.cuisine_type || "",
-                                shop_type: infoRef.current.shop_type || "",
-                                insta_url: infoRef.current.insta_url || "",
-                            });
-                            if (response.success) {
-                              Swal.fire({
-                                icon: "success",
-                                title: "Saved Successfully!",
-                                text: "Website name updated.",
-                                confirmButtonColor: "#00a896",
-                              });
-                            }
-                          } catch (err) {
-                            console.error(err);
-                          }
+                      <button
+                        type="button"
+                        className="btn-delete-logo-badge"
+                        title="Delete Logo"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsDeleteOpen(true);
                         }}
                       >
-                        SAVE
+                        <i className="fas fa-times" />
                       </button>
+                    </>
+                  ) : (
+                    <div className="placeholder-add-logo">
+                      <span>Add</span>
+                      <span>Logo</span>
                     </div>
+                  )}
+                </div>
+
+                {/* Sub-logo section: Remove Logo button when logo exists, or dimension text when empty */}
+                {logo ? (
+                  <button
+                    type="button"
+                    className="btn-remove-logo"
+                    onClick={() => setIsDeleteOpen(true)}
+                  >
+                    Remove Logo
+                  </button>
+                ) : (
+                  <div className="dimension-notice-red">
+                    **Images should be 400x250**
                   </div>
-                </div>
-              </div>
+                )}
 
-              {/* Save Section */}
-              <div className="save-section">
-                <div className="save-hint">
-                  <i
-                    className="fas fa-info-circle"
-                    style={{ color: "#b0c4d8", fontSize: "14px" }}
+                {/* Website Name Field */}
+                <div className="website-name-form-group">
+                  <label className="website-name-label">Website Name</label>
+                  <input
+                    type="text"
+                    className="website-name-input"
+                    value={websiteName}
+                    placeholder="www.cospace.com"
+                    onChange={(e) => setWebsiteName(e.target.value)}
                   />
-                  Click Save Changes to update the restaurant logo
+
+                  <button
+                    type="button"
+                    className="btn-save-website"
+                    disabled={isSavingWebsite}
+                    onClick={handleSaveWebsiteName}
+                  >
+                    {isSavingWebsite ? "SAVING..." : "SAVE"}
+                  </button>
                 </div>
-                <button
-                  className="action-button-base btn-action-primary"
-                  style={{ padding: "12px 32px", fontSize: "14px" }}
-                  onClick={async () => {
-                    if (pendingActionRef.current === null) {
-                      Swal.fire({ icon: "info", title: "No Changes", text: "You haven't made any changes to the logo.", confirmButtonColor: "#00a896" });
-                      return;
-                    }
-                    try {
-                      const sessionShopId = sessionStorage.getItem("shop_id");
-                      if (!sessionShopId) return;
-
-                      const response = await restaurantService.updateShopLogo({
-                        shop_id: String(sessionShopId),
-                        new_logo: pendingActionRef.current,
-                        old_logo_name: logoRef.current,
-                      });
-
-                      if (response.success) {
-                        const wasRemove = pendingActionRef.current === "";
-                        pendingActionRef.current = null;
-
-                        const info = await restaurantService.getRestaurantInformation(Number(sessionShopId));
-                        if (info?.shoplogo) {
-                          setLogo(info.shoplogo);
-                          logoRef.current = info.shoplogo;
-                        } else if (wasRemove) {
-                          setLogo("");
-                          logoRef.current = "";
-                        }
-
-                        Swal.fire({
-                          icon: "success",
-                          title: "Saved Successfully!",
-                          text: "Your restaurant logo has been saved and is now live.",
-                          confirmButtonColor: "#00a896",
-                        });
-                      } else {
-                        Swal.fire({ icon: "error", title: "Error", text: response.message || "Failed to save logo.", confirmButtonColor: "#00a896" });
-                      }
-                    } catch (err) {
-                      console.error(err);
-                      Swal.fire({ icon: "error", title: "Error", text: "Failed to save logo.", confirmButtonColor: "#00a896" });
-                    }
-                  }}
-                >
-                  <i className="fas fa-save" style={{ fontSize: "13px" }} />
-                  Save Changes
-                </button>
               </div>
             </div>
 
+            {/* Step Wizard Footer */}
             <WizardFooter />
           </div>
         </main>
       </div>
 
-      {/* Modal Overlay */}
-      <div className="modal-overlay" id="global-modal-overlay">
-        <div className="modal-box" id="popup-confirm-delete" style={{ display: "none" }}>
-          <div className="modal-icon-circle">
-            <div className="modal-icon-inner" />
-          </div>
-          <div className="modal-text">
-            Are you sure that you want to delete this Image?
-          </div>
-          <div className="modal-buttons-group">
-            <button className="btn-modal btn-modal-cancel" id="btn-modal-cancel">
-              Cancel
-            </button>
-            <button className="btn-modal btn-modal-yes" id="btn-modal-yes">
-              Yes
-            </button>
+      {/* Delete Confirmation Modal */}
+      {isDeleteOpen && (
+        <div className="modal-overlay active">
+          <div className="modal-box">
+            <div className="modal-icon-circle">
+              <div className="modal-icon-inner" />
+            </div>
+            <div className="modal-text">
+              Are you sure that you want to delete this Image?
+            </div>
+            <div className="modal-buttons-group">
+              <button
+                type="button"
+                className="btn-modal btn-modal-cancel"
+                onClick={() => setIsDeleteOpen(false)}
+                disabled={isSavingLogo}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-modal btn-modal-yes"
+                onClick={handleConfirmDelete}
+                disabled={isSavingLogo}
+              >
+                {isSavingLogo ? "Deleting..." : "Yes"}
+              </button>
+            </div>
           </div>
         </div>
-        <div className="crop-popup-card" id="popup-crop-panel" style={{ display: "none" }}>
-          <div className="crop-title">Upload &amp; Crop Image</div>
-          <div className="crop-workspace-split">
-            <div className="crop-canvas-viewport">
-              <img id="crop-image-render-node" alt="Source Image Preview" />
-            </div>
-            <div className="crop-controls-sidebar">
-              <div className="crop-zoom-slider-container">
-                <input
-                  type="range"
-                  className="crop-zoom-slider-input"
-                  id="crop-zoom-slider"
-                  min="0"
-                  max="3"
-                  step="0.01"
-                  defaultValue="1"
+      )}
+
+      {/* Crop & Direct Upload Modal */}
+      {isCropOpen && (
+        <div className="modal-overlay active">
+          <div className="crop-popup-card">
+            <div className="crop-title">Upload &amp; Crop Image</div>
+            <div className="crop-workspace-split">
+              <div className="crop-canvas-viewport">
+                <img
+                  ref={cropImageRef}
+                  src={selectedImageSrc}
+                  alt="Source Image Preview"
                 />
               </div>
-              <div className="crop-action-buttons-group">
-                <button className="btn-crop-submit" id="btn-crop-and-upload">
-                  CROP &amp; UPLOAD IMAGE
-                </button>
-                <button className="btn-crop-close" id="btn-crop-cancel">
-                  CLOSE
-                </button>
+
+              <div className="crop-controls-sidebar">
+                <div className="crop-zoom-slider-container">
+                  <input
+                    type="range"
+                    className="crop-zoom-slider-input"
+                    min={zoomMin}
+                    max={3}
+                    step={0.01}
+                    value={zoomValue}
+                    onChange={handleZoom}
+                  />
+                </div>
+
+                <div className="crop-action-buttons-group">
+                  <button
+                    type="button"
+                    className="btn-crop-submit"
+                    disabled={isSavingLogo}
+                    onClick={handleCropAndUpload}
+                  >
+                    {isSavingLogo ? "UPLOADING..." : "CROP & UPLOAD IMAGE"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-crop-close"
+                    disabled={isSavingLogo}
+                    onClick={handleCloseCrop}
+                  >
+                    CLOSE
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
