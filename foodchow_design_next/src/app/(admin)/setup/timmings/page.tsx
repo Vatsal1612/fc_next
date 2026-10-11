@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { setupService } from "@/api/services/setup.service";
 import { WizardFooter } from "@/components/shared/WizardFooter";
+import Swal from "sweetalert2";
 import "./page.css";
 
 /**
@@ -220,7 +221,32 @@ export default function TimmingsPage() {
                 <h1 className="typ-page-heading" style={{ margin: 0 }}>Restaurant Timings</h1>
               </div>
               <div className="header-actions">
-                <button className="btn-help">
+                <button
+                  type="button"
+                  className="btn-help"
+                  onClick={() =>
+                    Swal.fire({
+                      title: "How to set up Restaurant Timings",
+                      html: `
+                        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px;">
+                          <iframe 
+                            src="https://player.vimeo.com/video/1075943517?autoplay=1" 
+                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
+                            frameborder="0" 
+                            allow="autoplay; fullscreen; picture-in-picture" 
+                            allowfullscreen>
+                          </iframe>
+                        </div>
+                        <p style="margin-top: 15px; font-size: 14px; color: #475569;">
+                          Follow these steps to configure your restaurant opening and closing hours.
+                        </p>
+                      `,
+                      width: 700,
+                      showCloseButton: true,
+                      showConfirmButton: false,
+                    })
+                  }
+                >
                   <svg
                     viewBox="0 0 24 24"
                     width="14"

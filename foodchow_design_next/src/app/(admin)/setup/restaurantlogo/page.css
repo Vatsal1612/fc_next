@@ -82,6 +82,40 @@
     gap: 12px;
   }
 
+  .btn-help {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 6px;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+    height: 38px;
+  }
+
+  .btn-help:hover {
+    border-color: var(--primary-teal);
+    color: var(--primary-teal);
+    background: #e6f7f5;
+    transform: translateY(-1px);
+  }
+
+  .btn-help svg {
+    width: 15px;
+    height: 15px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
   .btn-live-action {
     display: inline-flex;
     align-items: center;

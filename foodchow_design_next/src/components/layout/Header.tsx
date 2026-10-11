@@ -7,16 +7,21 @@ import { restaurantService } from "@/api/services/setup.service";
 import styles from "./shell.module.css";
 
 const HELP_VIDEOS: Record<string, string> = {
-  "/setup/delivery": "https://vimeo.com/1075943475",
-  "/menu/item-code": "https://vimeo.com/1075945406",
-  "/menu/category": "https://vimeo.com/1075943159",
   "/setup/my-profile": "https://vimeo.com/1075943230",
+  "/setup/restaurantlogo": "https://vimeo.com/1075943601",
   "/setup/restaurant-logo": "https://vimeo.com/1075943601",
+  "/setup/restaurantimgae": "https://vimeo.com/1075943559",
+  "/setup/restaurant-image": "https://vimeo.com/1075943559",
+  "/setup/timmings": "https://vimeo.com/1075943517",
+  "/setup/timings": "https://vimeo.com/1075943517",
+  "/setup/delivery": "https://vimeo.com/1075943475",
+  "/setup/gallery": "https://vimeo.com/1075943416",
+  "/setup/facility": "https://vimeo.com/1075943306",
+  "/setup/facilities": "https://vimeo.com/1075943306",
   "/setup/category-item-view": "https://vimeo.com/1075945245",
-  "/setup/restaurant-image": "https://vimeo.com/1075943416", // FoodGallery
-  "/setup/timings": "https://vimeo.com/1075943517", // ShopTimings
-  "/setup/payment-gateway": "https://vimeo.com/1075943559", // ShopOverview ? (Maybe)
-  "/menu/items": "https://vimeo.com/1075943647", // IngredientItems
+  "/menu/category": "https://vimeo.com/1075943159",
+  "/menu/items": "https://vimeo.com/1075943647",
+  "/menu/item-code": "https://vimeo.com/1075945406",
 };
 
 const VIEW_OPTIONS = ["View", "Webpage", "Order Online Page"] as const;

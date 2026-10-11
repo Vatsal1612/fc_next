@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Script from "next/script";
 import { setupService } from "@/api/services/setup.service";
 import { WizardFooter } from "@/components/shared/WizardFooter";
+import Swal from "sweetalert2";
 import Select from "react-select";
 import type { MultiValue } from "react-select";
 type CuisineOption = {
@@ -677,10 +678,52 @@ export default function MyProfilePage() {
             <div className="pf-card">
               <div className="pf-card-head">
                 <div className="pf-card-title">
-                  <span>Profile Setup</span>
-                  <span className="pf-badge">
-                    Section <b id="stepBadge">1/3</b>
-                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span>Profile Setup</span>
+                    <span className="pf-badge">
+                      Section <b id="stepBadge">1/3</b>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-help"
+                    onClick={() =>
+                      Swal.fire({
+                        title: "How to set up My Profile",
+                        html: `
+                          <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px;">
+                            <iframe 
+                              src="https://player.vimeo.com/video/1075943230?autoplay=1" 
+                              style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
+                              frameborder="0" 
+                              allow="autoplay; fullscreen; picture-in-picture" 
+                              allowfullscreen>
+                            </iframe>
+                          </div>
+                          <p style="margin-top: 15px; font-size: 14px; color: #475569;">
+                            Follow these steps to complete your restaurant owner, contact, and profile details.
+                          </p>
+                        `,
+                        width: 700,
+                        showCloseButton: true,
+                        showConfirmButton: false,
+                      })
+                    }
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      stroke="currentColor"
+                      fill="none"
+                      strokeWidth="2.5"
+                    >
+                      <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+                      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    Help
+                  </button>
                 </div>
                 {/* STEPPER (tabs) */}
                 <div className="stepper">

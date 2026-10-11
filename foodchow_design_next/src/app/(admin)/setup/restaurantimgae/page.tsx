@@ -420,7 +420,32 @@ export default function RestaurantImgaePage() {
               <div className="report-header">
                 <h1 className="report-title typ-page-heading" style={{ margin: 0 }}>Restaurant Image</h1>
                 <div className="report-header-actions">
-                  <button className="btn-help">
+                  <button
+                    type="button"
+                    className="btn-help"
+                    onClick={() =>
+                      Swal.fire({
+                        title: "How to set up Restaurant Images",
+                        html: `
+                          <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px;">
+                            <iframe 
+                              src="https://player.vimeo.com/video/1075943559?autoplay=1" 
+                              style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
+                              frameborder="0" 
+                              allow="autoplay; fullscreen; picture-in-picture" 
+                              allowfullscreen>
+                            </iframe>
+                          </div>
+                          <p style="margin-top: 15px; font-size: 14px; color: #475569;">
+                            Follow these steps to upload and adjust your restaurant images.
+                          </p>
+                        `,
+                        width: 700,
+                        showCloseButton: true,
+                        showConfirmButton: false,
+                      })
+                    }
+                  >
                     <svg viewBox="0 0 24 24">
                       <circle cx="12" cy="12" r="10" />
                       <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
