@@ -358,7 +358,7 @@ export const setupService = {
     return data;
   },
 
-  async saveShopOverviewImage(shopId: number, fileBlob: Blob, filename: string = "restaurant_image.jpg") {
+  async saveShopOverviewImage(shopId: number, fileBlob: Blob, _filename: string = "restaurant_image.jpg") {
     // 1. Convert Blob to Base64
     const base64Data = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -653,7 +653,28 @@ export const setupService = {
     return data;
   },
 
+  // Custom Domain
+  async saveCustomDomain(shopId: number | string, customDomain: string) {
+    const { data } = await foodchowClient.post(
+      ENDPOINTS.setup.saveCustomDomain,
+      {
+        shop_id: shopId,
+        custom_domain: customDomain,
+      }
+    );
+    console.log("SAVE CUSTOM DOMAIN RESPONSE:", data);
+    return data;
+  },
 
-
-
+  // Invoices
+  async getShopInvoices(shopId: number | string) {
+    const { data } = await foodchowClient.get(
+      ENDPOINTS.setup.getShopInvoices,
+      {
+        params: { shop_id: shopId },
+      }
+    );
+    console.log("GET SHOP INVOICES RESPONSE:", data);
+    return data;
+  },
 };

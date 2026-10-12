@@ -43,8 +43,8 @@ const DELETE_SVG = (
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function AdditionalMenuPage() {
+  const SHOP_ID = useShopId();
   const [menus, setMenus] = useState<ShopMenuType[]>([]);
-  // const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [categories, setCategories] = useState<AdditionalMenuCategory[]>([]);
   const [menuName, setMenuName] = useState("");
   const [menuItems, setMenuItems] = useState<MenuItemPayload[]>([]);
@@ -53,47 +53,64 @@ export default function AdditionalMenuPage() {
   const [deleteMenuId, setDeleteMenuId] = useState<number | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
-
-  useEffect(() => {
-    loadMenus();
-    loadCategories();
-    console.log("Current step:", currentStep);
-  }, [currentStep]);
-  const SHOP_ID = useShopId();
+  const [viewMode, setViewMode] = useState<"list" | "form">("list");
+  const [qrModalMenu, setQrModalMenu] = useState<ShopMenuType | null>(null);
+  const [openCategories, setOpenCategories] = useState<Record<number, boolean>>({});
 
   const loadMenus = async () => {
+    if (!SHOP_ID) return;
     try {
       const response = await menuService.getAllShopMenuType(SHOP_ID);
-      console.log(
-        "Updated Menu",
-        response.find((m) => m.id === 737)
-      );
-      console.log("Menu List:", response);
-      setMenus(response);
+      setMenus(Array.isArray(response) ? response : []);
     } catch (error) {
       console.error("Failed to load menus:", error);
     }
   };
 
-  useEffect(() => {
-    const loadData = async () => {
-      const menus = await menuService.getAllShopMenuType(SHOP_ID);
-      setMenus(menus);
-
-      const result = await menuService.getItemsForMenuType(SHOP_ID);
-
-      // result = { CategoryList: [...], SelectedCategoryList: null }
-      setCategories(result.CategoryList);
-    };
-
-    loadData();
-  }, []);
-
-
   const loadCategories = async () => {
-    const result = await menuService.getItemsForMenuType(SHOP_ID);
+    if (!SHOP_ID) return;
+    try {
+      const result = await menuService.getItemsForMenuType(SHOP_ID);
+      if (result?.CategoryList) {
+        setCategories(result.CategoryList);
+      }
+    } catch (error) {
+      console.error("Failed to load categories:", error);
+    }
+  };
 
-    setCategories(result.CategoryList);
+  useEffect(() => {
+    if (SHOP_ID) {
+      loadMenus();
+      loadCategories();
+    }
+  }, [SHOP_ID]);
+
+  const handleExpandAll = () => {
+    const allOpen: Record<number, boolean> = {};
+    categories.forEach((cat) => {
+      allOpen[cat.CategryId] = true;
+    });
+    setOpenCategories(allOpen);
+  };
+
+  const handleCollapseAll = () => {
+    setOpenCategories({});
+  };
+
+  const toggleCategory = (catId: number) => {
+    setOpenCategories((prev) => ({
+      ...prev,
+      [catId]: !prev[catId],
+    }));
+  };
+
+  const handleCancel = () => {
+    setEditingMenuId(null);
+    setMenuName("");
+    setMenuItems([]);
+    setCurrentStep(1);
+    setViewMode("list");
   };
 
   const handleSaveMenu = async () => {
@@ -148,14 +165,7 @@ export default function AdditionalMenuPage() {
         );
 
         await loadMenus();
-
-        const listView = document.getElementById("shop-menu-list-view");
-        const updateView = document.getElementById("update-shop-menu-form-view");
-        const addView = document.getElementById("add-shop-menu-form-view");
-
-        if (updateView) updateView.style.display = "none";
-        if (addView) addView.style.display = "none";
-        if (listView) listView.style.display = "flex";
+        setViewMode("list");
       } else {
         alert(response.message);
       }
@@ -164,17 +174,11 @@ export default function AdditionalMenuPage() {
     }
   };
 
-
-
   const handleDeleteMenu = async (menuId: number) => {
     try {
       const response = await menuService.deleteShopMenu(menuId);
-
-      console.log(response);
-
       if (response.response_code === "1") {
         alert(response.message);
-
         await loadMenus();
       } else {
         alert(response.message);
@@ -185,35 +189,101 @@ export default function AdditionalMenuPage() {
     }
   };
 
-
   const handleEditMenu = async (menu: ShopMenuType) => {
     setEditingMenuId(menu.id);
     setMenuName(menu.menu_name);
     setCurrentStep(1);
+    setViewMode("form");
 
-    // Load this menu's own data
-    const items = await menuService.getItemsForSelectedMenu(
-      SHOP_ID,
-      menu.id
+    try {
+      const items = await menuService.getItemsForSelectedMenu(
+        SHOP_ID,
+        menu.id
+      );
+      const timingsRes = await menuService.getShopCustomMenuTimings(
+        menu.id
+      );
+      setMenuItems(Array.isArray(items) ? items : []);
+      setTimings(Array.isArray(timingsRes) ? timingsRes : []);
+    } catch (err) {
+      console.error("Failed to load menu details:", err);
+    }
+  };
+
+  const handleOpenAddMenu = () => {
+    setEditingMenuId(null);
+    setMenuName("");
+    setMenuItems([]);
+    setTimings(
+      DAYS.map((day) => ({
+        shop_id: SHOP_ID.toString(),
+        menu_id: 0,
+        days_name: day,
+        open_time: "10:00 AM",
+        close_time: "10:00 PM",
+        close_day: 0,
+        is_24hours: 0,
+      }))
     );
+    setCurrentStep(1);
+    setViewMode("form");
+  };
 
-    const timings = await menuService.getShopCustomMenuTimings(
-      menu.id
+  const isItemSelected = (itemId: number) => {
+    return menuItems.some((mi) => String(mi.item_id) === String(itemId));
+  };
+
+  const toggleItem = (category: AdditionalMenuCategory, item: any) => {
+    setMenuItems((prev) => {
+      const exists = prev.some((mi) => String(mi.item_id) === String(item.ItemId));
+      if (exists) {
+        return prev.filter((mi) => String(mi.item_id) !== String(item.ItemId));
+      } else {
+        const p = String(item.Price ?? 0);
+        return [
+          ...prev,
+          {
+            shop_id: String(SHOP_ID),
+            menu_id: editingMenuId ? String(editingMenuId) : "0",
+            category_id: String(category.CategryId),
+            item_id: String(item.ItemId),
+            size_id: 0,
+            Price: p,
+            TotalPrice: p,
+            itemTaxList: "",
+          },
+        ];
+      }
+    });
+  };
+
+  const isCategorySelected = (category: AdditionalMenuCategory) => {
+    if (!category.ItemListWidget || category.ItemListWidget.length === 0) return false;
+    return category.ItemListWidget.every((item) =>
+      menuItems.some((mi) => String(mi.item_id) === String(item.ItemId))
     );
-    console.log("Timings:", timings);
-    console.log("Is Array:", Array.isArray(timings));
-    console.log("Type:", typeof timings);
+  };
 
-
-    setMenuItems(items);
-    // setTimings(timings);
-    setTimings(Array.isArray(timings) ? timings : []);
-
-    const listView = document.getElementById("shop-menu-list-view");
-    const updateView = document.getElementById("update-shop-menu-form-view");
-
-    if (listView) listView.style.display = "none";
-    if (updateView) updateView.style.display = "block";
+  const toggleCategorySelect = (category: AdditionalMenuCategory) => {
+    const allSelected = isCategorySelected(category);
+    if (allSelected) {
+      const itemIds = new Set(category.ItemListWidget.map((i) => String(i.ItemId)));
+      setMenuItems((prev) => prev.filter((mi) => !itemIds.has(String(mi.item_id))));
+    } else {
+      const newItems = (category.ItemListWidget || [])
+        .filter((item) => !menuItems.some((mi) => String(mi.item_id) === String(item.ItemId)))
+        .map((item) => ({
+          shop_id: String(SHOP_ID),
+          menu_id: editingMenuId ? String(editingMenuId) : "0",
+          category_id: String(category.CategryId),
+          item_id: String(item.ItemId),
+          size_id: 0,
+          Price: String(item.Price ?? 0),
+          TotalPrice: String(item.Price ?? 0),
+          itemTaxList: "",
+        }));
+      setMenuItems((prev) => [...prev, ...newItems]);
+    }
   };
 
 
@@ -640,14 +710,18 @@ export default function AdditionalMenuPage() {
         {/* Main Content Area */}
         <div className="main">
           <div className="content-area">
-            <div id="shop-menu-list-view">
+            <div id="shop-menu-list-view" style={{ display: viewMode === "list" ? "block" : "none" }}>
               <div className="content-card">
                 <div className="page-header">
                   <div className="typ-page-heading page-title">
                     <h1 className="typ-page-heading" style={{ margin: 0 }}>Shop Menu</h1>
                   </div>
                   <div className="header-actions">
-                    <button className="btn-action-primary" id="open-add-menu-btn">
+                    <button
+                      className="btn-action-primary"
+                      id="open-add-menu-btn"
+                      onClick={handleOpenAddMenu}
+                    >
                       <svg
                         viewBox="0 0 24 24"
                         width="14"
@@ -661,7 +735,10 @@ export default function AdditionalMenuPage() {
                       </svg>
                       ADD NEW MENU
                     </button>
-                    <button className="btn-help">
+                    <button
+                      className="btn-help"
+                      onClick={() => window.open("https://vimeo.com/1075945406", "_blank")}
+                    >
                       <svg
                         viewBox="0 0 24 24"
                         width="14"
@@ -699,7 +776,8 @@ export default function AdditionalMenuPage() {
                         <div className="action-center-wrap">
                           <button
                             className="qr-code-trigger"
-                            title="Download System Vector QR Asset"
+                            title="Download QR Code"
+                            onClick={() => setQrModalMenu(menu)}
                           >
                             {QR_SVG}
                           </button>
@@ -739,17 +817,28 @@ export default function AdditionalMenuPage() {
 
                         <div className="action-center-wrap">
                           <button className="icon-btn edit"
+                            title="Edit Menu"
                             onClick={() => handleEditMenu(menu)}
                           >
                             {EDIT_SVG}
                           </button>
 
-                          <button className="icon-btn view">
+                          <button
+                            className="icon-btn view"
+                            title="View Menu"
+                            onClick={() => {
+                              if (menu.menu_url) {
+                                window.open(menu.menu_url, "_blank");
+                              } else {
+                                window.open(`https://foodchow.com/menu/${SHOP_ID}/${menu.id}`, "_blank");
+                              }
+                            }}
+                          >
                             {VIEW_SVG}
                           </button>
 
                           <button className="icon-btn delete"
-                            // onClick={() => handleDeleteMenu(menu.id)}
+                            title="Delete Menu"
                             onClick={() => {
                               setDeleteMenuId(menu.id);
                               setShowDeleteModal(true);
@@ -760,8 +849,6 @@ export default function AdditionalMenuPage() {
                         </div>
                       </div>
                     ))}
-
-
                   </div>
                 </div>
               </div>
@@ -769,58 +856,13 @@ export default function AdditionalMenuPage() {
               <WizardFooter />
             </div>
 
-            <div id="add-shop-menu-form-view" style={{ display: "none" }}>
+            <div id="update-shop-menu-form-view" style={{ display: viewMode === "form" ? "block" : "none" }}>
               <div className="content-card">
                 <div className="page-header">
                   <div className="page-title">
-                    <h1 className="typ-page-heading" style={{ margin: 0 }}>Add New Shop Menu</h1>
-                  </div>
-                </div>
-                <div className="form-container">
-                  <div className="form-group">
-                    <label>
-                      Menu Name<span>*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="form-input-field"
-                      placeholder="e.g. Late Night Platters"
-                      value={menuName}
-
-                      onChange={(e) => {
-                        console.log("Typing:", e.target.value);
-
-                        setMenuName(e.target.value);
-                      }}
-                    />
-                  </div>
-                  <div className="form-actions-row">
-                    <button
-                      className="btn-form btn-form-save"
-                      id="save-menu-btn"
-                      type="button"
-                      // onClick={handleAddMenu}
-                      onClick={handleSaveMenu}
-                    >
-                      Save Menu Configuration
-                    </button>
-                    <button
-                      className="btn-form btn-form-cancel"
-                      id="cancel-menu-btn"
-                      type="button"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div id="update-shop-menu-form-view" style={{ display: "none" }}>
-              <div className="content-card">
-                <div className="page-header">
-                  <div className="page-title">
-                    <h1 className="typ-page-heading" style={{ margin: 0 }}>Update New Shop Menu</h1>
+                    <h1 className="typ-page-heading" style={{ margin: 0 }}>
+                      {editingMenuId ? "Update New Shop Menu" : "Add New Shop Menu"}
+                    </h1>
                     <p
                       style={{
                         fontSize: "13px",
@@ -834,15 +876,27 @@ export default function AdditionalMenuPage() {
                 </div>
 
                 <div className="wizard-steps">
-                  <div className="w-step active" id="step-node-1">
+                  <div
+                    className={`w-step ${currentStep === 1 ? "active" : "complete"}`}
+                    id="step-node-1"
+                    onClick={() => setCurrentStep(1)}
+                    style={{ cursor: "pointer" }}
+                  >
                     1
                   </div>
-                  <div className="w-step upcoming" id="step-node-2">
+                  <div
+                    className={`w-step ${currentStep === 2 ? "active" : "upcoming"}`}
+                    id="step-node-2"
+                    onClick={() => {
+                      if (menuName.trim()) setCurrentStep(2);
+                    }}
+                    style={{ cursor: menuName.trim() ? "pointer" : "default" }}
+                  >
                     2
                   </div>
                 </div>
 
-                <div id="wizard-step-1-content">
+                <div id="wizard-step-1-content" style={{ display: currentStep === 1 ? "block" : "none" }}>
                   <div className="inner-form-card">
                     <h2>Menu Information</h2>
 
@@ -1080,6 +1134,13 @@ export default function AdditionalMenuPage() {
                         id="submit-update-btn"
                         type="button"
                         style={{ padding: "10px 24px", fontSize: "13.5px" }}
+                        onClick={() => {
+                          if (!menuName.trim()) {
+                            alert("Please enter a menu name.");
+                            return;
+                          }
+                          setCurrentStep(2);
+                        }}
                       >
                         NEXT
                       </button>
@@ -1087,6 +1148,7 @@ export default function AdditionalMenuPage() {
                         className="btn-form btn-form-cancel"
                         id="cancel-update-btn"
                         type="button"
+                        onClick={handleCancel}
                       >
                         Cancel
                       </button>
@@ -1094,11 +1156,11 @@ export default function AdditionalMenuPage() {
                   </div>
                 </div>
 
-                <div id="wizard-step-2-content" style={{ display: "none" }}>
+                <div id="wizard-step-2-content" style={{ display: currentStep === 2 ? "block" : "none" }}>
                   <div className="inner-form-card">
                     <h2 className="section-subtitle-step2">
                       Set Items For Menu:{" "}
-                      <span id="target-menu-label-text">Breakfast</span>
+                      <span id="target-menu-label-text">{menuName || "Menu"}</span>
                     </h2>
 
                     <div className="step2-action-bar">
@@ -1106,6 +1168,7 @@ export default function AdditionalMenuPage() {
                         type="button"
                         className="btn-toggle-all"
                         id="global-expand-btn"
+                        onClick={handleExpandAll}
                       >
                         Expand All
                       </button>
@@ -1113,6 +1176,7 @@ export default function AdditionalMenuPage() {
                         type="button"
                         className="btn-toggle-all"
                         id="global-collapse-btn"
+                        onClick={handleCollapseAll}
                       >
                         Collapse All
                       </button>
@@ -1474,11 +1538,25 @@ export default function AdditionalMenuPage() {
 
                     <div className="accordion-stack">
                       {categories.map((category) => (
-                        <div className="accordion-wrapper" key={category.CategryId}>
-                          <div className="accordion-row">
-                            <div className="accordion-left">
+                        <div
+                          className={`accordion-wrapper ${openCategories[category.CategryId] ? "open" : ""}`}
+                          key={category.CategryId}
+                        >
+                          <div
+                            className="accordion-row"
+                            onClick={() => toggleCategory(category.CategryId)}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <div
+                              className="accordion-left"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <label className="check-label-item">
-                                <input type="checkbox" />
+                                <input
+                                  type="checkbox"
+                                  checked={isCategorySelected(category)}
+                                  onChange={() => toggleCategorySelect(category)}
+                                />
                               </label>
 
                               <span className="accordion-title">
@@ -1495,13 +1573,15 @@ export default function AdditionalMenuPage() {
 
                           <div className="accordion-panel">
                             <div className="inner-items-container">
-
                               {category.ItemListWidget?.map((item: any) => (
                                 <div className="inner-item-card" key={item.ItemId}>
-
                                   <div className="inner-item-left">
                                     <label className="check-label-item">
-                                      <input type="checkbox" />
+                                      <input
+                                        type="checkbox"
+                                        checked={isItemSelected(item.ItemId)}
+                                        onChange={() => toggleItem(category, item)}
+                                      />
                                     </label>
 
                                     <span className="inner-item-title">
@@ -1510,10 +1590,8 @@ export default function AdditionalMenuPage() {
                                   </div>
 
                                   <div className="inner-item-right">
-
                                     <div className="price-info-wrap">
                                       <span>Price :</span>
-
                                       <input
                                         type="text"
                                         className="item-price-field"
@@ -1521,19 +1599,9 @@ export default function AdditionalMenuPage() {
                                         readOnly
                                       />
                                     </div>
-
-                                    <button
-                                      type="button"
-                                      className="btn-select-tax"
-                                    >
-                                      Select Tax
-                                    </button>
-
                                   </div>
-
                                 </div>
                               ))}
-
                             </div>
                           </div>
                         </div>
@@ -1550,6 +1618,7 @@ export default function AdditionalMenuPage() {
                         id="back-to-step1-btn"
                         type="button"
                         style={{ padding: "10px 20px", fontSize: "13px" }}
+                        onClick={() => setCurrentStep(1)}
                       >
                         Back
                       </button>
@@ -1557,11 +1626,7 @@ export default function AdditionalMenuPage() {
                         className="btn-form btn-form-save"
                         id="finish-update-btn"
                         type="button"
-                        onClick={() => {
-                          console.log("BUTTON CLICKED");
-                          alert("clicked");
-                          handleSaveMenu();
-                        }}
+                        onClick={handleSaveMenu}
                       >
                         Save Menu Configuration
                       </button>
@@ -1681,6 +1746,55 @@ export default function AdditionalMenuPage() {
           </div>
         </div>
       </div>
+
+      {/* QR Code Modal */}
+      {qrModalMenu && (
+        <div
+          className="modal-overlay"
+          style={{ display: "flex" }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setQrModalMenu(null);
+          }}
+        >
+          <div className="modal-box" style={{ maxWidth: "400px", padding: "28px", textAlign: "center" }}>
+            <h3 style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "8px", color: "#00a896" }}>
+              {qrModalMenu.menu_name}
+            </h3>
+            <p style={{ fontSize: "13px", color: "#666", marginBottom: "16px" }}>
+              Scan this QR code to view this menu online
+            </p>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "20px" }}>
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+                  qrModalMenu.menu_url || `https://foodchow.com/menu/${SHOP_ID}/${qrModalMenu.id}`
+                )}`}
+                alt="QR Code"
+                style={{ width: "200px", height: "200px", borderRadius: "8px", border: "1px solid #ddd" }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+              <a
+                href={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(
+                  qrModalMenu.menu_url || `https://foodchow.com/menu/${SHOP_ID}/${qrModalMenu.id}`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-modal btn-modal-confirm"
+                style={{ backgroundColor: "#00a896", textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+              >
+                Download QR
+              </a>
+              <button
+                type="button"
+                className="btn-modal btn-modal-cancel"
+                onClick={() => setQrModalMenu(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

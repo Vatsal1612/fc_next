@@ -240,8 +240,6 @@ export default function RestaurantImgaePage() {
       }
     };
 
-    let currentGalleryId: number | null = null;
-
     const fetchRestaurantImage = async () => {
       try {
         const shopId = sessionStorage.getItem("shop_id");
@@ -333,7 +331,6 @@ export default function RestaurantImgaePage() {
       try {
         await setupService.deleteShopOverviewImage(Number(shopId));
 
-        currentGalleryId = null;
         if (imagePreview) {
           imagePreview.src = "#";
           imagePreview.style.display = "none";

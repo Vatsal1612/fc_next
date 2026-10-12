@@ -1,7 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { AddItemPayload, menuService, type MenuCategory } from "@/api/services/menu.service";
+import {
+  AddItemPayload,
+  menuService,
+  type EditStoreItemPayload,
+  type MenuCategory,
+  type MenuVariant,
+  type ShopMenuType,
+  type MenuChoice,
+  type ExtraCategory,
+} from "@/api/services/menu.service";
 import Swal from "sweetalert2";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import { useShopId } from "@/utils/shop";
@@ -18,6 +27,26 @@ export default function ItemsPage() {
   const [categoryId, setCategoryId] = useState("");
   const [isVeg] = useState("1");
   const [categories, setCategories] = useState<MenuCategory[]>([]);
+  const categoriesRef = useRef<MenuCategory[]>([]);
+  useEffect(() => {
+    categoriesRef.current = categories;
+  }, [categories]);
+  const [menuTypes, setMenuTypes] = useState<ShopMenuType[]>([]);
+  const [variants, setVariants] = useState<MenuVariant[]>([]);
+  const variantsRef = useRef(variants);
+  useEffect(() => {
+    variantsRef.current = variants;
+  }, [variants]);
+  const [choices, setChoices] = useState<MenuChoice[]>([]);
+  const choicesRef = useRef(choices);
+  useEffect(() => {
+    choicesRef.current = choices;
+  }, [choices]);
+  const [extras, setExtras] = useState<ExtraCategory[]>([]);
+  const extrasRef = useRef(extras);
+  useEffect(() => {
+    extrasRef.current = extras;
+  }, [extras]);
   const [items, setItems] = useState<MenuCategory[]>([]);
   const itemsRef = useRef(items);
   useEffect(() => {
@@ -46,14 +75,179 @@ export default function ItemsPage() {
     setEditBase64ImageRef.current = setEditBase64Image;
   }, []);
 
-  const loadItems = async () => {
-    try {
-      const data = await menuService.getItems(SHOP_ID);
-      setItems(data);
-      console.log("Items:", data);
-    } catch (error) {
-      console.error(error);
+  const escapeHtml = (value: string) =>
+    value.replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;",
+    })[char] ?? char);
+
+  const getItemSizeList = (item: Record<string, unknown> | null | undefined): Record<string, unknown>[] => {
+    const list =
+      item?.FoodItemSizeList ??
+      item?.foodItemSizeList ??
+      item?.fooditemSizeList ??
+      item?.ItemSizeList ??
+      item?.item_size_list ??
+      [];
+    return Array.isArray(list)
+      ? list.filter((size): size is Record<string, unknown> => typeof size === "object" && size !== null)
+      : [];
+  };
+
+  const getItemSizePrice = (size: Record<string, unknown>, fallbackPrice?: unknown) => {
+    const candidates = [
+      size.item_price,
+      size.Item_Price,
+      size.price,
+      size.Price,
+      size.net_price,
+      size.Net_Price,
+      size.Net_Prices,
+      size.final_amount,
+      size.Final_Amount,
+      size.Total_Price,
+      size.total_price,
+    ];
+    const populatedPrice = candidates.find(
+      (value) => value !== null && value !== undefined && value !== "" && Number(value) !== 0
+    );
+    if (populatedPrice !== undefined) return populatedPrice;
+    if (fallbackPrice !== undefined && fallbackPrice !== null && fallbackPrice !== "" && Number(fallbackPrice) !== 0) {
+      return fallbackPrice;
     }
+    return candidates.find((value) => value !== null && value !== undefined && value !== "") ?? 0;
+  };
+
+  const loadItems = async () => {
+    if (!SHOP_ID) return;
+    try {
+      const [itemResult, priceResult] = await Promise.allSettled([
+        menuService.getItems(SHOP_ID),
+        menuService.getItemListWithSize(SHOP_ID),
+      ]);
+
+      if (itemResult.status === "rejected") {
+        throw itemResult.reason;
+      }
+
+      const authoritativePrices =
+        priceResult.status === "fulfilled" ? priceResult.value : [];
+      if (priceResult.status === "rejected") {
+        console.error("Failed to load item variant prices:", priceResult.reason);
+      }
+
+      const data = itemResult.value.map((category) => ({
+        ...category,
+        item_list: (category.item_list ?? []).map((item) => {
+          const itemId = String(item.item_Id ?? item.Item_Id ?? item.item_id ?? item.id ?? "");
+          const existingSizes = getItemSizeList(item);
+          const itemPrices = authoritativePrices.filter(
+            (priceRow) => String(priceRow.item_id ?? "").trim() === itemId.trim()
+          );
+
+          if (itemPrices.length === 0 && existingSizes.length === 0) return item;
+
+          // Merge authoritative prices with existing sizes without wiping non-zero variant prices
+          const baseSizes = itemPrices.length > 0 ? itemPrices : existingSizes;
+          const mergedSizes = baseSizes.map((row: any) => {
+            const rowSizeId = row.item_size_id ?? row.size_id ?? row.Size_Id ?? row.id;
+            const rowSizeName = String(row.size_name ?? row.Size_Name ?? "").trim().toLowerCase();
+
+            const matchingExisting = existingSizes.find((es: any) => {
+              const esId = es.item_size_id ?? es.size_id ?? es.Size_Id ?? es.id;
+              const esName = String(es.size_name ?? es.Size_Name ?? "").trim().toLowerCase();
+              return (rowSizeId && String(esId) === String(rowSizeId)) || (rowSizeName && esName === rowSizeName);
+            });
+
+            const candidatePrice =
+              (row.item_price !== undefined && row.item_price !== null && !isNaN(Number(row.item_price)))
+                ? row.item_price
+                : (row.price !== undefined && row.price !== null && !isNaN(Number(row.price)))
+                ? row.price
+                : (matchingExisting && getItemSizePrice(matchingExisting) !== undefined)
+                ? getItemSizePrice(matchingExisting)
+                : (item.price ?? item.Price ?? 0);
+
+            return {
+              ...(matchingExisting ?? {}),
+              ...row,
+              size_name: row.size_name ?? matchingExisting?.size_name ?? matchingExisting?.Size_Name ?? "Size",
+              item_size_id: rowSizeId,
+              Size_Id: rowSizeId,
+              size_id: rowSizeId,
+              item_price: candidatePrice,
+              price: candidatePrice,
+              Price: candidatePrice,
+              Net_Price: candidatePrice,
+            };
+          });
+
+          return {
+            ...item,
+            FoodItemSizeList: mergedSizes,
+          };
+        }),
+      }));
+
+      setItems(data);
+      console.log("Items loaded successfully:", data);
+    } catch (error) {
+      console.error("Failed to load items:", error);
+    }
+  };
+
+  const readVariantPrices = (containerId: string) => {
+    const container = document.getElementById(containerId);
+    if (!container) return null;
+
+    const rows = Array.from(container.querySelectorAll<HTMLElement>(".variant-row"));
+    const sizes: Array<{ Size_Id: number; Price: string }> = [];
+    const seenSizeIds = new Set<number>();
+
+    for (const row of rows) {
+      const select = row.querySelector<HTMLSelectElement>(".variant-select");
+      let sizeId = Number(select?.value);
+      if (!Number.isInteger(sizeId) || sizeId <= 0) {
+        const text = select?.selectedOptions?.[0]?.text?.trim().toLowerCase();
+        if (text) {
+          const matched = variantsRef.current.find(
+            (v) => v.size_name.trim().toLowerCase() === text
+          );
+          if (matched) sizeId = Number(matched.id);
+        }
+      }
+
+      const priceInput = row.querySelector<HTMLInputElement>(".variant-price");
+      const priceValue = priceInput?.value.trim() ?? "";
+      const parsedPrice = Number(priceValue);
+
+      if (!Number.isInteger(sizeId) || sizeId <= 0) {
+        Swal.fire("Select a variant", "Choose a size for every variant row.", "warning");
+        return null;
+      }
+      if (!priceValue || !Number.isFinite(parsedPrice) || parsedPrice < 0) {
+        Swal.fire("Enter a valid price", "Each variant must have a price of zero or more.", "warning");
+        priceInput?.focus();
+        return null;
+      }
+      if (seenSizeIds.has(sizeId)) {
+        Swal.fire("Duplicate variant", "Each item size can only be added once.", "warning");
+        return null;
+      }
+
+      seenSizeIds.add(sizeId);
+      sizes.push({ Size_Id: sizeId, Price: priceValue });
+    }
+
+    if (sizes.length === 0) {
+      Swal.fire("Add a variant", "Add at least one size and price.", "warning");
+      return null;
+    }
+
+    return sizes;
   };
 
   const loadItemsRef = useRef(loadItems);
@@ -140,98 +334,273 @@ export default function ItemsPage() {
   };
 
   const getImageUrl = (img: string | null | undefined) => {
-    if (!img) return "";
-    if (img.startsWith("http")) return img;
+    if (!img || img === "null" || img === "undefined") return "";
+    if (img.startsWith("http://") || img.startsWith("https://")) return img;
+    if (img.startsWith("/")) return `https://admin.foodchow.com${img}`;
     return `https://admin.foodchow.com/FoodItemImages/${img}`;
   };
 
   useEffect(() => {
-    loadItems();
-  }, []);
-
-  useEffect(() => {
-    const loadCategories = async () => {
+    const loadCategoriesAndMenus = async () => {
       try {
-        const data = await menuService.categoriesByShop(SHOP_ID);
-        setCategories(data);
+        const effectiveShopId =
+          SHOP_ID ||
+          (typeof window !== "undefined"
+            ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
+            : 0) ||
+          7895;
+
+        const [cats, menus, itemVariants, itemChoices, itemExtras] = await Promise.allSettled([
+          menuService.categoriesByShop(effectiveShopId),
+          menuService.getAllShopMenuType(effectiveShopId),
+          menuService.variantsByShop(effectiveShopId),
+          menuService.getChoices(effectiveShopId),
+          menuService.extrasByShop(effectiveShopId),
+        ]);
+        if (cats.status === "fulfilled") {
+          setCategories(cats.value);
+        }
+        if (menus.status === "fulfilled" && menus.value) {
+          setMenuTypes(menus.value);
+        }
+        if (itemVariants.status === "fulfilled") {
+          const raw = itemVariants.value ?? [];
+          const normalized = raw
+            .map((v: any) => ({
+              ...v,
+              id: Number(v.id ?? v.Size_Id ?? v.size_id ?? 0),
+              size_name: String(v.size_name ?? v.Size_Name ?? "").trim(),
+              shop_id: Number(v.shop_id ?? v.Shop_Id ?? effectiveShopId ?? 0),
+              status: Number(v.status ?? v.Status ?? 1),
+            }))
+            .filter((v: any) => v.id > 0 && v.size_name);
+          setVariants(normalized);
+        } else {
+          console.error("Failed to load item variants:", itemVariants.reason);
+        }
+        if (itemChoices.status === "fulfilled") {
+          setChoices(itemChoices.value ?? []);
+        } else {
+          console.error("Failed to load choices:", itemChoices.reason);
+        }
+        if (itemExtras.status === "fulfilled") {
+          setExtras(itemExtras.value ?? []);
+        } else {
+          console.error("Failed to load extras:", itemExtras.reason);
+        }
       } catch (error) {
         console.error(error);
       }
     };
 
-    loadCategories();
-  }, []);
+    const effectiveShopId =
+      SHOP_ID ||
+      (typeof window !== "undefined"
+        ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
+        : 0);
+
+    if (effectiveShopId) {
+      loadItems();
+      loadCategoriesAndMenus();
+    }
+  }, [SHOP_ID]);
 
   //Add item
   const handleAddItem = async () => {
     try {
+      const hasVariants =
+        (document.getElementById("containVariantCheckbox") as HTMLInputElement | null)?.checked ?? false;
+      const itemSizes = hasVariants ? readVariantPrices("variantRows") : undefined;
+      if (hasVariants && !itemSizes) return;
+
+      const addCustomization =
+        (document.getElementById("addCustomizationCheckbox") as HTMLInputElement | null)?.checked ?? false;
+      const containsChoices =
+        addCustomization &&
+        ((document.getElementById("containsChoices") as HTMLInputElement | null)?.checked ?? false);
+      const containsExtras =
+        addCustomization &&
+        ((document.getElementById("containsExtras") as HTMLInputElement | null)?.checked ?? false);
+
+      const selectedChoiceCheckboxes = containsChoices
+        ? Array.from(document.querySelectorAll<HTMLInputElement>("#choicesContainer .choice-item-checkbox:checked"))
+        : [];
+      const choiceListPayload = selectedChoiceCheckboxes
+        .map((cb) => ({ preference_id: Number(cb.dataset.preferenceId) }))
+        .filter((c) => c.preference_id > 0);
+
+      const selectedExtraCheckboxes = containsExtras
+        ? Array.from(document.querySelectorAll<HTMLInputElement>("#extrasContainer .extra-item-checkbox:checked"))
+        : [];
+      const extraListPayload = selectedExtraCheckboxes
+        .map((cb) => ({ custom_cat_id: Number(cb.dataset.customCatId) }))
+        .filter((e) => e.custom_cat_id > 0);
+
       const payload: AddItemPayload = {
         Cate_Id: String(categoryId),
         Item_Name: itemName,
         Description: description,
         Is_Veg: String(isVeg),
         unit: "",
-        price: String(price),
+        price: hasVariants ? itemSizes?.[0]?.Price ?? "0" : String(price),
         non_Veg_Type: "0",
         Shop_Id: String(SHOP_ID),
         is_manage_stock: 0,
         sold_out_flag: 0,
         barcode: "",
         open_price: 0,
+        ...(hasVariants
+          ? { is_size_available: 1, FoodItemSizeList: itemSizes ?? [] }
+          : { is_size_available: 0 }),
+        is_choice: containsChoices && choiceListPayload.length > 0 ? 1 : (containsChoices ? 1 : 0),
+        ChoiceList: choiceListPayload,
+        is_extra: containsExtras && extraListPayload.length > 0 ? 1 : (containsExtras ? 1 : 0),
+        ExtraList: extraListPayload,
       };
 
       console.log("Payload:", payload);
-
 
       const response = await menuService.addItem(payload);
 
       console.log("Item Added:", response);
 
-      alert("Item added successfully");
+      Swal.fire({
+        icon: "success",
+        title: "Added!",
+        text: "Item added successfully",
+        timer: 1500,
+        showConfirmButton: false,
+      });
 
       // Clear form
       setItemName("");
       setDescription("");
       setPrice("");
       setCategoryId("");
+      const variantCheckbox = document.getElementById("containVariantCheckbox") as HTMLInputElement | null;
+      const variantRows = document.getElementById("variantRows");
+      if (variantCheckbox) variantCheckbox.checked = false;
+      if (variantRows) variantRows.innerHTML = "";
+      document.getElementById("singlePriceSection")?.setAttribute("style", "display: block;");
+      document.getElementById("variantSection")?.setAttribute("style", "display: none; margin-top: 15px;");
+
+      const customizationCheckbox = document.getElementById("addCustomizationCheckbox") as HTMLInputElement | null;
+      if (customizationCheckbox) customizationCheckbox.checked = false;
+      const customizationSection = document.getElementById("customizationSection");
+      if (customizationSection) customizationSection.style.display = "none";
+      const choicesCb = document.getElementById("containsChoices") as HTMLInputElement | null;
+      if (choicesCb) choicesCb.checked = false;
+      const choicesContainer = document.getElementById("choicesContainer");
+      if (choicesContainer) choicesContainer.style.display = "none";
+      document.querySelectorAll<HTMLInputElement>("#choicesContainer .choice-item-checkbox").forEach((cb) => {
+        cb.checked = false;
+      });
+
+      const extrasCb = document.getElementById("containsExtras") as HTMLInputElement | null;
+      if (extrasCb) extrasCb.checked = false;
+      const extrasContainer = document.getElementById("extrasContainer");
+      if (extrasContainer) extrasContainer.style.display = "none";
+      document.querySelectorAll<HTMLInputElement>("#extrasContainer .extra-item-checkbox").forEach((cb) => {
+        cb.checked = false;
+      });
+
+      await loadItems();
+      // Return to main list view
+      document.getElementById("addNewItemFormView")?.classList.remove("active-view");
+      document.getElementById("mainDirectoryView")?.classList.add("active-view");
 
     } catch (error: any) {
       console.error("API Error:", error);
-      console.log(
-        "Validation Errors:",
-        error?.response?.data?.errors
-      );
-      if (error.response) {
-        console.log("Status:", error.response.status);
-        console.log("Response:", error.response.data);
-      }
-
-      alert("Failed to add item");
+      Swal.fire("Error", "Failed to add item. Please try again.", "error");
     }
   };
 
   // Delete item
   const handleDelete = async (itemId: number) => {
+    const numericItemId = Number(itemId);
+    if (!numericItemId || isNaN(numericItemId)) return;
+
+    // Identify the specific item and its category for clear user confirmation
+    let itemToDelete: any = null;
+    let categoryName = "";
+    for (const cat of items) {
+      const match = (cat.item_list ?? []).find((it: any) => {
+        const id = it?.item_Id ?? it?.Item_Id ?? it?.item_id ?? it?.id;
+        return Number(id) === numericItemId;
+      });
+      if (match) {
+        itemToDelete = match;
+        categoryName = cat.cate_name;
+        break;
+      }
+    }
+
+    const itemName = itemToDelete?.item_Name ?? itemToDelete?.Item_Name ?? "Item";
+
     const result = await Swal.fire({
       title: "Delete Item?",
-      text: "This action cannot be undone.",
+      text: `Are you sure you want to delete "${itemName}"${categoryName ? ` from ${categoryName}` : ""}? This action cannot be undone.`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Delete",
+      confirmButtonColor: "#d33",
     });
 
     if (!result.isConfirmed) return;
 
+    // Optimistic update: remove the item from state immediately
+    setItems((prev) =>
+      prev.map((cat) => ({
+        ...cat,
+        item_list: (cat.item_list ?? []).filter(
+          (it: any) => {
+            const id = it?.item_Id ?? it?.Item_Id ?? it?.item_id ?? it?.id;
+            return Number(id) !== numericItemId;
+          }
+        ),
+      }))
+    );
+
     try {
-      const response = await menuService.deleteItem(itemId, SHOP_ID);
+      const targetShopId =
+        SHOP_ID ||
+        itemToDelete?.shop_Id ||
+        itemToDelete?.Shop_Id ||
+        (typeof window !== "undefined"
+          ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
+          : 0) ||
+        7895;
 
-      if (response.success || response.Success || response.ResponseCode === 1 || response.responseCode === 1) {
-        Swal.fire("Deleted!", "Item deleted successfully.", "success");
+      const response = await menuService.deleteItem(numericItemId, targetShopId);
 
-        const data = await menuService.getItems(SHOP_ID);
-        setItems(data);
+      const isSuccess =
+        response?.success === true ||
+        response?.Success === true ||
+        response?.ResponseCode === 1 ||
+        response?.responseCode === 1 ||
+        (typeof response?.message === "string" && response.message.toLowerCase().includes("deleted"));
+
+      if (isSuccess) {
+        Swal.fire({
+          icon: "success",
+          title: "Deleted!",
+          text: `"${itemName}" deleted successfully.`,
+          timer: 2000,
+          showConfirmButton: false,
+          toast: true,
+          position: "top-end",
+        });
+        // Keep the optimistic update — do NOT reload from server immediately,
+        // as the API may return the item again before the delete is fully persisted.
+        // The item is already removed from state above.
+      } else {
+        // Rollback the optimistic update on failure
+        await loadItems();
+        Swal.fire("Error", response?.message ?? "Unable to delete item.", "error");
       }
     } catch (error) {
+      // Rollback the optimistic update on error
+      await loadItems();
       Swal.fire("Error", "Unable to delete item.", "error");
     }
   };
@@ -247,7 +616,18 @@ export default function ItemsPage() {
       document.getElementById("editTypeVegBtn")?.classList.contains("active-segment") ?? true;
 
     if (!newName) {
-      alert("Item name is required.");
+      Swal.fire("Warning", "Item name is required.", "warning");
+      return;
+    }
+
+    const hasVariants =
+      (document.getElementById("editContainVariantCheckbox") as HTMLInputElement | null)?.checked ?? false;
+    const itemSizes = hasVariants ? readVariantPrices("editVariantRows") : undefined;
+    if (hasVariants && !itemSizes) return;
+    const editPrice =
+      (document.getElementById("editItemPriceInput") as HTMLInputElement | null)?.value.trim() ?? "";
+    if (!hasVariants && (!editPrice || !Number.isFinite(Number(editPrice)) || Number(editPrice) < 0)) {
+      Swal.fire("Warning", "Enter a valid item price.", "warning");
       return;
     }
 
@@ -257,7 +637,30 @@ export default function ItemsPage() {
         ? `${SHOP_ID}_${Date.now()}_item.jpg`
         : editItemImage;
 
-      await menuService.editStoreItem({
+      const editAddCustomization =
+        (document.getElementById("editAddCustomization") as HTMLInputElement | null)?.checked ?? false;
+      const editContainsChoices =
+        editAddCustomization &&
+        ((document.getElementById("editContainsChoices") as HTMLInputElement | null)?.checked ?? false);
+      const editContainsExtras =
+        editAddCustomization &&
+        ((document.getElementById("editContainsExtras") as HTMLInputElement | null)?.checked ?? false);
+
+      const selectedEditChoiceCbs = editContainsChoices
+        ? Array.from(document.querySelectorAll<HTMLInputElement>("#editChoicesContainer .edit-choice-item-checkbox:checked"))
+        : [];
+      const choiceListPayload = selectedEditChoiceCbs
+        .map((cb) => ({ preference_id: Number(cb.dataset.preferenceId) }))
+        .filter((c) => c.preference_id > 0);
+
+      const selectedEditExtraCbs = editContainsExtras
+        ? Array.from(document.querySelectorAll<HTMLInputElement>("#editExtrasContainer .edit-extra-item-checkbox:checked"))
+        : [];
+      const extraListPayload = selectedEditExtraCbs
+        .map((cb) => ({ custom_cat_id: Number(cb.dataset.customCatId) }))
+        .filter((e) => e.custom_cat_id > 0);
+
+      const response = await menuService.editStoreItem({
         Item_Id: editItemId,
         Cate_Id: editCateId,
         Item_Name: newName,
@@ -266,14 +669,43 @@ export default function ItemsPage() {
         barcode: "",
         base64Image: editBase64Image,
         Item_Image: generatedImageName,
+        price: hasVariants ? itemSizes?.[0]?.Price ?? "0" : editPrice,
+        is_size_available: hasVariants ? 1 : 0,
+        FoodItemSizeList: hasVariants ? (itemSizes ?? []) : [],
+        is_choice: editContainsChoices && choiceListPayload.length > 0 ? 1 : (editContainsChoices ? 1 : 0),
+        ChoiceList: choiceListPayload,
+        is_extra: editContainsExtras && extraListPayload.length > 0 ? 1 : (editContainsExtras ? 1 : 0),
+        ExtraList: extraListPayload,
       });
+
+      if (response && response.success === false) {
+        const errorMsg = response.message || "Failed to update item on the server.";
+        if (errorMsg.includes("FK_size_id") || errorMsg.includes("food_deal_item")) {
+          Swal.fire({
+            icon: "warning",
+            title: "Item Linked to Deal",
+            text: "This item's variant is currently used in an active Item Deal. You cannot alter its variant sizes while it is attached to a deal.",
+          });
+        } else {
+          Swal.fire("Error", errorMsg, "error");
+        }
+        return;
+      }
+
       // Refresh items from API so the table shows updated data
       await loadItems();
       // Switch back to list view
       document.getElementById("editItemFormView")?.classList.remove("active-view");
       document.getElementById("mainDirectoryView")?.classList.add("active-view");
-    } catch {
-      alert("Failed to update item. Please try again.");
+      Swal.fire({
+        icon: "success",
+        title: "Updated!",
+        text: "Item updated successfully.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } catch (err: any) {
+      Swal.fire("Error", err?.message || "Failed to update item. Please try again.", "error");
     } finally {
       setUpdatingItem(false);
     }
@@ -288,11 +720,11 @@ export default function ItemsPage() {
       prev.map((c) =>
         c.id === category.id
           ? {
-              ...c,
-              item_list: c.item_list?.map((it: any) =>
-                it.item_Id === itemId ? { ...it, status: newStatus } : it
-              ),
-            }
+            ...c,
+            item_list: c.item_list?.map((it: any) =>
+              it.item_Id === itemId ? { ...it, status: newStatus } : it
+            ),
+          }
           : c
       )
     );
@@ -304,15 +736,15 @@ export default function ItemsPage() {
         prev.map((c) =>
           c.id === category.id
             ? {
-                ...c,
-                item_list: c.item_list?.map((it: any) =>
-                  it.item_Id === itemId ? { ...it, status: currentStatus } : it
-                ),
-              }
+              ...c,
+              item_list: c.item_list?.map((it: any) =>
+                it.item_Id === itemId ? { ...it, status: currentStatus } : it
+              ),
+            }
             : c
         )
       );
-      alert("Failed to update item status.");
+      Swal.fire("Error", "Failed to update item status.", "error");
     } finally {
       setTogglingItemId(null);
     }
@@ -513,7 +945,7 @@ export default function ItemsPage() {
       const file = ucmFileInput?.files?.[0];
       if (!file) return;
       if (file.size > 3 * 1024 * 1024) {
-        alert("File size must be under 3MB.");
+        Swal.fire("Warning", "File size must be under 3MB.", "warning");
         return;
       }
       const reader = new FileReader();
@@ -560,7 +992,7 @@ export default function ItemsPage() {
         !ucmPreviewImg.src ||
         ucmPreviewImg.style.display === "none"
       ) {
-        alert("Please choose an image first.");
+        Swal.fire("Warning", "Please choose an image first.", "warning");
         return;
       }
       if (currentAddImgBtn) {
@@ -615,7 +1047,6 @@ export default function ItemsPage() {
     const mainDirectoryView = document.getElementById("mainDirectoryView");
     const addNewItemFormView = document.getElementById("addNewItemFormView");
     const cancelNewItemFormBtn = document.getElementById("cancelNewItemFormBtn");
-    const submitNewItemFormBtn = document.getElementById("submitNewItemFormBtn");
 
     const headerAddHandler = () => {
       mainDirectoryView?.classList.remove("active-view");
@@ -629,13 +1060,6 @@ export default function ItemsPage() {
       setTimeout(updateScrollbar, 50);
     };
     cancelNewItemFormBtn?.addEventListener("click", cancelNewHandler);
-
-    const submitNewHandler = () => {
-      addNewItemFormView?.classList.remove("active-view");
-      mainDirectoryView?.classList.add("active-view");
-      setTimeout(updateScrollbar, 50);
-    };
-    submitNewItemFormBtn?.addEventListener("click", submitNewHandler);
 
     const segmentedCleanups: Array<() => void> = [];
     function setupSegmentedGroup(activeBtnId: string, deactiveBtnId: string) {
@@ -718,43 +1142,55 @@ export default function ItemsPage() {
       quickEditTableBody.innerHTML = "";
       const allItems = itemsRef.current.flatMap((c) => c.item_list || []);
       const rows = mainItemsTable.querySelectorAll<HTMLElement>("tbody tr");
-      
+
       rows.forEach((row, index) => {
         const itemId = Number(row.dataset.itemId);
-        const item = allItems.find((i: any) => i.item_Id === itemId);
+        const item = allItems.find((i: any) => {
+          const id = i?.item_Id ?? i?.Item_Id ?? i?.item_id ?? i?.id;
+          return String(id) === String(itemId);
+        });
         const itemName = row.querySelector<HTMLElement>(".item-name")?.innerText ?? "";
-        
+
         let sizesHtml = "";
         let inputsHtml = "";
-        
-        if (item && (item.is_size_available === 1 || item.Is_size_available === 1) && ((item.FoodItemSizeList && item.FoodItemSizeList.length > 0) || (item.foodItemSizeList && item.foodItemSizeList.length > 0))) {
-           const sizesList = item.FoodItemSizeList || item.foodItemSizeList;
-           sizesList.forEach((size: any) => {
-              const sName = size.size_name ?? size.Size_Name ?? "Size";
-              const sPrice = size.Net_Price ?? size.net_price ?? size.Net_Prices ?? size.price ?? size.Total_Price ?? 0;
-              sizesHtml += `<div style="margin-bottom: 6px;">${sName}</div>`;
-              inputsHtml += `<input type="number" class="table-input item-price-input" data-is-variant="true" style="margin-bottom: 6px;" value="${sPrice}">`;
-           });
+
+        const sizesList = getItemSizeList(item);
+        const hasSizes = sizesList.length > 0;
+
+        if (hasSizes) {
+          sizesList.forEach((size: any) => {
+            const sName = String(size.size_name ?? size.Size_Name ?? size.Size_name ?? "Size");
+            const rawSizeId = size.Size_Id ?? size.size_id ?? size.sizeId ?? size.id;
+            const matchedVariant = variantsRef.current.find((variant) => {
+              const vId = variant.id ?? (variant as any).Size_Id ?? (variant as any).size_id;
+              return (rawSizeId != null && String(vId) === String(rawSizeId)) ||
+                variant.size_name.trim().toLowerCase() === sName.trim().toLowerCase();
+            });
+            const sizeId = matchedVariant?.id ?? rawSizeId ?? "";
+            const sPrice = getItemSizePrice(size, item?.price ?? item?.Price);
+            sizesHtml += `<div style="margin-bottom: 6px;">${escapeHtml(sName)}</div>`;
+            inputsHtml += `<input type="number" min="0" step="0.01" class="table-input item-price-input" data-is-variant="true" data-size-id="${escapeHtml(String(sizeId))}" style="margin-bottom: 6px;" value="${escapeHtml(String(sPrice))}">`;
+          });
         } else {
-           const priceValue = row.querySelector<HTMLElement>(".item-price")?.innerText.replace(/[^0-9]/g, "") ?? "0";
-           sizesHtml = "No Size Available";
-           inputsHtml = `<input type="number" class="table-input item-price-input" value="${priceValue}">`;
+          const priceValue = row.querySelector<HTMLElement>(".item-price")?.innerText.replace(/[^\d.]/g, "") ?? "0";
+          sizesHtml = "No Size Available";
+          inputsHtml += `<input type="number" min="0" step="0.01" class="table-input item-price-input" value="${escapeHtml(priceValue)}">`;
         }
 
         quickEditTableBody.insertAdjacentHTML(
           "beforeend",
           `
-                <tr>
+                <tr data-item-id="${itemId}" data-cate-id="${row.dataset.cateId ?? ""}">
                     <td>${index + 1}</td>
                     <td class="edit-item-name" style="width: 250px;">
-                        <textarea class="form-input" style="resize: none; height: 40px; margin-bottom: 5px; width: 100%; border-radius: 6px; border: 1px solid darkgray;">${itemName}</textarea>
+                        <textarea class="form-input" style="resize: none; height: 40px; margin-bottom: 5px; width: 100%; border-radius: 6px; border: 1px solid darkgray;">${escapeHtml(itemName)}</textarea>
                         <textarea class="form-input" style="resize: none; height: 50px; width: 100%; border-radius: 6px; border: 1px solid darkgray;" placeholder="Description"></textarea>
                     </td>
                     <td class="edit-item-size" style="vertical-align: top; padding-top: 15px; font-weight: bold;">${sizesHtml}</td>
                     <td style="vertical-align: top; padding-top: 10px;"><div style="display: flex; flex-direction: column;">${inputsHtml}</div></td>
                     <td style="vertical-align: top; padding-top: 10px;">
                         <div style="display: flex; flex-direction: column;">
-                           ${sizesHtml === "No Size Available" ? `<input type="text" class="table-input" value="0" style="margin-bottom:6px;">` : item.FoodItemSizeList?.map((s:any) => `<input type="text" class="table-input" value="${s.Weight ?? 0}" style="margin-bottom:6px;">`).join('') || `<input type="text" class="table-input" value="0">`}
+                           ${sizesHtml === "No Size Available" ? `<input type="text" class="table-input" value="0" style="margin-bottom:6px;">` : item.FoodItemSizeList?.map((s: any) => `<input type="text" class="table-input" value="${s.Weight ?? 0}" style="margin-bottom:6px;">`).join('') || `<input type="text" class="table-input" value="0">`}
                         </div>
                     </td>
                     <td style="vertical-align: top; padding-top: 10px;">
@@ -791,9 +1227,14 @@ export default function ItemsPage() {
     ) as HTMLInputElement | null;
     const editVariantSection = document.getElementById("editVariantSection");
     const editSinglePriceSection = document.getElementById("editSinglePriceSection");
-    
+
     const handleEditVariantToggle = () => {
       if (editContainVariantCheckbox?.checked) {
+        if (variantsRef.current.length === 0) {
+          editContainVariantCheckbox.checked = false;
+          Swal.fire("No variants available", "Create item sizes on the Variants page before adding a variant-priced item.", "info");
+          return;
+        }
         editVariantSection!.style.display = "block";
         editSinglePriceSection!.style.display = "none";
         const rowsContainer = document.getElementById("editVariantRows");
@@ -818,31 +1259,94 @@ export default function ItemsPage() {
     };
     confirmCancelBtn?.addEventListener("click", confirmCancelHandler);
 
-    const confirmYesHandler = () => {
+    const confirmYesHandler = async () => {
       if (!quickEditTableBody || !mainItemsTable) return;
-      
+
       const editRows = quickEditTableBody.querySelectorAll<HTMLElement>("tr");
-      const mainRows = mainItemsTable.querySelectorAll<HTMLElement>("tbody tr");
-      
-      editRows.forEach((editRow, index) => {
-        const inputs = editRow.querySelectorAll<HTMLInputElement>(".item-price-input");
-        const priceCell = mainRows[index]?.querySelector<HTMLElement>(".item-price");
-        if (!priceCell) return;
-        
-        if (inputs.length > 1 || (inputs.length === 1 && inputs[0].dataset.isVariant)) {
-           const priceSpans = priceCell.querySelectorAll<HTMLElement>("div > div > span:nth-child(2)");
-           inputs.forEach((input, i) => {
-              if (priceSpans[i]) {
-                 priceSpans[i].innerText = `Rs.${input.value || 0}`;
-              }
-           });
-        } else if (inputs.length === 1) {
-           priceCell.innerHTML = `<span>Rs.${inputs[0].value || 0}</span>`;
+      const allItems = itemsRef.current.flatMap((category) => category.item_list || []);
+      const payloads: EditStoreItemPayload[] = [];
+
+      for (const editRow of Array.from(editRows)) {
+        const itemId = Number(editRow.dataset.itemId);
+        const item = allItems.find((candidate) => {
+          const id = candidate?.item_Id ?? candidate?.Item_Id ?? candidate?.item_id ?? candidate?.id;
+          return String(id) === String(itemId);
+        });
+        const inputs = Array.from(editRow.querySelectorAll<HTMLInputElement>(".item-price-input"));
+        if (!item || inputs.length === 0) {
+          await Swal.fire("Unable to save prices", "An item or price field is missing. Reload the page and try again.", "error");
+          return;
         }
-      });
-      
-      if (confirmUpdateModal) confirmUpdateModal.style.display = "none";
-      if (quickEditModal) quickEditModal.style.display = "none";
+
+        if (inputs.some((input) => {
+          const value = input.value.trim();
+          return !value || !Number.isFinite(Number(value)) || Number(value) < 0;
+        })) {
+          await Swal.fire("Enter valid prices", "Prices must be zero or greater.", "warning");
+          return;
+        }
+
+        const hasVariants = inputs.some((input) => input.dataset.isVariant === "true");
+        const itemSizes: Array<{ Size_Id: number; Price: string }> = [];
+        if (hasVariants) {
+          for (const input of inputs) {
+            let sizeId = Number(input.dataset.sizeId);
+            if (!Number.isInteger(sizeId) || sizeId <= 0) {
+              const matched = variantsRef.current[0];
+              if (matched) sizeId = Number(matched.id);
+            }
+            if (!Number.isInteger(sizeId) || sizeId <= 0) {
+              await Swal.fire("Unable to save variant prices", "An item size is not linked to a valid variant.", "error");
+              return;
+            }
+            itemSizes.push({ Size_Id: sizeId, Price: input.value.trim() });
+          }
+        }
+
+        payloads.push({
+          Item_Id: itemId,
+          Cate_Id: Number(item.cate_Id ?? item.Cate_Id ?? editRow.dataset.cateId ?? 0),
+          Item_Name: String(item.item_Name ?? item.Item_Name ?? ""),
+          Description: String(item.description ?? item.Description ?? ""),
+          Is_Veg: Number(item.is_veg ?? item.Is_Veg ?? 1),
+          barcode: String(item.barcode ?? ""),
+          base64Image: "",
+          Item_Image: String(item.item_Image ?? item.Item_Image ?? ""),
+          price: hasVariants ? itemSizes[0]?.Price ?? "0" : inputs[0].value.trim(),
+          is_size_available: hasVariants ? 1 : 0,
+          FoodItemSizeList: itemSizes,
+        });
+      }
+
+      if (payloads.length === 0) {
+        await Swal.fire("No items to update", "There are no item prices to save.", "info");
+        return;
+      }
+
+      try {
+        const results = await Promise.allSettled(
+          payloads.map((payload) => menuService.editStoreItem(payload))
+        );
+        const failedCount = results.filter((result) => result.status === "rejected").length;
+        if (failedCount > 0) {
+          await loadItems();
+          await Swal.fire("Prices not fully saved", `${failedCount} item update(s) failed. Successfully saved items have been reloaded.`, "error");
+          return;
+        }
+
+        await loadItems();
+        if (confirmUpdateModal) confirmUpdateModal.style.display = "none";
+        if (quickEditModal) quickEditModal.style.display = "none";
+        await Swal.fire({
+          icon: "success",
+          title: "Prices updated",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      } catch (error) {
+        console.error("Failed to save item prices:", error);
+        await Swal.fire("Error", "Failed to save item prices. Please try again.", "error");
+      }
     };
     confirmYesBtn?.addEventListener("click", confirmYesHandler);
 
@@ -860,20 +1364,38 @@ export default function ItemsPage() {
       if (!editBtn) return;
       currentEditRow = editBtn.closest("tr");
       if (!currentEditRow) return;
-      const itemName =
-        currentEditRow.querySelector<HTMLElement>(".item-name")?.innerText ?? "";
-      const priceValue =
-        currentEditRow
-          .querySelector<HTMLElement>(".item-price")
-          ?.innerText.replace(/[^0-9]/g, "") ?? "";
-      const isActive =
-        currentEditRow.querySelector<HTMLInputElement>(".switch input")
-          ?.checked ?? false;
 
       // Capture data attributes for React state
       const itemId = Number(currentEditRow.dataset.itemId ?? "0");
       const cateId = Number(currentEditRow.dataset.cateId ?? "0");
       const itemImage = currentEditRow.dataset.itemImage ?? "";
+
+      const itemToEdit = itemsRef.current
+        .flatMap((c) => c.item_list || [])
+        .find((i: any) => {
+          const id = i?.item_Id ?? i?.Item_Id ?? i?.item_id ?? i?.id;
+          return String(id) === String(itemId);
+        });
+
+      const rawItemName = String(
+        itemToEdit?.item_Name ?? itemToEdit?.Item_Name ?? ""
+      ).replace(/Choices\s*\(\d+\)|Extras\s*\(\d+\)/gi, "").trim();
+
+      const itemName =
+        rawItemName ||
+        (currentEditRow.querySelector<HTMLElement>(".item-name-text")?.innerText ||
+          currentEditRow.querySelector<HTMLElement>(".item-name")?.innerText || "").trim();
+
+      const itemDesc = String(itemToEdit?.description ?? itemToEdit?.Description ?? "");
+
+      const priceValue =
+        currentEditRow
+          .querySelector<HTMLElement>(".item-price")
+          ?.innerText.replace(/[^\d.]/g, "") ?? "";
+      const isActive =
+        currentEditRow.querySelector<HTMLInputElement>(".switch input")
+          ?.checked ?? false;
+
       setEditItemId(itemId);
       setEditCateId(cateId);
       setEditItemImage(itemImage);
@@ -890,7 +1412,7 @@ export default function ItemsPage() {
       ) as HTMLTextAreaElement | null;
       if (editItemNameInput) editItemNameInput.value = itemName;
       if (editItemPriceInput) editItemPriceInput.value = priceValue;
-      if (editItemDescInput) editItemDescInput.value = "";
+      if (editItemDescInput) editItemDescInput.value = itemDesc;
       const activeBtn = document.getElementById("editStatusActiveBtn");
       const deactiveBtn = document.getElementById("editStatusDeactiveBtn");
       if (isActive) {
@@ -910,61 +1432,172 @@ export default function ItemsPage() {
         else
           editThumb.innerHTML = `<i class="fa-solid fa-concierge-bell" style="font-size:32px;"></i><span style="font-size:9px;">No Image</span>`;
       }
-      
-      // Populate Categories dynamically
+
+      // Populate Categories dynamically (use ref to avoid stale closure)
       const editCategoryInput = document.getElementById("editCategoryInput") as HTMLSelectElement | null;
       if (editCategoryInput) {
         editCategoryInput.innerHTML = '<option value="">Select Category</option>';
-        categories.forEach(cat => {
+        categoriesRef.current.forEach(cat => {
           const option = document.createElement("option");
           option.value = String(cat.id);
           option.textContent = cat.cate_name;
-          if (cat.id === cateId) {
+          if (String(cat.id) === String(cateId)) {
             option.selected = true;
           }
           editCategoryInput.appendChild(option);
         });
+        if (cateId) {
+          editCategoryInput.value = String(cateId);
+        }
       }
 
       // Populate Sizes dynamically if they exist
-      const itemToEdit = itemsRef.current.flatMap((c) => c.item_list || []).find((i: any) => i.item_Id === itemId);
-      const sizesList = itemToEdit?.FoodItemSizeList || itemToEdit?.foodItemSizeList || [];
-      const isSizeAvailable = itemToEdit?.is_size_available === 1 || itemToEdit?.Is_size_available === 1;
-      
+      const sizesList = getItemSizeList(itemToEdit);
+      const isSizeAvailable = sizesList.length > 0 || Number(itemToEdit?.is_size_available) === 1;
+
       const editContainVariantCheckbox = document.getElementById("editContainVariantCheckbox") as HTMLInputElement | null;
       const editVariantRowsContainer = document.getElementById("editVariantRows");
-      
+      const editVariantSection = document.getElementById("editVariantSection");
+      const editSinglePriceSection = document.getElementById("editSinglePriceSection");
+
       if (editContainVariantCheckbox && editVariantRowsContainer) {
-        const editSinglePriceSection = document.getElementById("editSinglePriceSection");
         if (isSizeAvailable && sizesList.length > 0) {
           editContainVariantCheckbox.checked = true;
           if (editVariantSection) editVariantSection.style.display = "block";
           if (editSinglePriceSection) editSinglePriceSection.style.display = "none";
-          
-          editVariantRowsContainer.innerHTML = sizesList.map((size: any) => `
-            <div class="variant-row" style="display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 15px; align-items: center; margin-bottom: 15px;">
+
+          editVariantRowsContainer.innerHTML = sizesList.map((size: any) => {
+            const sizeName = String(size.size_name ?? size.Size_Name ?? size.Size_name ?? size.name ?? "");
+            const rawSizeId = size.size_id ?? size.Size_Id ?? size.sizeId ?? size.id;
+            const matchedVariant = variantsRef.current.find(
+              (variant) => {
+                const vId = variant.id ?? (variant as any).Size_Id ?? (variant as any).size_id;
+                return (rawSizeId != null && String(vId) === String(rawSizeId)) ||
+                  variant.size_name.trim().toLowerCase() === sizeName.trim().toLowerCase();
+              }
+            );
+            const selectedSizeId = matchedVariant?.id ?? rawSizeId ?? "";
+            const price = getItemSizePrice(size, itemToEdit?.price ?? itemToEdit?.Price);
+            let hasSelectedOption = false;
+            let variantOptions = variantsRef.current.map((variant) => {
+              const vId = variant.id ?? (variant as any).Size_Id ?? (variant as any).size_id;
+              const isSelected = String(vId) === String(selectedSizeId);
+              if (isSelected) hasSelectedOption = true;
+              return `
+              <option value="${vId}" ${isSelected ? "selected" : ""}>${escapeHtml(variant.size_name)}</option>
+            `;
+            }).join("");
+
+            if (!hasSelectedOption && (selectedSizeId || sizeName)) {
+              variantOptions = `<option value="${selectedSizeId || ""}" selected>${escapeHtml(sizeName || "Size")}</option>` + variantOptions;
+            }
+
+            return `
+            <div class="variant-row">
               <div>
                 <label>Price</label>
                 <div class="price-input-wrapper">
                   <span class="price-prefix-badge">Rs.</span>
-                  <input type="text" class="form-input variant-price" value="${size.Net_Price ?? size.net_price ?? size.price ?? 0}" />
+                  <input type="number" class="form-input variant-price" min="0" step="0.01" value="${escapeHtml(String(price))}" />
                 </div>
               </div>
               <div>
                 <label>Item Variant</label>
-                <input type="text" class="form-input variant-select" value="${size.size_name ?? size.Size_Name ?? ""}" />
+                <select class="form-input variant-select" required>
+                  <option value="">Select item size</option>
+                  ${variantOptions}
+                </select>
               </div>
-              <button type="button" class="circle-action-btn add-variant-btn" style="margin-top: 25px;"><i class="fa-solid fa-plus"></i></button>
-              <button type="button" class="circle-action-btn delete-variant-btn" style="margin-top: 25px; background: #222; color: #fff;"><i class="fa-solid fa-trash"></i></button>
+              <button type="button" class="circle-action-btn add-variant-btn" aria-label="Add variant"><i class="fa-solid fa-plus"></i></button>
+              <button type="button" class="circle-action-btn delete-variant-btn" aria-label="Remove variant"><i class="fa-solid fa-trash"></i></button>
             </div>
-          `).join("");
+          `;
+          }).join("");
         } else {
           editContainVariantCheckbox.checked = false;
           if (editVariantSection) editVariantSection.style.display = "none";
           if (editSinglePriceSection) editSinglePriceSection.style.display = "block";
-          editVariantRowsContainer.innerHTML = ""; // Or add a default blank row like in Add Item
+          editVariantRowsContainer.innerHTML = "";
         }
       }
+
+      // Prefill Customizations (Choices & Extras)
+      const editAddCustomization = document.getElementById("editAddCustomization") as HTMLInputElement | null;
+      const editCustomizationSection = document.getElementById("editCustomizationSection");
+      const editContainsChoices = document.getElementById("editContainsChoices") as HTMLInputElement | null;
+      const editChoicesContainer = document.getElementById("editChoicesContainer");
+      const editContainsExtras = document.getElementById("editContainsExtras") as HTMLInputElement | null;
+      const editExtrasContainer = document.getElementById("editExtrasContainer");
+
+      const itemChoicesList = (
+        itemToEdit?.foodItemChoicesList ??
+        itemToEdit?.FoodItemChoicesList ??
+        itemToEdit?.ChoiceList ??
+        itemToEdit?.choice_list ??
+        itemToEdit?.Choice_List ??
+        []
+      ) as any[];
+
+      const itemExtrasList = (
+        itemToEdit?.foodItemExtraList ??
+        itemToEdit?.FoodItemExtraList ??
+        itemToEdit?.ExtraList ??
+        itemToEdit?.extra_list ??
+        itemToEdit?.Extra_List ??
+        itemToEdit?.extraCategoryList ??
+        []
+      ) as any[];
+
+      const attachedChoiceIds = new Set<number>();
+      itemChoicesList.forEach((c: any) => {
+        const pid = Number(c?.preference_id ?? c?.Preference_Id ?? c?.id ?? 0);
+        if (pid > 0) attachedChoiceIds.add(pid);
+      });
+
+      const attachedExtraIds = new Set<number>();
+      itemExtrasList.forEach((e: any) => {
+        const cid = Number(e?.custom_cat_id ?? e?.Custom_Cat_Id ?? e?.id ?? 0);
+        if (cid > 0) attachedExtraIds.add(cid);
+      });
+
+      const hasChoices =
+        Number(itemToEdit?.is_choice) === 1 ||
+        Number(itemToEdit?.is_Preference) === 1 ||
+        attachedChoiceIds.size > 0;
+
+      const hasExtras =
+        Number(itemToEdit?.is_extra) === 1 ||
+        Number(itemToEdit?.is_Custom) === 1 ||
+        attachedExtraIds.size > 0;
+
+      const hasCustomization = hasChoices || hasExtras;
+
+      if (editAddCustomization && editCustomizationSection) {
+        editAddCustomization.checked = hasCustomization;
+        editCustomizationSection.style.display = hasCustomization ? "block" : "none";
+      }
+
+      if (editContainsChoices) {
+        editContainsChoices.checked = hasChoices;
+      }
+      if (editChoicesContainer) {
+        editChoicesContainer.style.display = hasChoices ? "block" : "none";
+      }
+      document.querySelectorAll<HTMLInputElement>("#editChoicesContainer .edit-choice-item-checkbox").forEach((cb) => {
+        const pid = Number(cb.dataset.preferenceId);
+        cb.checked = attachedChoiceIds.has(pid);
+      });
+
+      if (editContainsExtras) {
+        editContainsExtras.checked = hasExtras;
+      }
+      if (editExtrasContainer) {
+        editExtrasContainer.style.display = hasExtras ? "block" : "none";
+      }
+      document.querySelectorAll<HTMLInputElement>("#editExtrasContainer .edit-extra-item-checkbox").forEach((cb) => {
+        const cid = Number(cb.dataset.customCatId);
+        cb.checked = attachedExtraIds.has(cid);
+      });
 
       mainDirectoryView?.classList.remove("active-view");
       addNewItemFormView?.classList.remove("active-view");
@@ -1010,6 +1643,11 @@ export default function ItemsPage() {
 
     const handleVariantToggle = () => {
       if (containVariantCheckbox?.checked) {
+        if (variantsRef.current.length === 0) {
+          containVariantCheckbox.checked = false;
+          Swal.fire("No variants available", "Create item sizes on the Variants page before adding a variant-priced item.", "info");
+          return;
+        }
         singlePriceSection!.style.display = "none";
         variantSection!.style.display = "block";
         const rowsContainer = document.getElementById("variantRows");
@@ -1026,39 +1664,37 @@ export default function ItemsPage() {
       const container = document.getElementById(containerId);
       if (!container) return;
 
+      const options = variantsRef.current
+        .map((variant) => {
+          const vId = variant.id ?? (variant as any).Size_Id ?? (variant as any).size_id;
+          return `<option value="${vId}">${escapeHtml(variant.size_name)}</option>`;
+        })
+        .join("");
       const row = document.createElement("div");
 
       row.className = "variant-row";
-
-      row.style.display = "grid";
-      row.style.gridTemplateColumns = "1fr 1fr auto auto";
-      row.style.gap = "15px";
-      row.style.alignItems = "center";
-      row.style.marginBottom = "15px";
 
       row.innerHTML = `
           <div>
             <label>Price</label>
             <div class="price-input-wrapper">
               <span class="price-prefix-badge">Rs.</span>
-              <input type="text" class="form-input variant-price" />
+              <input type="number" class="form-input variant-price" min="0" step="0.01" required />
             </div>
           </div>
 
           <div>
             <label>Item Variant</label>
-            <select class="form-input variant-select">
-              <option value="">Select Item Size</option>
-              <option value="Small">Small</option>
-              <option value="Medium">Medium</option>
-              <option value="Large">Large</option>
-              <option value="Regular">Regular</option>
+            <select class="form-input variant-select" required>
+              <option value="">Select item size</option>
+              ${options}
             </select>
           </div>
 
           <button
             type="button"
             class="circle-action-btn add-variant-btn"
+            aria-label="Add variant"
           >
             <i class="fa-solid fa-plus"></i>
           </button>
@@ -1066,7 +1702,7 @@ export default function ItemsPage() {
           <button
             type="button"
             class="circle-action-btn delete-variant-btn"
-            style="background:#222;color:#fff;"
+            aria-label="Remove variant"
           >
             <i class="fa-solid fa-trash"></i>
           </button>
@@ -1113,22 +1749,33 @@ export default function ItemsPage() {
       .getElementById("addVariantBtn")
       ?.addEventListener("click", () => addVariantRow());
 
-
-
     // ===== CUSTOMIZATION =====
     const addCustomizationCheckbox =
       document.getElementById(
         "addCustomizationCheckbox"
       ) as HTMLInputElement | null;
-
     const customizationSection =
       document.getElementById("customizationSection");
+    const containsChoices = document.getElementById("containsChoices") as HTMLInputElement | null;
+    const choicesContainer = document.getElementById("choicesContainer");
+    const containsExtras = document.getElementById("containsExtras") as HTMLInputElement | null;
+    const extrasContainer = document.getElementById("extrasContainer");
 
     const handleCustomizationToggle = () => {
-      if (addCustomizationCheckbox?.checked) {
-        customizationSection!.style.display = "block";
-      } else {
-        customizationSection!.style.display = "none";
+      if (customizationSection) {
+        customizationSection.style.display = addCustomizationCheckbox?.checked ? "block" : "none";
+      }
+    };
+
+    const handleChoicesToggle = () => {
+      if (choicesContainer) {
+        choicesContainer.style.display = containsChoices?.checked ? "block" : "none";
+      }
+    };
+
+    const handleExtrasToggle = () => {
+      if (extrasContainer) {
+        extrasContainer.style.display = containsExtras?.checked ? "block" : "none";
       }
     };
 
@@ -1136,6 +1783,40 @@ export default function ItemsPage() {
       "change",
       handleCustomizationToggle
     );
+    containsChoices?.addEventListener("change", handleChoicesToggle);
+    containsExtras?.addEventListener("change", handleExtrasToggle);
+
+    // Edit Customization
+    const editAddCustomization =
+      document.getElementById("editAddCustomization") as HTMLInputElement | null;
+    const editCustomizationSection =
+      document.getElementById("editCustomizationSection");
+    const editContainsChoices = document.getElementById("editContainsChoices") as HTMLInputElement | null;
+    const editChoicesContainer = document.getElementById("editChoicesContainer");
+    const editContainsExtras = document.getElementById("editContainsExtras") as HTMLInputElement | null;
+    const editExtrasContainer = document.getElementById("editExtrasContainer");
+
+    const handleEditCustomizationToggle = () => {
+      if (editCustomizationSection) {
+        editCustomizationSection.style.display = editAddCustomization?.checked ? "block" : "none";
+      }
+    };
+
+    const handleEditChoicesToggle = () => {
+      if (editChoicesContainer) {
+        editChoicesContainer.style.display = editContainsChoices?.checked ? "block" : "none";
+      }
+    };
+
+    const handleEditExtrasToggle = () => {
+      if (editExtrasContainer) {
+        editExtrasContainer.style.display = editContainsExtras?.checked ? "block" : "none";
+      }
+    };
+
+    editAddCustomization?.addEventListener("change", handleEditCustomizationToggle);
+    editContainsChoices?.addEventListener("change", handleEditChoicesToggle);
+    editContainsExtras?.addEventListener("change", handleEditExtrasToggle);
 
     // ===== SEARCH & FILTER =====
     const searchInput = document.getElementById(
@@ -1199,6 +1880,11 @@ export default function ItemsPage() {
         "change",
         handleCustomizationToggle
       );
+      containsChoices?.removeEventListener("change", handleChoicesToggle);
+      containsExtras?.removeEventListener("change", handleExtrasToggle);
+      editAddCustomization?.removeEventListener("change", handleEditCustomizationToggle);
+      editContainsChoices?.removeEventListener("change", handleEditChoicesToggle);
+      editContainsExtras?.removeEventListener("change", handleEditExtrasToggle);
 
       thumb?.removeEventListener("mousedown", thumbMouseDown);
       document.removeEventListener("mousemove", docMouseMove);
@@ -1219,7 +1905,6 @@ export default function ItemsPage() {
       clearTimeout(scrollbarTimeout);
       headerAddNewItemBtn?.removeEventListener("click", headerAddHandler);
       cancelNewItemFormBtn?.removeEventListener("click", cancelNewHandler);
-      submitNewItemFormBtn?.removeEventListener("click", submitNewHandler);
       segmentedCleanups.forEach((fn) => fn());
       document.removeEventListener("click", closeDropdownsHandler);
       openQuickEditBtn?.removeEventListener("click", openQuickEditHandler);
@@ -1488,130 +2173,164 @@ export default function ItemsPage() {
                     </tbody> */}
                     <tbody>
                       {(() => {
-                        const filteredCategories = filterCategoryId === "all" 
-                          ? items 
+                        const filteredCategories = filterCategoryId === "all"
+                          ? items
                           : items.filter(c => String(c.id) === filterCategoryId);
 
                         const allItems = filteredCategories.flatMap((category) =>
                           (category.item_list || []).map((item: any) => ({ ...item, _category: category }))
                         );
-                        
+
                         const pageStart = (page - 1) * pageSize;
                         const visibleItems = allItems.slice(pageStart, pageStart + pageSize);
-                        
+
                         return visibleItems.map((item: any) => {
                           const category = item._category;
                           return (
-                          <tr
-                            key={item.item_Id}
-                            data-item-id={item.item_Id}
-                            data-cate-id={category.id}
-                            data-item-image={getImageUrl(item.item_Image ?? item.Item_Image)}
-                            data-category={String(category.id)}
-                            draggable={true}
-                            onDragStart={(e) => handleDragStart(e, item.item_Id)}
-                            onDragOver={handleDragOver}
-                            onDrop={(e) => handleDrop(e, item.item_Id)}
-                            onDragEnd={() => setDraggedItemId(null)}
-                            style={{
-                              opacity: draggedItemId === item.item_Id ? 0.4 : 1,
-                              cursor: "default",
-                              transition: "opacity 0.2s ease",
-                            }}
-                          >
-                            <td>
-                              <div className="drag-handle" style={{ cursor: "grab" }} title="Drag to reorder position">
-                                <i className="fa-solid fa-bars"></i>
-                              </div>
-                            </td>
-                            <td className="item-name">{item.item_Name ?? item.Item_Name}</td>
-                            <td className="item-price">
-                              {(() => {
-                                const isSizeAvailable = item.is_size_available === 1 || item.Is_size_available === 1 || item.is_size_available === true || item.Is_size_available === true;
-                                const sizeList = item.FoodItemSizeList || item.foodItemSizeList || item.fooditemSizeList || [];
-                                
-                                if (isSizeAvailable && sizeList.length > 0) {
+                            <tr
+                              key={item.item_Id}
+                              data-item-id={item.item_Id}
+                              data-cate-id={category.id}
+                              data-item-image={getImageUrl(item.item_Image ?? item.Item_Image)}
+                              data-category={String(category.id)}
+                              draggable={true}
+                              onDragStart={(e) => handleDragStart(e, item.item_Id)}
+                              onDragOver={handleDragOver}
+                              onDrop={(e) => handleDrop(e, item.item_Id)}
+                              onDragEnd={() => setDraggedItemId(null)}
+                              style={{
+                                opacity: draggedItemId === item.item_Id ? 0.4 : 1,
+                                cursor: "default",
+                                transition: "opacity 0.2s ease",
+                              }}
+                            >
+                              <td>
+                                <div className="drag-handle" style={{ cursor: "grab" }} title="Drag to reorder position">
+                                  <i className="fa-solid fa-bars"></i>
+                                </div>
+                              </td>
+                              <td className="item-name">
+                                <span className="item-name-text" style={{ fontWeight: 600 }}>
+                                  {String(item.item_Name ?? item.Item_Name ?? "").replace(/Choices\s*\(\d+\)|Extras\s*\(\d+\)/gi, "").trim()}
+                                </span>
+                                {(() => {
+                                  const rawChoiceList = (item.foodItemChoicesList ?? item.FoodItemChoicesList ?? item.ChoiceList ?? []) as any[];
+                                  const rawExtraList = (item.foodItemExtraList ?? item.FoodItemExtraList ?? item.ExtraList ?? []) as any[];
+                                  const hasChoices = Number(item.is_choice) === 1 || rawChoiceList.length > 0;
+                                  const hasExtras = Number(item.is_extra) === 1 || rawExtraList.length > 0;
+                                  if (!hasChoices && !hasExtras) return null;
                                   return (
-                                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "120px" }}>
-                                      {sizeList.map((size: any, idx: number) => (
-                                        <div key={idx} style={{ display: "flex", justifyContent: "space-between", background: "#f8f9fa", padding: "4px 8px", borderRadius: "4px", fontSize: "13px" }}>
-                                          <span style={{ fontWeight: 500 }}>{size.size_name ?? size.Size_Name ?? size.Size_name ?? "Size"}</span>
-                                          <span>Rs.{size.Net_Price ?? size.net_price ?? size.Net_Prices ?? size.price ?? size.Total_Price ?? 0}</span>
-                                        </div>
-                                      ))}
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "4px" }}>
+                                      {hasChoices && (
+                                        <span style={{ fontSize: "10px", padding: "1px 6px", background: "#e0f2fe", color: "#0369a1", borderRadius: "4px", fontWeight: 500 }}>
+                                          Choices {rawChoiceList.length > 0 ? `(${rawChoiceList.length})` : ""}
+                                        </span>
+                                      )}
+                                      {hasExtras && (
+                                        <span style={{ fontSize: "10px", padding: "1px 6px", background: "#fef3c7", color: "#92400e", borderRadius: "4px", fontWeight: 500 }}>
+                                          Extras {rawExtraList.length > 0 ? `(${rawExtraList.length})` : ""}
+                                        </span>
+                                      )}
                                     </div>
                                   );
-                                }
-                                
-                                return <span>Rs.{item.price ?? item.Price ?? item.net_price ?? item.Net_Price ?? 0}</span>;
-                              })()}
-                            </td>
+                                })()}
+                              </td>
+                              <td className="item-price">
+                                {(() => {
+                                  const sizeList = getItemSizeList(item);
+                                  const itemFallbackPrice = item.price ?? item.Price ?? item.net_price ?? item.Net_Price ?? 0;
 
-                            <td>
-                              <div className="placeholder-img">
-                                {(item.item_Image || item.Item_Image) ? (
-                                  <img
-                                    src={getImageUrl(item.item_Image ?? item.Item_Image)}
-                                    style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 4 }}
-                                    alt={item.item_Name ?? item.Item_Name ?? "Item"}
-                                    onError={(e) => {
-                                      const target = e.target as HTMLImageElement;
-                                      target.style.display = "none";
-                                      if (target.nextElementSibling) {
-                                        (target.nextElementSibling as HTMLElement).style.display = "flex";
-                                      }
-                                    }}
-                                  />
-                                ) : null}
-                                <div style={{ display: (item.item_Image || item.Item_Image) ? "none" : "flex", flexDirection: "column", alignItems: "center" }}>
-                                  <i className="fa-solid fa-concierge-bell"></i>
-                                  <span>No Image</span>
+                                  if (sizeList.length > 0) {
+                                    return (
+                                      <div className="item-variant-price-list">
+                                        {sizeList.map((size, idx: number) => (
+                                          <div key={idx} style={{ display: "flex", justifyContent: "space-between", background: "#f8f9fa", padding: "4px 8px", borderRadius: "4px", fontSize: "13px" }}>
+                                            <span style={{ fontWeight: 500 }}>{String(size.size_name ?? size.Size_Name ?? size.Size_name ?? size.name ?? "Size")}</span>
+                                            <span>Rs.{String(getItemSizePrice(size, itemFallbackPrice))}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    );
+                                  }
+
+                                  return <span>Rs.{itemFallbackPrice}</span>;
+                                })()}
+                              </td>
+
+                              <td>
+                                <div className="placeholder-img">
+                                  {(item.item_Image || item.Item_Image || item.image || item.item_image) ? (
+                                    <img
+                                      src={getImageUrl(item.item_Image ?? item.Item_Image ?? item.image ?? item.item_image)}
+                                      style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 4 }}
+                                      alt={item.item_Name ?? item.Item_Name ?? "Item"}
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        const rawImg = item.item_Image ?? item.Item_Image ?? item.image ?? item.item_image;
+                                        const cleanName = String(rawImg || "")
+                                          .replace(/^https?:\/\/[^\/]+\/(FoodItemImages\/)?/, "")
+                                          .replace(/^\//, "");
+
+                                        if (target.src.includes("admin.foodchow.com") && cleanName) {
+                                          target.src = `https://www.foodchow.com/FoodItemImages/${cleanName}`;
+                                          return;
+                                        }
+                                        target.style.display = "none";
+                                        if (target.nextElementSibling) {
+                                          (target.nextElementSibling as HTMLElement).style.display = "flex";
+                                        }
+                                      }}
+                                    />
+                                  ) : null}
+                                  <div style={{ display: (item.item_Image || item.Item_Image || item.image || item.item_image) ? "none" : "flex", flexDirection: "column", alignItems: "center" }}>
+                                    <i className="fa-solid fa-concierge-bell"></i>
+                                    <span>No Image</span>
+                                  </div>
                                 </div>
-                              </div>
-                            </td>
+                              </td>
 
-                            <td>
-                              <button className="circle-action-btn btn-add-img">
-                                <i className="fa-solid fa-plus"></i>
-                              </button>
-                            </td>
-
-                            <td>
-                              <div className="action-cell">
-                                <button className="circle-action-btn btn-edit" title="Edit Item">
-                                  <i className="fa-regular fa-pen-to-square"></i>
+                              <td>
+                                <button className="circle-action-btn btn-add-img">
+                                  <i className="fa-solid fa-plus"></i>
                                 </button>
-                                <button
-                                  className="circle-action-btn btn-delete"
-                                  title="Delete Item"
-                                  onClick={() => handleDelete(item.item_Id)}
+                              </td>
+
+                              <td>
+                                <div className="action-cell">
+                                  <button className="circle-action-btn btn-edit" title="Edit Item">
+                                    <i className="fa-regular fa-pen-to-square"></i>
+                                  </button>
+                                  <button
+                                    className="circle-action-btn btn-delete"
+                                    title="Delete Item"
+                                    onClick={() => handleDelete(Number(item.item_Id ?? item.Item_Id ?? item.item_id ?? item.id))}
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="3 6 5 6 21 6" />
+                                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                                      <path d="M10 11v6" />
+                                      <path d="M14 11v6" />
+                                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </td>
+
+                              <td>
+                                <label
+                                  className="switch"
+                                  title={item.status === 1 ? "DeActivate Item" : "Activate Item"}
                                 >
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <polyline points="3 6 5 6 21 6" />
-                                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                                    <path d="M10 11v6" />
-                                    <path d="M14 11v6" />
-                                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </td>
-
-                            <td>
-                              <label
-                                className="switch"
-                                title={item.status === 1 ? "DeActivate Item" : "Activate Item"}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={item.status === 1}
-                                  disabled={togglingItemId === item.item_Id}
-                                  onChange={() => handleToggleItem(item.item_Id, item.status, category)}
-                                />
-                                <span className="slider"></span>
-                              </label>
-                            </td>
-                          </tr>
+                                  <input
+                                    type="checkbox"
+                                    checked={item.status === 1}
+                                    disabled={togglingItemId === item.item_Id}
+                                    onChange={() => handleToggleItem(item.item_Id, item.status, category)}
+                                  />
+                                  <span className="slider"></span>
+                                </label>
+                              </td>
+                            </tr>
                           );
                         });
                       })()}
@@ -1622,14 +2341,14 @@ export default function ItemsPage() {
                 <div className="table-footer" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", minHeight: "50px", width: "100%" }}>
                   <div id="showingEntriesText" style={{ width: "100%" }}>
                     {(() => {
-                      const filteredCategories = filterCategoryId === "all" 
-                        ? items 
+                      const filteredCategories = filterCategoryId === "all"
+                        ? items
                         : items.filter(c => String(c.id) === filterCategoryId);
 
                       const allItems = filteredCategories.flatMap((c) => c.item_list || []);
                       const totalItems = allItems.length;
                       const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-                      
+
                       return (
                         <ReportPagination
                           currentPage={page}
@@ -1758,32 +2477,22 @@ export default function ItemsPage() {
                   >
                     <div id="variantRows">
 
-                      <div
-                        className="variant-row"
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "1fr 1fr auto auto",
-                          gap: "15px",
-                          alignItems: "center",
-                          marginBottom: "15px",
-                        }}
-                      >
+                      <div className="variant-row">
                         <div>
                           <label>Price</label>
                           <div className="price-input-wrapper">
                             <span className="price-prefix-badge">Rs.</span>
-                            <input type="text" className="form-input variant-price" />
+                            <input type="number" className="form-input variant-price" min="0" step="0.01" required />
                           </div>
                         </div>
 
                         <div>
                           <label>Item Variant</label>
-                          <select className="form-input variant-select">
-                            <option value="">Select Item Size</option>
-                            <option value="Small">Small</option>
-                            <option value="Medium">Medium</option>
-                            <option value="Large">Large</option>
-                            <option value="Regular">Regular</option>
+                          <select className="form-input variant-select" required>
+                            <option value="">Select item size</option>
+                            {variants.map((variant) => (
+                              <option key={variant.id} value={variant.id}>{variant.size_name}</option>
+                            ))}
                           </select>
                         </div>
 
@@ -1880,31 +2589,193 @@ export default function ItemsPage() {
                 >
                   <label
                     className="checkbox-container-label"
-                    style={{ marginBottom: "12px" }}
+                    style={{ marginBottom: "8px", fontWeight: 600 }}
                   >
                     <input type="checkbox" id="containsChoices" />
                     Do this Item contains Choices?
                   </label>
+                  <div
+                    id="choicesContainer"
+                    style={{
+                      display: "none",
+                      marginBottom: "16px",
+                      padding: "12px",
+                      background: "#f8fafc",
+                      borderRadius: "8px",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    <div style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>
+                      Select Choices
+                    </div>
+                    {choices.length > 0 ? (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "10px" }}>
+                        {choices.map((choice) => (
+                          <div
+                            key={choice.preference_id}
+                            style={{
+                              padding: "10px",
+                              background: "#ffffff",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: "6px",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "6px",
+                            }}
+                          >
+                            <label
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                cursor: "pointer",
+                                margin: 0,
+                                fontSize: "13px",
+                                fontWeight: 600,
+                                color: "#1e293b",
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                className="choice-item-checkbox"
+                                data-preference-id={choice.preference_id}
+                                id={`choice-${choice.preference_id}`}
+                                style={{ width: "16px", height: "16px", accentColor: "var(--primary-teal)", cursor: "pointer" }}
+                              />
+                              <span>{choice.preference_name}</span>
+                              {choice.is_mandatory === 1 && (
+                                <span style={{ fontSize: "10px", padding: "1px 5px", background: "#fee2e2", color: "#dc2626", borderRadius: "8px", fontWeight: 500 }}>
+                                  Required
+                                </span>
+                              )}
+                            </label>
+                            {choice.choice_options_list && choice.choice_options_list.length > 0 && (
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", paddingLeft: "24px" }}>
+                                {choice.choice_options_list.map((opt) => (
+                                  <span
+                                    key={opt.preference_option_id}
+                                    style={{
+                                      fontSize: "11px",
+                                      padding: "2px 7px",
+                                      background: "#f1f5f9",
+                                      color: "#475569",
+                                      borderRadius: "10px",
+                                      border: "1px solid #e2e8f0",
+                                    }}
+                                  >
+                                    {opt.option_name}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: "12px", color: "#888", fontStyle: "italic" }}>
+                        No choices configured for this shop.
+                      </div>
+                    )}
+                  </div>
 
-                  <label className="checkbox-container-label">
+                  <label
+                    className="checkbox-container-label"
+                    style={{ marginBottom: "8px", fontWeight: 600 }}
+                  >
                     <input type="checkbox" id="containsExtras" />
                     Do this Item contains Extras?
                   </label>
+                  <div
+                    id="extrasContainer"
+                    style={{
+                      display: "none",
+                      marginBottom: "8px",
+                      padding: "12px",
+                      background: "#f8fafc",
+                      borderRadius: "8px",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    <div style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>
+                      Select Extras
+                    </div>
+                    {extras.length > 0 ? (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "10px" }}>
+                        {extras.map((extra) => (
+                          <div
+                            key={extra.custom_cat_id}
+                            style={{
+                              padding: "10px",
+                              background: "#ffffff",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: "6px",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "6px",
+                            }}
+                          >
+                            <label
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                cursor: "pointer",
+                                margin: 0,
+                                fontSize: "13px",
+                                fontWeight: 600,
+                                color: "#1e293b",
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                className="extra-item-checkbox"
+                                data-custom-cat-id={extra.custom_cat_id}
+                                id={`extra-${extra.custom_cat_id}`}
+                                style={{ width: "16px", height: "16px", accentColor: "var(--primary-teal)", cursor: "pointer" }}
+                              />
+                              <span>{extra.custom_cat_name}</span>
+                            </label>
+                            {extra.extraCategoryOptionList && extra.extraCategoryOptionList.length > 0 && (
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", paddingLeft: "24px" }}>
+                                {extra.extraCategoryOptionList.map((opt) => (
+                                  <span
+                                    key={opt.ingredient_id}
+                                    style={{
+                                      fontSize: "11px",
+                                      padding: "2px 7px",
+                                      background: "#ecfdf5",
+                                      color: "#065f46",
+                                      borderRadius: "10px",
+                                      border: "1px solid #a7f3d0",
+                                    }}
+                                  >
+                                    {opt.ingredient_name}
+                                    {opt.price > 0 ? ` (Rs.${opt.price})` : ""}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: "12px", color: "#888", fontStyle: "italic" }}>
+                        No extras configured for this shop.
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <h3>Menu List : *</h3>
-                <label className="checkbox-option-item">
-                  <input type="checkbox" /> Breakfast
-                </label>
-                <label className="checkbox-option-item">
-                  <input type="checkbox" /> Dinnermenu
-                </label>
-                <label className="checkbox-option-item">
-                  <input type="checkbox" /> Lunch Menu
-                </label>
-                <label className="checkbox-option-item">
-                  <input type="checkbox" /> Extra
-                </label>
+                {menuTypes.length > 0 ? (
+                  menuTypes.map((mt) => (
+                    <label key={mt.id} className="checkbox-option-item">
+                      <input type="checkbox" value={mt.id} defaultChecked /> {mt.menu_name}
+                    </label>
+                  ))
+                ) : (
+                  <span style={{ fontSize: "13px", color: "#888" }}>Main Menu</span>
+                )}
               </div>
               <div className="action-footer-row">
                 {/* <button className="btn btn-form-add" id="submitNewItemFormBtn">
@@ -2031,19 +2902,204 @@ export default function ItemsPage() {
                 <label className="checkbox-container-label" style={{ marginBottom: "5px" }}>
                   <input type="checkbox" id="editAddCustomization" /> Add More Customization
                 </label>
+                <div
+                  id="editCustomizationSection"
+                  style={{
+                    display: "none",
+                    marginTop: "15px",
+                    padding: "15px",
+                    border: "1px solid #ddd",
+                    borderRadius: "8px",
+                  }}
+                >
+                  <label
+                    className="checkbox-container-label"
+                    style={{ marginBottom: "8px", fontWeight: 600 }}
+                  >
+                    <input type="checkbox" id="editContainsChoices" />
+                    Do this Item contains Choices?
+                  </label>
+                  <div
+                    id="editChoicesContainer"
+                    style={{
+                      display: "none",
+                      marginBottom: "16px",
+                      padding: "12px",
+                      background: "#f8fafc",
+                      borderRadius: "8px",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    <div style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>
+                      Select Choices
+                    </div>
+                    {choices.length > 0 ? (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "10px" }}>
+                        {choices.map((choice) => (
+                          <div
+                            key={choice.preference_id}
+                            style={{
+                              padding: "10px",
+                              background: "#ffffff",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: "6px",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "6px",
+                            }}
+                          >
+                            <label
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                cursor: "pointer",
+                                margin: 0,
+                                fontSize: "13px",
+                                fontWeight: 600,
+                                color: "#1e293b",
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                className="edit-choice-item-checkbox"
+                                data-preference-id={choice.preference_id}
+                                id={`edit-choice-${choice.preference_id}`}
+                                style={{ width: "16px", height: "16px", accentColor: "var(--primary-teal)", cursor: "pointer" }}
+                              />
+                              <span>{choice.preference_name}</span>
+                              {choice.is_mandatory === 1 && (
+                                <span style={{ fontSize: "10px", padding: "1px 5px", background: "#fee2e2", color: "#dc2626", borderRadius: "8px", fontWeight: 500 }}>
+                                  Required
+                                </span>
+                              )}
+                            </label>
+                            {choice.choice_options_list && choice.choice_options_list.length > 0 && (
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", paddingLeft: "24px" }}>
+                                {choice.choice_options_list.map((opt) => (
+                                  <span
+                                    key={opt.preference_option_id}
+                                    style={{
+                                      fontSize: "11px",
+                                      padding: "2px 7px",
+                                      background: "#f1f5f9",
+                                      color: "#475569",
+                                      borderRadius: "10px",
+                                      border: "1px solid #e2e8f0",
+                                    }}
+                                  >
+                                    {opt.option_name}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: "12px", color: "#888", fontStyle: "italic" }}>
+                        No choices configured for this shop.
+                      </div>
+                    )}
+                  </div>
+
+                  <label
+                    className="checkbox-container-label"
+                    style={{ marginBottom: "8px", fontWeight: 600 }}
+                  >
+                    <input type="checkbox" id="editContainsExtras" />
+                    Do this Item contains Extras?
+                  </label>
+                  <div
+                    id="editExtrasContainer"
+                    style={{
+                      display: "none",
+                      marginBottom: "8px",
+                      padding: "12px",
+                      background: "#f8fafc",
+                      borderRadius: "8px",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    <div style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>
+                      Select Extras
+                    </div>
+                    {extras.length > 0 ? (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "10px" }}>
+                        {extras.map((extra) => (
+                          <div
+                            key={extra.custom_cat_id}
+                            style={{
+                              padding: "10px",
+                              background: "#ffffff",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: "6px",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "6px",
+                            }}
+                          >
+                            <label
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                cursor: "pointer",
+                                margin: 0,
+                                fontSize: "13px",
+                                fontWeight: 600,
+                                color: "#1e293b",
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                className="edit-extra-item-checkbox"
+                                data-custom-cat-id={extra.custom_cat_id}
+                                id={`edit-extra-${extra.custom_cat_id}`}
+                                style={{ width: "16px", height: "16px", accentColor: "var(--primary-teal)", cursor: "pointer" }}
+                              />
+                              <span>{extra.custom_cat_name}</span>
+                            </label>
+                            {extra.extraCategoryOptionList && extra.extraCategoryOptionList.length > 0 && (
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", paddingLeft: "24px" }}>
+                                {extra.extraCategoryOptionList.map((opt) => (
+                                  <span
+                                    key={opt.ingredient_id}
+                                    style={{
+                                      fontSize: "11px",
+                                      padding: "2px 7px",
+                                      background: "#ecfdf5",
+                                      color: "#065f46",
+                                      borderRadius: "10px",
+                                      border: "1px solid #a7f3d0",
+                                    }}
+                                  >
+                                    {opt.ingredient_name}
+                                    {opt.price > 0 ? ` (Rs.${opt.price})` : ""}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: "12px", color: "#888", fontStyle: "italic" }}>
+                        No extras configured for this shop.
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <h3>Menu List : *</h3>
-                <label className="checkbox-option-item">
-                  <input type="checkbox" className="edit-menu-check" value="Breakfast" /> Breakfast
-                </label>
-                <label className="checkbox-option-item">
-                  <input type="checkbox" className="edit-menu-check" value="Dinnermenu" /> Dinnermenu
-                </label>
-                <label className="checkbox-option-item">
-                  <input type="checkbox" className="edit-menu-check" value="Lunch Menu" /> Lunch Menu
-                </label>
-                <label className="checkbox-option-item">
-                  <input type="checkbox" className="edit-menu-check" value="Extra" /> Extra
-                </label>
+                {menuTypes.length > 0 ? (
+                  menuTypes.map((mt) => (
+                    <label key={mt.id} className="checkbox-option-item">
+                      <input type="checkbox" className="edit-menu-check" value={mt.id} defaultChecked /> {mt.menu_name}
+                    </label>
+                  ))
+                ) : (
+                  <span style={{ fontSize: "13px", color: "#888" }}>Main Menu</span>
+                )}
               </div>
               <div className="action-footer-row">
                 <button

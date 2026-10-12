@@ -139,22 +139,14 @@ export default function DeliveryPage() {
   const [showDeleteAreaModal, setShowDeleteAreaModal] = useState(false);
   const [deletingAreaId, setDeletingAreaId] = useState<number | null>(null);
 
-  // Toast State
-  const [toastMessage, setToastMessage] = useState("");
-  const [showToast, setShowToast] = useState(false);
-
   const [zones, setZones] = useState<any[]>([]);
 
   // Pagination States
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const showNotification = (msg: string) => {
-    setToastMessage(msg);
-    setShowToast(true);
-    setTimeout(() => {
-      setShowToast(false);
-    }, 3000);
+  const showNotification = (_msg?: string, _type?: string) => {
+    // Notifications disabled
   };
 
   const formatDeliveryTime = (hours: string | number, minutes: string | number) => {
@@ -1661,10 +1653,10 @@ export default function DeliveryPage() {
         prev.map((a) => (a.id === areaId ? { ...a, active: !currentActive } : a))
       );
       await setupService.changeCustomDeliveryLocationStatus(areaId, newStatus);
-      showNotification("Area status updated successfully");
+      // showNotification("Area status updated successfully");
     } catch (err) {
       console.error("Error changing status:", err);
-      showNotification("Failed to update area status");
+      // showNotification("Failed to update area status", "error");
       if (shopId) fetchAreas(shopId);
     }
   };
@@ -1761,6 +1753,32 @@ export default function DeliveryPage() {
     }
   };
 
+  const handleDeleteAreaClick = async (areaId: number) => {
+    try {
+      const { default: Swal } = await import("sweetalert2");
+      const result = await Swal.fire({
+        title: "Are you sure?",
+        text: "This will delete the delivery area that you have selected!",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#ef4444",
+        cancelButtonColor: "#64748b",
+        confirmButtonText: "YES, DELETE IT",
+        cancelButtonText: "CANCEL",
+        reverseButtons: false,
+      });
+
+      if (result.isConfirmed) {
+        await setupService.deleteCustomDeliveryLocation(areaId);
+        showNotification("Delivery area deleted successfully!");
+        if (shopId) fetchAreas(shopId);
+      }
+    } catch (err) {
+      console.error("Error deleting area:", err);
+      alert("Failed to delete area.");
+    }
+  };
+
   const handleDeleteAreaConfirm = async () => {
     if (!deletingAreaId) return;
     try {
@@ -1827,6 +1845,14 @@ export default function DeliveryPage() {
     fetchZones();
   }, []);
 
+  useEffect(() => {
+    if (deliveryType === "zone" && mapRef.current) {
+      setTimeout(() => {
+        mapRef.current?.invalidateSize();
+      }, 100);
+    }
+  }, [deliveryType]);
+
   // Pagination Logic
   const paginatedAreas = areas.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const paginatedZones = zones.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -1871,7 +1897,7 @@ export default function DeliveryPage() {
               </div>
             </div>
 
-            {deliveryType === "area" && (
+            <div style={{ display: deliveryType === "area" ? "block" : "none" }}>
               <div className="area-wise-container" style={{ background: "#fff", padding: "24px", borderRadius: "8px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", marginTop: "24px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
                   <div>
@@ -1951,10 +1977,7 @@ export default function DeliveryPage() {
                             <td style={{ padding: "16px 10px" }}>
                               <button
                                 className="circle-action-btn btn-delete"
-                                onClick={() => {
-                                  setDeletingAreaId(area.id);
-                                  setShowDeleteAreaModal(true);
-                                }}
+                                onClick={() => handleDeleteAreaClick(area.id)}
                                 style={{ margin: "0 auto", width: "32px", height: "32px", borderRadius: "50%", background: "#334155", color: "white", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
                                 title="Delete Area"
                               >
@@ -1976,9 +1999,9 @@ export default function DeliveryPage() {
                   />
                 )}
               </div>
-            )}
+            </div>
 
-            {deliveryType === "zone" && (
+            <div style={{ display: deliveryType === "zone" ? "block" : "none" }}>
               <>
                 <div className="page-header" style={{ marginBottom: "15px", marginTop: "24px" }}>
                   <h1 className="header-title typ-page-heading" style={{ margin: 0 }}>
@@ -2303,7 +2326,7 @@ export default function DeliveryPage() {
                   />
                 )}
               </>
-            )}
+            </div>
           </div>
 
           <WizardFooter />
@@ -2595,16 +2618,37 @@ export default function DeliveryPage() {
 
         {/* ── Delete Confirmation Modal for Area ── */}
         {showDeleteAreaModal && (
-          <div className="modal-overlay-custom">
-            <div className="area-modal-content" style={{ maxWidth: "450px", textAlign: "center" }}>
-              <div style={{ fontSize: "1rem", fontWeight: 600, color: "#334155", marginBottom: "24px", lineHeight: "1.5" }}>
-                This will delete the delivery area that you have selected!
+          <div className="modal-overlay-custom" onClick={() => setShowDeleteAreaModal(false)}>
+            <div
+              className="area-modal-content delete-confirmation-card"
+              style={{ maxWidth: "460px", textAlign: "center", padding: "36px 28px" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="delete-modal-icon-badge">
+                <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: "28px", color: "#f59e0b" }}></i>
               </div>
-              <div className="area-modal-actions">
+              <h3 style={{ fontSize: "1.35rem", fontWeight: 700, color: "#1e293b", margin: "16px 0 8px" }}>
+                Are you sure?
+              </h3>
+              <p style={{ fontSize: "0.95rem", fontWeight: 500, color: "#64748b", marginBottom: "28px", lineHeight: "1.5" }}>
+                This will delete the delivery area that you have selected!
+              </p>
+              <div className="area-modal-actions" style={{ gap: "14px" }}>
                 <button
                   className="btn-red"
                   onClick={handleDeleteAreaConfirm}
-                  style={{ padding: "10px 24px", borderRadius: "6px", fontWeight: 700 }}
+                  style={{
+                    padding: "11px 26px",
+                    borderRadius: "8px",
+                    fontWeight: 700,
+                    fontSize: "0.88rem",
+                    letterSpacing: "0.5px",
+                    background: "#ef4444",
+                    boxShadow: "0 4px 12px rgba(239, 68, 68, 0.25)",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "white"
+                  }}
                 >
                   YES, DELETE IT
                 </button>
@@ -2614,7 +2658,18 @@ export default function DeliveryPage() {
                     setShowDeleteAreaModal(false);
                     setDeletingAreaId(null);
                   }}
-                  style={{ padding: "10px 24px", borderRadius: "6px", fontWeight: 700, background: "#64748b" }}
+                  style={{
+                    padding: "11px 26px",
+                    borderRadius: "8px",
+                    fontWeight: 700,
+                    fontSize: "0.88rem",
+                    letterSpacing: "0.5px",
+                    background: "#64748b",
+                    boxShadow: "0 4px 12px rgba(100, 116, 139, 0.2)",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "white"
+                  }}
                 >
                   CANCEL
                 </button>
@@ -2623,13 +2678,6 @@ export default function DeliveryPage() {
           </div>
         )}
 
-        {/* ── Toast Notification ── */}
-        {showToast && (
-          <div className="delivery-toast">
-            <i className="fa-solid fa-circle-check" style={{ color: "#38bdf8", fontSize: "1.1rem" }}></i>
-            <span>{toastMessage}</span>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -142,7 +142,7 @@ export function Header({ onToggleSidebar }: HeaderProps) {
           </div>
         </div>
 
-        <button className="btn-common-help" onClick={openHelpModal}>
+        <button className={styles.btnHelpHeader} onClick={openHelpModal}>
           <i className="far fa-question-circle" /> HELP
         </button>
 

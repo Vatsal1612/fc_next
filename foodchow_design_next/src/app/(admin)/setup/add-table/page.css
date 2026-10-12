@@ -169,6 +169,267 @@
     box-shadow: 0 4px 12px rgba(10, 168, 158, 0.25);
   }
 
+  /* ── Table Reservation Ask Screen Styles ── */
+  .table-reservation-ask-card {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 44px 36px;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+    animation: fadeInAsk 0.3s ease-out;
+  }
+
+  @keyframes fadeInAsk {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .ask-header {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+
+  .ask-pill-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: #e0f2fe;
+    color: #0284c7;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    border-radius: 20px;
+    margin-bottom: 14px;
+  }
+
+  .ask-title {
+    font-size: 1.85rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
+  }
+
+  .ask-subtitle {
+    font-size: 0.98rem;
+    color: #64748b;
+    max-width: 620px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  .reservation-options-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin-bottom: 36px;
+  }
+
+  .reservation-option-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 24px;
+    border: 2px solid #e2e8f0;
+    border-radius: 14px;
+    background: #ffffff;
+    cursor: pointer;
+    transition: all 0.22s ease-in-out;
+    position: relative;
+  }
+
+  .reservation-option-card:hover {
+    border-color: #0aa89e;
+    background: #fcfefe;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(10, 168, 158, 0.08);
+  }
+
+  .reservation-option-card.active {
+    border-color: #0aa89e;
+    background: #f2faf9;
+    box-shadow: 0 6px 20px rgba(10, 168, 158, 0.12);
+  }
+
+  .option-radio-indicator {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid #cbd5e1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 3px;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+  }
+
+  .reservation-option-card.active .option-radio-indicator {
+    border-color: #0aa89e;
+  }
+
+  .radio-inner {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: transparent;
+    transition: background 0.2s ease;
+  }
+
+  .reservation-option-card.active .radio-inner {
+    background: #0aa89e;
+  }
+
+  .option-content {
+    flex: 1;
+  }
+
+  .option-title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+
+  .option-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #1e293b;
+  }
+
+  .option-badge-recommended {
+    background: #dcfce7;
+    color: #15803d;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 12px;
+    letter-spacing: 0.3px;
+  }
+
+  .option-desc {
+    font-size: 0.92rem;
+    color: #64748b;
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+
+  .option-features {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .option-features li {
+    font-size: 0.85rem;
+    color: #334155;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .option-features li i.fa-check {
+    color: #0aa89e;
+    font-size: 0.8rem;
+  }
+
+  .option-features.dim li {
+    color: #94a3b8;
+  }
+
+  .ask-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 10px;
+  }
+
+  .btn-continue {
+    background: #0aa89e;
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 13px 36px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 14px rgba(10, 168, 158, 0.3);
+  }
+
+  .btn-continue:hover {
+    background: #088c83;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(10, 168, 158, 0.4);
+  }
+
+  .btn-continue:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .btn-skip {
+    background: transparent;
+    color: #64748b;
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 13px 24px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .btn-skip:hover {
+    background: #f1f5f9;
+    color: #334155;
+  }
+
+  .preference-reset-wrap {
+    margin-top: 32px;
+    padding-top: 20px;
+    border-top: 1px dashed #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 0.85rem;
+    color: #64748b;
+  }
+
+  .btn-reconfigure {
+    background: none;
+    border: none;
+    color: #0aa89e;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+  }
+
+  .btn-reconfigure:hover {
+    color: #088c83;
+  }
+
   @media (max-width: 768px) {
     .devices-illustration {
       transform: scale(0.7);
@@ -195,5 +456,25 @@
     .hero-container {
       padding: 24px 16px;
     }
+
+    .table-reservation-ask-card {
+      padding: 28px 18px;
+    }
+
+    .ask-title {
+      font-size: 1.45rem;
+    }
+
+    .ask-actions {
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .btn-continue,
+    .btn-skip {
+      width: 100%;
+      justify-content: center;
+    }
   }
 }
+

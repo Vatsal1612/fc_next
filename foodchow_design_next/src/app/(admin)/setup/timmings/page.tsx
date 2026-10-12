@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { setupService } from "@/api/services/setup.service";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import Swal from "sweetalert2";
+import { useShopId } from "@/utils/shop";
 import "./page.css";
 
 /**
@@ -18,12 +19,12 @@ import "./page.css";
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
 export default function TimmingsPage() {
+  const shopIdRaw = useShopId();
+  const shopId = shopIdRaw ? Number(shopIdRaw) : 0;
   const [shopTimings, setShopTimings] = useState<any[]>([]);
   const shopTimingsRef = useRef<any[]>([]);
   const handleUpdate = async () => {
   try {
-    const shopId = sessionStorage.getItem("shop_id");
-
     if (!shopId) {
       console.error("Shop ID not found");
       return;
@@ -102,8 +103,8 @@ export default function TimmingsPage() {
     };
 
     const fetchShopTimings = async () => {
+      if (!shopId) return;
       try {
-        const shopId = sessionStorage.getItem("shop_id");
         const response = await setupService.getShopTimings(Number(shopId));
 
         console.log("SHOP TIMINGS RESPONSE:", response);
@@ -209,7 +210,7 @@ export default function TimmingsPage() {
       applyAlls.forEach((cb) => cb.removeEventListener("change", onApplyAll));
     
     };
-  }, []);
+  }, [shopId]);
 
   return (
     <div id="pg-setup-timmings">

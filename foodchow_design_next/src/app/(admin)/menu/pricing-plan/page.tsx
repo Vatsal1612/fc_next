@@ -24,7 +24,7 @@ export default function PricingPlanPage() {
     const [addOns, setAddOns] = useState<any[]>([]);
     const [, setLoading] = useState(true);
     const [isYearly, setIsYearly] = useState(false);
-    const [currency, setCurrency] = useState("Rs.");
+    const [currency] = useState("Rs.");
     const [displayCurrency, setDisplayCurrency] = useState("Rs.");
     const lastCurrency = useRef<string | null>(null);
     const displayCurrencyRef = useRef(displayCurrency);
