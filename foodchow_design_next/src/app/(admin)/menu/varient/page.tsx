@@ -34,7 +34,7 @@ export default function VarientPage() {
 
         setLoading(false);
       });
-  }, []);
+  }, [SHOP_ID]);
 
   useEffect(() => {
     const cleanups: Array<() => void> = [];

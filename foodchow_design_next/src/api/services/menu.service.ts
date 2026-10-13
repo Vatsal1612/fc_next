@@ -252,6 +252,17 @@ export interface AddItemPayload {
   sold_out_flag: number;
   barcode: string;
   open_price: number;
+  is_size_available?: number;
+  FoodItemSizeList?: ItemSizePricePayload[];
+  is_choice?: number;
+  ChoiceList?: any[];
+  is_extra?: number;
+  ExtraList?: any[];
+}
+
+export interface ItemSizePricePayload {
+  Size_Id: number;
+  Price: string;
 }
 
 export interface AddStoreCategoryPayload {
@@ -278,6 +289,13 @@ export interface EditStoreItemPayload {
   barcode: string;
   base64Image: string; // base64 without data URI prefix, or empty string
   Item_Image: string;  // existing image filename/path (used when base64Image is empty)
+  price?: string;
+  is_size_available?: number;
+  FoodItemSizeList?: ItemSizePricePayload[];
+  is_choice?: number;
+  ChoiceList?: any[];
+  is_extra?: number;
+  ExtraList?: any[];
 }
 
 export interface MenuItem {
@@ -421,6 +439,7 @@ export interface AddDealPayload {
   DealDesc: string;
   DealMinOrder: number;
   DealImage: string;
+  base64Image?: string;
   DealTypeId: string;
   ShopId: string;
   DealPrice: string;
@@ -594,18 +613,32 @@ export const menuService = {
   },
   /** Shop-wise categories (with subcategories) for the given shop. */
   async categoriesByShop(shopId: number): Promise<MenuCategory[]> {
+    const effectiveShopId =
+      shopId ||
+      (typeof window !== "undefined"
+        ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
+        : 0) ||
+      7895;
+
     const { data } = await foodchowClient.get<ApiResponse<MenuCategory[]>>(
       ENDPOINTS.menu.categoriesByShop,
-      { params: { ShopId: shopId } }
+      { params: { ShopId: effectiveShopId, shop_id: effectiveShopId } }
     );
     return data.data ?? [];
   },
 
   /** Shop-wise extras with options and sizes for the given shop. */
   async extrasByShop(shopId: number): Promise<ExtraCategory[]> {
+    const effectiveShopId =
+      shopId ||
+      (typeof window !== "undefined"
+        ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
+        : 0) ||
+      7895;
+
     const { data } = await foodchowClient.get<ExtrasApiResponse>(
       ENDPOINTS.menu.extrasByShop,
-      { params: { ShopId: shopId } }
+      { params: { ShopId: effectiveShopId, shop_id: effectiveShopId } }
     );
     return data.data[0]?.extraCategoryList ?? [];
   },
@@ -921,8 +954,16 @@ export const menuService = {
   //apply tax
   /** Get Item List With Size from FoodChowWD API */
   async getItemListWithSize(shopId: number, taxId?: number, taxType?: number): Promise<ItemWithSize[]> {
+    const effectiveShopId =
+      shopId ||
+      (typeof window !== "undefined"
+        ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
+        : 0) ||
+      7895;
+
     const params: any = {
-      shop_id: shopId,
+      shop_id: effectiveShopId,
+      ShopId: effectiveShopId,
     };
     if (taxId !== undefined && taxId !== 0) {
       params.tax_id = taxId;
@@ -931,35 +972,75 @@ export const menuService = {
       params.current_tax_type = taxType;
     }
 
-    const { data } = await foodchowWDClient.get(
+    const { data } = await foodchowWDClient.get<unknown>(
       ENDPOINTS.menu.getItemListWithSize,
       {
         params,
       }
     );
 
-    console.log("GetItemListWithSize Response:", data);
+    const asRecord = (value: unknown): Record<string, unknown> | null =>
+      typeof value === "object" && value !== null && !Array.isArray(value)
+        ? value as Record<string, unknown>
+        : null;
+    const root = asRecord(data);
+    let rows: unknown =
+      root?.data ??
+      root?.Data ??
+      root?.item_list ??
+      root?.ItemList ??
+      (Array.isArray(data) ? data : []);
 
-    let items: any[] = [];
-    if (data?.data) {
-      if (typeof data.data === "string") {
-        try {
-          items = JSON.parse(data.data);
-        } catch (e) {
-          console.error("Failed to parse getItemListWithSize data string:", e);
-        }
-      } else if (Array.isArray(data.data)) {
-        items = data.data;
-      } else if (typeof data.data === "object") {
-        items = data.data.item_list || data.data.ItemList || [];
+    if (typeof rows === "string") {
+      try {
+        rows = JSON.parse(rows) as unknown;
+      } catch (error) {
+        console.error("Failed to parse GetItemListWithSize response:", error);
+        throw new Error("The item-size price response was not valid JSON.");
       }
-    } else if (Array.isArray(data)) {
-      items = data;
-    } else if (data?.item_list) {
-      items = data.item_list;
     }
 
-    return items;
+    const rowContainer = asRecord(rows);
+    if (rowContainer) {
+      rows =
+        rowContainer.item_list ??
+        rowContainer.ItemList ??
+        rowContainer.data ??
+        rowContainer.Data ??
+        [];
+    }
+    if (!Array.isArray(rows)) {
+      console.error("GetItemListWithSize returned an unexpected response shape:", data);
+      throw new Error("The item-size price response had an unexpected format.");
+    }
+
+    return rows.flatMap((value): ItemWithSize[] => {
+      const row = asRecord(value);
+      if (!row) return [];
+      const readNumber = (...keys: string[]) => {
+        const value = keys.map((key) => row[key]).find((candidate) => candidate !== undefined && candidate !== null);
+        const number = Number(value);
+        return Number.isFinite(number) ? number : 0;
+      };
+      const readString = (...keys: string[]) => {
+        const value = keys.map((key) => row[key]).find((candidate) => candidate !== undefined && candidate !== null);
+        return value == null ? "" : String(value);
+      };
+
+      return [{
+        item_id: readNumber("item_id", "Item_Id", "ItemId", "itemId"),
+        item_name: readString("item_name", "Item_Name", "ItemName", "itemName"),
+        item_size_id: readNumber("item_size_id", "shop_size_id", "shopSizeId", "Item_Size_Id", "ItemSizeId", "size_id", "Size_Id"),
+        size_name: readString("size_name", "Size_Name", "SizeName", "sizeName"),
+        item_price: readNumber("item_price", "Item_Price", "ItemPrice", "price", "Price"),
+        final_amount: readNumber("final_amount", "Final_Amount", "finalAmount"),
+        net_price: readNumber("net_price", "Net_Price", "NetPrice"),
+        is_tax: Boolean(row.is_tax ?? row.Is_Tax ?? false),
+        is_diffrent_tax: Boolean(row.is_diffrent_tax ?? row.Is_Diffrent_Tax ?? false),
+        tax_type: readNumber("tax_type", "Tax_Type", "taxType"),
+        tax_list: row.tax_list ?? row.Tax_List ?? null,
+      }];
+    });
   },
   /** Apply tax to all items using existing USP_AddTaxAllItemWithTaxID API endpoint */
   async addTaxAllItemWithTaxID(shopId: number, taxId: number) {
@@ -1090,15 +1171,21 @@ export const menuService = {
   },
   // Choices
   async getChoices(shopId: number): Promise<MenuChoice[]> {
+    const effectiveShopId =
+      shopId ||
+      (typeof window !== "undefined"
+        ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
+        : 0) ||
+      7895;
+
     const { data } = await foodchowClient.get<
       ApiResponse<ChoiceResponse[]>
     >(
       ENDPOINTS.menu.getChoices,
       {
-        params: { ShopId: shopId },
+        params: { ShopId: effectiveShopId, shop_id: effectiveShopId },
       }
     );
-
 
     return data.data?.[0]?.choices_list ?? [];
   },
@@ -1184,11 +1271,19 @@ export const menuService = {
 
   /** Variants */
   async variantsByShop(shopId: number): Promise<MenuVariant[]> {
+    const effectiveShopId =
+      shopId ||
+      (typeof window !== "undefined"
+        ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
+        : 0) ||
+      7895;
+
     const { data } = await foodchowClient.get<ApiResponse<MenuVariant[]>>(
       ENDPOINTS.menu.variantsByShop,
       {
         params: {
-          ShopId: shopId,
+          ShopId: effectiveShopId,
+          shop_id: effectiveShopId,
         },
       }
     );
@@ -1237,11 +1332,19 @@ export const menuService = {
   },
 
   async getItems(shopId: number): Promise<MenuCategory[]> {
+    const effectiveShopId =
+      shopId ||
+      (typeof window !== "undefined"
+        ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
+        : 0) ||
+      7895;
+
     const { data } = await foodchowClient.get<ApiResponse<MenuCategory[]>>(
       ENDPOINTS.menu.getItems,
       {
         params: {
-          ShopId: shopId,
+          ShopId: effectiveShopId,
+          shop_id: effectiveShopId,
         },
       }
     );
@@ -1251,12 +1354,22 @@ export const menuService = {
 
 
   async deleteItem(itemId: number, shopId: number): Promise<any> {
+    const effectiveShopId =
+      shopId ||
+      (typeof window !== "undefined"
+        ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
+        : 0) ||
+      7895;
+
     const { data } = await foodchowClient.get(
       ENDPOINTS.menu.deleteItem,
       {
         params: {
           ItemId: itemId,
-          shop_id: shopId,
+          item_id: itemId,
+          Item_Id: itemId,
+          shop_id: effectiveShopId,
+          ShopId: effectiveShopId,
         },
       }
     );
@@ -1324,18 +1437,28 @@ export const menuService = {
 
   // Additional Menu
   async getAllShopMenuType(shopId: number): Promise<ShopMenuType[]> {
+    const effectiveShopId =
+      shopId ||
+      (typeof window !== "undefined"
+        ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
+        : 0) ||
+      7895;
+
     const response = await foodchowWDClient.get<ApiResponse<any>>(
       ENDPOINTS.menu.getAllShopMenuType,
       {
         params: {
-          ShopId: shopId,
+          ShopId: effectiveShopId,
+          shop_id: effectiveShopId,
         },
       }
     );
 
-    return response.data.data
-      ? JSON.parse(response.data.data)
-      : [];
+    const raw = response.data?.data;
+    if (typeof raw === "string") {
+      try { return JSON.parse(raw); } catch (e) { return []; }
+    }
+    return Array.isArray(raw) ? raw : [];
   },
 
 
@@ -1593,5 +1716,31 @@ export const menuService = {
     return data;
   },
 
-};
+  async uploadMenuExcel(shopId: number | string, file: File) {
+    const formData = new FormData();
+    formData.append("shop_id", String(shopId));
+    formData.append("file", file);
 
+    const { data } = await foodchowClient.post(
+      ENDPOINTS.menu.uploadMenuExcel,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+    console.log("UPLOAD MENU EXCEL RESPONSE:", data);
+    return data;
+  },
+
+  async downloadSampleMenuExcel() {
+    const response = await foodchowClient.get(
+      ENDPOINTS.menu.downloadSampleMenuExcel,
+      {
+        responseType: "blob",
+      }
+    );
+    return response.data;
+  },
+};

@@ -6,8 +6,10 @@ import { WizardFooter } from "@/components/shared/WizardFooter";
 import "./page.css";
 import type { ChoiceOption, MenuChoice } from "@/api/services/menu.service";
 import Swal from "sweetalert2";
+import { useShopId } from "@/utils/shop";
 
 export default function ChoicePage() {
+  const shopId = useShopId();
   const [choices, setChoices] = useState<MenuChoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,8 +33,9 @@ export default function ChoicePage() {
 
   useEffect(() => {
     const fetchChoices = async () => {
+      if (!shopId) return;
       try {
-        const response = await menuService.getChoices(3161);
+        const response = await menuService.getChoices(Number(shopId));
         console.log(response);
         setChoices(response);
       } catch (err: any) {
@@ -44,7 +47,7 @@ export default function ChoicePage() {
     };
 
     fetchChoices();
-  }, []);
+  }, [shopId]);
 
   const addOption = () => {
     const value = optionValue.trim();
@@ -111,7 +114,7 @@ export default function ChoicePage() {
       }
 
       const payload = {
-        shop_id: "3161",
+        shop_id: String(shopId || "0"),
         preference_name: choiceName.trim(),
         is_active: status,
         choice_options: choiceOptions.map((option) => ({
@@ -136,7 +139,7 @@ export default function ChoicePage() {
       setChoiceOptions([]);
       setOptionValue("");
 
-      const updatedChoices = await menuService.getChoices(3161);
+      const updatedChoices = await menuService.getChoices(Number(shopId));
       setChoices(updatedChoices);
       setView("list");
     } catch (error: any) {
@@ -199,7 +202,7 @@ export default function ChoicePage() {
         }
       }
 
-      const latest = await menuService.getChoices(3161);
+      const latest = await menuService.getChoices(Number(shopId));
       setChoices(latest);
       setView("list");
 
@@ -451,7 +454,7 @@ export default function ChoicePage() {
                                           );
 
                                           const latestChoices =
-                                            await menuService.getChoices(3161);
+                                            await menuService.getChoices(Number(shopId));
 
                                           setChoices(latestChoices);
 

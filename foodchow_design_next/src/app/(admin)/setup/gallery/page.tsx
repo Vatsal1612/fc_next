@@ -409,9 +409,7 @@ export default function GalleryPage() {
               <div className="card-title-row">
                 <div className="typ-page-heading card-title">
                   Slider Images{" "}
-                  <span style={{ color: "#6b7280", fontWeight: 500, fontSize: "14px" }}>
-                    [For APP Only]
-                  </span>
+
                 </div>
                 <button
                   type="button"

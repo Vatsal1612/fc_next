@@ -510,7 +510,7 @@ export default function MyProfilePage() {
         shadowSize: [41, 41]
       });
       const marker = L.marker([lat, lng], { icon: redIcon, draggable: true }).addTo(map);
-      marker.on('dragend', (e: any) => {
+      marker.on('dragend', () => {
         const position = marker.getLatLng();
         setAddress((prev: any) => ({
           ...prev,

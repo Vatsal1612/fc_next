@@ -59,7 +59,10 @@
     background-color: var(--main-bg);
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    min-height: 0;
     overflow: hidden;
 
     * {
@@ -244,7 +247,10 @@
         display: flex;
         flex-direction: column;
         width: 100%;
-        min-height: 100%;
+        min-width: 0;
+        min-height: 0;
+        height: 100%;
+        flex: 1 1 auto;
     }
 
     /* ===== OUTER SIDEBAR ===== */
@@ -378,7 +384,10 @@
 
     /* ===== MAIN CONTENT ===== */
     .main-content {
-        flex-grow: 1;
+        flex: 1 1 auto;
+        min-width: 0;
+        min-height: 0;
+        width: 100%;
         padding: 20px;
         overflow-y: auto;
         background-color: var(--bg-color);
@@ -388,6 +397,7 @@
     .container {
         max-width: 100%;
         width: 100%;
+        min-width: 0;
         background: var(--card-bg);
         border-radius: 12px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
@@ -491,6 +501,8 @@
         border-radius: 10px;
         padding: 0;
         overflow: hidden;
+        width: 100%;
+        min-width: 0;
     }
 
     .table-top-actions {
@@ -546,6 +558,7 @@
     .table-responsive {
         overflow-x: auto;
         width: 100%;
+        min-width: 0;
         border-radius: 0;
         box-shadow: none;
         scrollbar-width: none;
@@ -560,7 +573,8 @@
         border-collapse: collapse;
         background: #fff;
         text-align: center;
-        min-width: 980px;
+        min-width: 760px;
+        table-layout: fixed;
     }
 
     th {
@@ -577,39 +591,39 @@
 
     th:nth-child(1),
     td:nth-child(1) {
-        width: 60px;
+        width: 6%;
     }
 
     th:nth-child(2),
     td:nth-child(2) {
-        width: 220px;
+        width: 24%;
         text-align: left;
         padding-left: 20px;
     }
 
     th:nth-child(3),
     td:nth-child(3) {
-        width: 120px;
+        width: 14%;
     }
 
     th:nth-child(4),
     td:nth-child(4) {
-        width: 110px;
+        width: 11%;
     }
 
     th:nth-child(5),
     td:nth-child(5) {
-        width: 110px;
+        width: 11%;
     }
 
     th:nth-child(6),
     td:nth-child(6) {
-        width: 150px;
+        width: 15%;
     }
 
     th:nth-child(7),
     td:nth-child(7) {
-        width: 160px;
+        width: 19%;
     }
 
     td {
@@ -655,6 +669,41 @@
     .item-price {
   font-weight: var(--weight-bold);
         color: #111;
+    }
+
+    .item-variant-price-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .item-variant-price-list > div {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        background: #f8f9fa;
+        font-size: var(--text-table);
+        white-space: nowrap;
+    }
+
+    .variant-row {
+        display: grid;
+        grid-template-columns: minmax(140px, 1fr) minmax(180px, 1fr) auto auto;
+        gap: 15px;
+        align-items: end;
+        margin-bottom: 15px;
+    }
+
+    .variant-row > div {
+        min-width: 0;
+    }
+
+    .variant-row > button {
+        margin-bottom: 2px;
   font-size: var(--text-body);
     }
 
@@ -1630,8 +1679,36 @@
     }
 
     @media (max-width: 768px) {
+        .main-content {
+            padding: 12px;
+        }
+
+        .table-responsive {
+            scrollbar-width: thin;
+            scrollbar-color: #9aa8b5 #edf2f7;
+        }
+
+        .table-responsive::-webkit-scrollbar {
+            display: block;
+            height: 7px;
+        }
+
+        .table-responsive::-webkit-scrollbar-thumb {
+            background: #9aa8b5;
+            border-radius: 4px;
+        }
+
+        .container {
+            padding: 16px;
+        }
+
         .form-layout-wrapper {
             flex-direction: column;
+        }
+
+        .variant-row {
+            grid-template-columns: minmax(120px, 1fr) minmax(150px, 1fr) auto auto;
+            gap: 8px;
         }
 
         .image-upload-column {
@@ -1658,6 +1735,14 @@
         .header-bar .header-right {
             width: 100%;
             justify-content: space-between;
+        }
+
+        .variant-row {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .variant-row > button {
+            justify-self: start;
         }
     }
 }

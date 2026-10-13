@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { setupService } from "@/api/services/setup.service";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import Swal from "sweetalert2";
+import { useShopId } from "@/utils/shop";
 import "./page.css";
 
 /**
@@ -13,10 +14,8 @@ import "./page.css";
  * The external sidebar-loader.js is dropped — the shell renders the sidebar.
  */
 export default function FacilityPage() {
-  const shopId =
-    typeof window !== "undefined"
-      ? Number(sessionStorage.getItem("shop_id"))
-      : 0;
+  const shopIdRaw = useShopId();
+  const shopId = Number(shopIdRaw || 0);
 
   const [facilities, setFacilities] = useState<any[]>([]);
   const [selectedFacilityIds, setSelectedFacilityIds] = useState<number[]>([]);

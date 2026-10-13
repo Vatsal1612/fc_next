@@ -129,7 +129,7 @@ export default function ExtraPage() {
   // ── Load data on component mount ──
   useEffect(() => {
     loadExtras();
-  }, []);
+  }, [SHOP_ID]);
 
   // ── Edit Size Row Functions ──
   const addEditSizeRow = () => {

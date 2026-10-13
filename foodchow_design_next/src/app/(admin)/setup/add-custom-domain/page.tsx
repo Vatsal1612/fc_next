@@ -1,45 +1,59 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { WizardFooter } from "@/components/shared/WizardFooter";
+import { setupService } from "@/api/services/setup.service";
+import { useShopId, isApiSuccess } from "@/utils/shop";
 import "./page.css";
 
 /**
  * setup/add-custom-domain.html → React.
- *
- * Static markup (including the long CNAME-guide modal with its remote
- * admin.foodchow.com screenshots, kept as-is per spec) rendered here. The inline
- * <script> (help alert, add-domain validation + toast, open/close CNAME guide,
- * Escape-to-close, step prev/next) is ported into one useEffect wired with
- * addEventListener. The dropdown / outer-sidebar helpers (which targeted
- * shell-only elements) and the `helpBtn` listener (no such element on this page)
- * are dropped. The external sidebar-loader.js is dropped.
  */
 export default function AddCustomDomainPage() {
+  const shopId = useShopId();
+  const [subdomain, setSubdomain] = useState("");
+  const [customDomain, setCustomDomain] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const toast = (msg: string, isErr = false): void => {
+    const t = document.getElementById("toast");
+    if (!t) return;
+    t.textContent = msg;
+    t.style.background = isErr ? "#ef4444" : "#0AA89E";
+    t.className = "toast show";
+    setTimeout(() => {
+      t.className = "toast";
+    }, 3000);
+  };
+
   useEffect(() => {
-    const toast = (msg: string, isErr = false): void => {
-      const t = document.getElementById("toast");
-      if (!t) return;
-      t.textContent = msg;
-      t.style.background = isErr ? "#ef4444" : "#0AA89E";
-      t.className = "toast show";
-      setTimeout(() => {
-        t.className = "toast";
-      }, 3000);
-    };
-
-    const triggerAddDomain = (): void => {
-      const input = document.getElementById(
-        "customDomainInput",
-      ) as HTMLInputElement | null;
-      const domainValue = input?.value.trim() ?? "";
-      if (!domainValue) {
-        toast("Please enter a valid custom domain value.", true);
-        return;
+    const fetchInfo = async () => {
+      if (!shopId) return;
+      try {
+        setIsLoading(true);
+        const info = await setupService.getRestaurantInformation(Number(shopId));
+        if (info) {
+          if (info.subdomain) {
+            const cleanSub = info.subdomain.includes(".")
+              ? info.subdomain
+              : `${info.subdomain}.foodchow.com`;
+            setSubdomain(cleanSub);
+          }
+          if (info.custom_domain) {
+            setCustomDomain(info.custom_domain);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load restaurant information:", err);
+      } finally {
+        setIsLoading(false);
       }
-      toast("Custom domain configuration updated successfully!");
     };
+    fetchInfo();
+  }, [shopId]);
 
+  useEffect(() => {
     const cnameModal = document.getElementById("cnameGuideModal");
     const openCnameGuide = (e: Event): void => {
       e.preventDefault();
@@ -79,13 +93,6 @@ export default function AddCustomDomainPage() {
     const onHelp = (): void => alert("Help & Support - Add Custom Domain");
     helpBtnCard?.addEventListener("click", onHelp);
 
-    const addDomainBtn = document.getElementById("addDomainBtn");
-    addDomainBtn?.addEventListener("click", triggerAddDomain);
-
-    const emailBtn = document.getElementById("emailDevBtn");
-    const onEmail = (): void => toast("Developer instructions sent successfully!");
-    emailBtn?.addEventListener("click", onEmail);
-
     const detailLink = document.getElementById("cnameGuideLink");
     detailLink?.addEventListener("click", openCnameGuide);
 
@@ -102,8 +109,6 @@ export default function AddCustomDomainPage() {
 
     return () => {
       helpBtnCard?.removeEventListener("click", onHelp);
-      addDomainBtn?.removeEventListener("click", triggerAddDomain);
-      emailBtn?.removeEventListener("click", onEmail);
       detailLink?.removeEventListener("click", openCnameGuide);
       backBtn?.removeEventListener("click", closeCnameGuide);
       cnameModal?.removeEventListener("click", closeCnameGuideOutside);
@@ -113,6 +118,38 @@ export default function AddCustomDomainPage() {
       document.body.style.overflow = "";
     };
   }, []);
+
+  const handleAddDomain = async (): Promise<void> => {
+    const domainValue = customDomain.trim();
+    if (!domainValue) {
+      toast("Please enter a valid custom domain value.", true);
+      return;
+    }
+    if (!shopId) {
+      toast("Shop ID not found. Please log in again.", true);
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const res = await setupService.saveCustomDomain(shopId, domainValue);
+      if (isApiSuccess(res)) {
+        toast("Custom domain configuration updated successfully!");
+      } else {
+        toast((res as any)?.message || "Failed to update custom domain.", true);
+      }
+    } catch (err: any) {
+      console.error("Save custom domain error:", err);
+      toast(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Error saving custom domain.",
+        true
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div id="pg-setup-add-custom-domain">
@@ -141,7 +178,7 @@ export default function AddCustomDomainPage() {
                   <input
                     type="text"
                     className="domain-input"
-                    defaultValue="foodchowdemoindia.foodchow.com"
+                    value={isLoading ? "Loading..." : (subdomain || "foodchowdemoindia.foodchow.com")}
                     readOnly
                   />
                 </div>
@@ -162,14 +199,22 @@ export default function AddCustomDomainPage() {
                     className="domain-input"
                     id="customDomainInput"
                     placeholder="e.g. myrestaurant.com"
+                    value={customDomain}
+                    onChange={(e) => setCustomDomain(e.target.value)}
                   />
                 </div>
               </div>
 
               {/* Add Domain Button */}
               <div className="btn-center-container">
-                <button className="btn-action-teal" id="addDomainBtn">
-                  Add Domain
+                <button
+                  className="btn-action-teal"
+                  id="addDomainBtn"
+                  onClick={handleAddDomain}
+                  disabled={isSaving}
+                  style={{ opacity: isSaving ? 0.7 : 1, cursor: isSaving ? "not-allowed" : "pointer" }}
+                >
+                  {isSaving ? "Saving..." : "Add Domain"}
                 </button>
               </div>
 

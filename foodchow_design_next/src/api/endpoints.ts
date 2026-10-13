@@ -113,6 +113,10 @@ export const ENDPOINTS = {
     //Menu Language
     getSupportedLanguageList: "/FoodChowWD/GetSupportedLanguageList",
     getAllLanguage: "/FoodChowRMS/GetAllLanguage",
+
+    // Upload Menu Excel
+    uploadMenuExcel: "/MenuMaster/UploadMenuExcel",
+    downloadSampleMenuExcel: "/MenuMaster/DownloadSampleMenuExcel",
   },
 
   orders: {
@@ -435,6 +439,12 @@ export const ENDPOINTS = {
 
     // Support
     addSupportTicket: "/UserMaster/AddShopSupportTicket",
+
+    // Custom Domain
+    saveCustomDomain: "/RestaurantProfile/SaveCustomDomain",
+
+    // Shop Invoices
+    getShopInvoices: "/Marketplace/GetShopInvoiceList",
   },
 
 
