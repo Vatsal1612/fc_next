@@ -6,13 +6,22 @@ import { orderService } from "@/api/services/order.service";
 import "./page.css";
 
 /**
- * setup/add-table page with onboarding Table Reservation ask step.
- * Once completed by the user, it persists and will not be visible again.
+ * setup/add-table page matching live admin:
+ * 1. Initial screen asks:
+ *    - "Table Reservation"
+ *    - "Do you provide table reservation ?"
+ *    - [ YES ]   [ NO ]
+ *    - When YES is selected -> displays [ SETUP ]
+ *    - When NO is selected  -> displays [ PROCEED ]
+ * 2. Once SETUP or PROCEED is clicked:
+ *    - Persists completion state (fc_table_reservation_asked_${shopId})
+ *    - Won't be visible again on subsequent visits.
+ *    - Displays the POS App download screen: "Download Our POS App to Manage Tables"
  */
 export default function AddTablePage() {
   const [shopId, setShopId] = useState<number>(0);
-  const [isAsked, setIsAsked] = useState<boolean>(true); // default true to prevent layout shift
-  const [acceptReservation, setAcceptReservation] = useState<boolean>(true);
+  const [isAsked, setIsAsked] = useState<boolean>(false);
+  const [selectedChoice, setSelectedChoice] = useState<"yes" | "no" | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isClientLoaded, setIsClientLoaded] = useState<boolean>(false);
 
@@ -37,12 +46,14 @@ export default function AddTablePage() {
     }
   }, []);
 
-  const handleSaveReservation = async (enabled: boolean) => {
+  const handleActionClick = async () => {
+    if (!selectedChoice) return;
     setIsSaving(true);
+    const isYes = selectedChoice === "yes";
     try {
       if (shopId > 0) {
         // Flag 3 updates table_reservation_status in widget settings
-        await orderService.updateWidgetSettings(shopId, enabled ? 1 : 0, 3);
+        await orderService.updateWidgetSettings(shopId, isYes ? 1 : 0, 3);
       }
     } catch (err) {
       console.warn("Could not sync widget setting to API, persisting locally:", err);
@@ -57,7 +68,12 @@ export default function AddTablePage() {
   const handleResetAsk = () => {
     const storageKey = `fc_table_reservation_asked_${shopId}`;
     localStorage.removeItem(storageKey);
+    setSelectedChoice(null);
     setIsAsked(false);
+  };
+
+  const toggleChoice = (choice: "yes" | "no") => {
+    setSelectedChoice((prev) => (prev === choice ? null : choice));
   };
 
   if (!isClientLoaded) {
@@ -66,100 +82,62 @@ export default function AddTablePage() {
 
   return (
     <div id="pg-setup-add-table">
-      <div className="layout">
+      <div className="app-container">
         <div className="main">
-          <div className="content-area">
+          <div className="page-content">
             {!isAsked ? (
-              /* ── SCREEN 1: Table Reservation Ask Screen (Shown once until answered) ── */
-              <div className="card table-reservation-ask-card">
-                <div className="ask-header">
-                  <div className="ask-pill-badge">
-                    <i className="fa-solid fa-utensils"></i> TABLE RESERVATION
-                  </div>
-                  <h1 className="typ-page-heading ask-title">
-                    Do you accept Table Reservations?
-                  </h1>
-                  <p className="ask-subtitle">
-                    Allow your customers to reserve a table online in advance directly from your FoodChow restaurant website and ordering widget.
-                  </p>
+              /* ── SCREEN 1: Live Ask/tableReservation Screen (Matches live admin 1:1) ── */
+              <div className="page-card ask-table-card">
+                <h2 className="typ-page-heading ask-table-title">Table Reservation</h2>
+                <div className="ask-table-question">
+                  Do you provide table reservation ?
                 </div>
 
-                <div className="reservation-options-grid">
-                  {/* Option 1: Yes */}
-                  <div
-                    className={`reservation-option-card ${acceptReservation ? "active" : ""}`}
-                    onClick={() => setAcceptReservation(true)}
-                  >
-                    <div className="option-radio-indicator">
-                      <div className="radio-inner" />
-                    </div>
-                    <div className="option-content">
-                      <div className="option-title-row">
-                        <span className="option-title">Yes, I accept Table Reservations</span>
-                        <span className="option-badge-recommended">Recommended</span>
-                      </div>
-                      <p className="option-desc">
-                        Enable online table booking on your website. Diners can select party size, date, and reservation time.
-                      </p>
-                      <ul className="option-features">
-                        <li><i className="fa-solid fa-check"></i> Online bookings direct to POS & Admin</li>
-                        <li><i className="fa-solid fa-check"></i> Real-time notifications for new bookings</li>
-                        <li><i className="fa-solid fa-check"></i> Maximize dine-in seating & reduce wait times</li>
-                      </ul>
-                    </div>
-                  </div>
-
-                  {/* Option 2: No */}
-                  <div
-                    className={`reservation-option-card ${!acceptReservation ? "active" : ""}`}
-                    onClick={() => setAcceptReservation(false)}
-                  >
-                    <div className="option-radio-indicator">
-                      <div className="radio-inner" />
-                    </div>
-                    <div className="option-content">
-                      <div className="option-title-row">
-                        <span className="option-title">No, Delivery & Takeaway Only</span>
-                      </div>
-                      <p className="option-desc">
-                        Skip table reservations for now. Diners will only be able to place takeaway and delivery orders.
-                      </p>
-                      <ul className="option-features dim">
-                        <li><i className="fa-solid fa-info-circle"></i> You can turn this on anytime in Order Settings</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="ask-actions">
+                <div className="ask-choice-buttons">
                   <button
-                    className="btn-continue"
-                    disabled={isSaving}
-                    onClick={() => handleSaveReservation(acceptReservation)}
+                    type="button"
+                    className={`btn-choice-yes ${selectedChoice === "yes" ? "active" : "inactive"}`}
+                    onClick={() => toggleChoice("yes")}
                   >
-                    {isSaving ? (
-                      <>
-                        <i className="fa-solid fa-spinner fa-spin"></i> Saving...
-                      </>
+                    YES
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`btn-choice-no ${selectedChoice === "no" ? "active" : "inactive"}`}
+                    onClick={() => toggleChoice("no")}
+                  >
+                    NO
+                  </button>
+                </div>
+
+                {selectedChoice !== null && (
+                  <div className="ask-action-row">
+                    {selectedChoice === "yes" ? (
+                      <button
+                        type="button"
+                        className="btn-ask-submit"
+                        disabled={isSaving}
+                        onClick={handleActionClick}
+                      >
+                        {isSaving ? "SAVING..." : "SETUP"}
+                      </button>
                     ) : (
-                      <>
-                        Save & Continue <i className="fa-solid fa-arrow-right"></i>
-                      </>
+                      <button
+                        type="button"
+                        className="btn-ask-submit"
+                        disabled={isSaving}
+                        onClick={handleActionClick}
+                      >
+                        {isSaving ? "SAVING..." : "PROCEED"}
+                      </button>
                     )}
-                  </button>
-                  <button
-                    className="btn-skip"
-                    disabled={isSaving}
-                    onClick={() => handleSaveReservation(false)}
-                  >
-                    Skip for now
-                  </button>
-                </div>
+                  </div>
+                )}
               </div>
             ) : (
-              /* ── SCREEN 2: Add Table POS Download Screen (Default once asked) ── */
-              <div className="card">
+              /* ── SCREEN 2: Add Table POS Download Screen (Default once completed) ── */
+              <div className="page-card pos-manage-card">
                 <h1 className="typ-page-heading page-title">Download Our POS App to Manage Tables</h1>
 
                 <div className="hero-container">
@@ -218,7 +196,7 @@ export default function AddTablePage() {
                   </div>
 
                   <div className="preference-reset-wrap">
-                    <span>Table Reservation preference configured.</span>
+                    <span>Table reservation preference configured.</span>
                     <button type="button" className="btn-reconfigure" onClick={handleResetAsk}>
                       <i className="fa-solid fa-pen-to-square"></i> Change Preference
                     </button>

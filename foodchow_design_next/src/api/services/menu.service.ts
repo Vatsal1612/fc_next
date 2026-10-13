@@ -875,6 +875,20 @@ export const menuService = {
     return data;
   },
 
+  /** Change Category Position */
+  async changeCategoryPosition(categoryIds: (string | number)[], posIds: (string | number)[]) {
+    const { data } = await foodchowWDClient.get(
+      ENDPOINTS.menu.changeCategoryPosition,
+      {
+        params: {
+          cate_id: categoryIds.join(","),
+          pos_id: posIds.join(","),
+        },
+      }
+    );
+    return data;
+  },
+
   async getTaxes(shopId: number): Promise<Tax[]> {
     const { data } = await foodchowClient.get<ApiResponse<Tax[]>>(
       ENDPOINTS.menu.getAllTax,

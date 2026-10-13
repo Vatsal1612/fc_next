@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { menuService } from "@/api/services/menu.service";
+import { setupService } from "@/api/services/setup.service";
 // @ts-ignore
 import "./page.css";
 
@@ -24,10 +25,50 @@ export default function PricingPlanPage() {
     const [addOns, setAddOns] = useState<any[]>([]);
     const [, setLoading] = useState(true);
     const [isYearly, setIsYearly] = useState(false);
-    const [currency] = useState("Rs.");
-    const [displayCurrency, setDisplayCurrency] = useState("Rs.");
+    const [currency, setCurrency] = useState<string>("Rs.");
+    const [currencySymbol, setCurrencySymbol] = useState<string>("₹");
     const lastCurrency = useRef<string | null>(null);
-    const displayCurrencyRef = useRef(displayCurrency);
+
+    // Resolve currency from session / restaurant profile
+    useEffect(() => {
+        const initCurrency = async () => {
+            let sessionCurr = sessionStorage.getItem("currency") || localStorage.getItem("currency") || "";
+            const shopId = sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id");
+
+            if (!sessionCurr && shopId) {
+                try {
+                    const info = await setupService.getRestaurantInformation(Number(shopId));
+                    if (info?.currency) {
+                        sessionCurr = info.currency;
+                        sessionStorage.setItem("currency", sessionCurr);
+                    }
+                } catch (e) {
+                    console.error("Error fetching restaurant currency:", e);
+                }
+            }
+
+            if (sessionCurr) {
+                const trimmed = sessionCurr.trim();
+                let sym = trimmed;
+                if (trimmed === "INR" || trimmed === "Rs." || trimmed === "Rs" || trimmed === "₹") {
+                    sym = "₹";
+                } else if (trimmed === "USD" || trimmed === "$") {
+                    sym = "$";
+                } else if (trimmed === "AUD") {
+                    sym = "A$";
+                } else if (trimmed === "CAD") {
+                    sym = "C$";
+                } else if (trimmed === "EUR" || trimmed === "€") {
+                    sym = "€";
+                } else if (trimmed === "GBP" || trimmed === "£") {
+                    sym = "£";
+                }
+                setCurrency(trimmed);
+                setCurrencySymbol(sym);
+            }
+        };
+        initCurrency();
+    }, []);
 
     const formatPrice = (price: number | string | undefined) => {
         if (price === undefined || price === null || price === "") {
@@ -35,21 +76,19 @@ export default function PricingPlanPage() {
         }
 
         const numericPrice = Number(price);
-
         if (Number.isNaN(numericPrice)) {
             return "";
         }
 
+        const isIndian = currency === "Rs." || currency === "INR" || currency === "₹";
         return numericPrice.toLocaleString(
-            displayCurrency === "Rs." ? "en-IN" : "en-US",
+            isIndian ? "en-IN" : "en-US",
             {
-                minimumFractionDigits: displayCurrency === "$" ? 2 : 0,
-                maximumFractionDigits: displayCurrency === "$" ? 2 : 0,
+                minimumFractionDigits: isIndian ? 0 : 2,
+                maximumFractionDigits: isIndian ? 0 : 2,
             }
         );
     };
-    const isIndianCurrency = displayCurrency === "Rs." || displayCurrency === "INR" || displayCurrency === "₹";
-    const currencySymbol = isIndianCurrency ? "₹" : "$";
 
     const displayPrice = (price: number | string | undefined) => {
         if (price === undefined || price === null || price === "") {
@@ -57,16 +96,16 @@ export default function PricingPlanPage() {
         }
 
         const numericPrice = Number(price);
-
         if (Number.isNaN(numericPrice)) {
             return "";
         }
 
+        const isIndian = currency === "Rs." || currency === "INR" || currency === "₹";
         return `${currencySymbol}${numericPrice.toLocaleString(
-            isIndianCurrency ? "en-IN" : "en-US",
+            isIndian ? "en-IN" : "en-US",
             {
-                minimumFractionDigits: !isIndianCurrency ? 2 : 0,
-                maximumFractionDigits: !isIndianCurrency ? 2 : 0,
+                minimumFractionDigits: isIndian ? 0 : 2,
+                maximumFractionDigits: isIndian ? 0 : 2,
             }
         )}`;
     };
@@ -76,6 +115,36 @@ export default function PricingPlanPage() {
     };
 
     const getPricing = (planData: any) => {
+        if (!planData) return undefined;
+
+        const isIndian = currency === "Rs." || currency === "INR" || currency === "₹";
+
+        // For Growth Plan in INR, use the official INR offer price (25,000) and TotalValue (47,925)
+        if (isIndian && (planData.Id === 1 || planData.Id === 5 || planData.Name === "Growth Plan")) {
+            return {
+                Price: 25000,
+                OriginalPrice: planData.TotalValue ? Number(planData.TotalValue) : 47925,
+                BillingCycle: "YEAR"
+            };
+        }
+
+        // For POS plans in INR, if BillingText has Rupee values, extract them
+        if (isIndian && planData.BillingText) {
+            const match = planData.BillingText.match(/(\d[\d,]*)/);
+            if (match) {
+                const parsedVal = parseFloat(match[1].replace(/,/g, ""));
+                if (!Number.isNaN(parsedVal) && parsedVal > 0) {
+                    const requiredCycle = isYearly ? "YEAR" : "MONTH";
+                    const pricingItem = planData.Pricing?.find((p: any) => p.BillingCycle === requiredCycle) || planData.Pricing?.[0];
+                    return {
+                        Price: parsedVal,
+                        OriginalPrice: pricingItem?.OriginalPrice || parsedVal,
+                        BillingCycle: pricingItem?.BillingCycle || (isYearly ? "YEAR" : "MONTH")
+                    };
+                }
+            }
+        }
+
         if (!planData?.Pricing || !Array.isArray(planData.Pricing)) {
             return undefined;
         }
@@ -91,7 +160,6 @@ export default function PricingPlanPage() {
     };
     const handleCreateSubscription = async (selectedPlan: any) => {
         try {
-
             const shopId = Number(sessionStorage.getItem("shop_id"));
 
             if (!shopId) {
@@ -108,7 +176,7 @@ export default function PricingPlanPage() {
                 planId: selectedPlan?.Id || 1,
                 billingCycle: activePricing?.BillingCycle || "YEAR",
                 planName: selectedPlan?.Name || "Growth Plan",
-                currency: displayCurrency === "Rs." ? "INR" : "USD",
+                currency: currency === "Rs." || currency === "₹" ? "INR" : currency,
                 shopId: shopId,
             });
 
@@ -119,7 +187,7 @@ export default function PricingPlanPage() {
     };
 
     useEffect(() => {
-        if (lastCurrency.current === currency) return;
+        if (lastCurrency.current === currency && plan) return;
 
         lastCurrency.current = currency;
 
@@ -176,9 +244,6 @@ export default function PricingPlanPage() {
                                 : [];
 
                 setAddOns(addonsData);
-
-                setDisplayCurrency(currency);
-                displayCurrencyRef.current = currency;
             } catch (error) {
                 console.error("PLAN API ERROR:", error);
             } finally {
@@ -300,8 +365,7 @@ export default function PricingPlanPage() {
                 emptyEl.style.display = "block";
                 itemsEl.style.display = "none";
 
-                const zeroPrice =
-                    displayCurrency === "$" ? "$0.00" : "₹0";
+                const zeroPrice = `${currencySymbol}0`;
 
                 subtotalEl.textContent = zeroPrice;
                 totalEl.textContent = zeroPrice;
@@ -325,7 +389,7 @@ export default function PricingPlanPage() {
                  * converting the price into a number.
                  */
                 const num = Number(
-                    priceStr.replace(/[₹$,\s]/g, "")
+                    priceStr.replace(/[^0-9.]/g, "")
                 );
 
                 if (!Number.isNaN(num)) {
@@ -372,14 +436,12 @@ export default function PricingPlanPage() {
             /*
              * Format total according to selected currency.
              */
+            const isIndian = currency === "Rs." || currency === "INR" || currency === "₹";
             const formattedTotal = total.toLocaleString(
-                displayCurrency === "Rs." ? "en-IN" : "en-US",
+                isIndian ? "en-IN" : "en-US",
                 {
-                    minimumFractionDigits:
-                        displayCurrency === "$" ? 2 : 0,
-
-                    maximumFractionDigits:
-                        displayCurrency === "$" ? 2 : 0,
+                    minimumFractionDigits: isIndian ? 0 : 2,
+                    maximumFractionDigits: isIndian ? 0 : 2,
                 }
             );
 
@@ -616,13 +678,7 @@ export default function PricingPlanPage() {
 
                                         <span className="addon-price">
                                             {currencySymbol}
-                                            {Number(addon.Price).toLocaleString(
-                                                displayCurrency === "Rs." ? "en-IN" : "en-US",
-                                                {
-                                                    minimumFractionDigits: displayCurrency === "$" ? 2 : 0,
-                                                    maximumFractionDigits: displayCurrency === "$" ? 2 : 0,
-                                                }
-                                            )}
+                                            {formatPrice(addon.Price)}
                                             {addon.BillingCycle
                                                 ? ` / ${addon.BillingCycle.toLowerCase()}`
                                                 : ""}
@@ -640,7 +696,7 @@ export default function PricingPlanPage() {
                                         Total Value: {displayPrice(onlineGrowthPlan?.TotalValue)}
                                     </div>
                                     <div className="total-bar green">
-                                        Save ₹{onlineGrowthPlan?.TotalSavings?.toLocaleString("en-IN")}
+                                        Save {displayPrice(onlineGrowthPlan?.TotalSavings)}
                                     </div>
                                     <button
                                         className="buy-btn"
@@ -828,7 +884,7 @@ export default function PricingPlanPage() {
                                             <span>FREE Powerful Add-ons</span>
                                             <span>Valued</span>
                                         </div>
-                                        <OOAddons addOns={addOns} />
+                                        <OOAddons addOns={addOns} currencySymbol={currencySymbol} />
                                     </div>
 
                                     {/* COL 2: Growth Plan (featured) */}
@@ -952,7 +1008,7 @@ export default function PricingPlanPage() {
                                             <span>FREE Powerful Add-ons</span>
                                             <span>Valued</span>
                                         </div>
-                                        <OOAddons addOns={addOns} />
+                                        <OOAddons addOns={addOns} currencySymbol={currencySymbol} />
                                     </div>
                                 </div>
                                 {/* end oo-cards */}
@@ -1007,7 +1063,7 @@ export default function PricingPlanPage() {
                                     <div className="ao-grid">
                                         {addOns?.map((addon, index) => (
                                             addon ? (
-                                            <div className="ao-card" key={addon.Id || index}>
+                                            <div className="ao-card" key={`ao-card-${addon.Id ?? "item"}-${index}`}>
                                                 {addon.BadgeText && (
                                                     <div className="ao-badge-wrap">
                                                         <div className="ao-badge-limited">{addon.BadgeText}</div>
@@ -1024,14 +1080,8 @@ export default function PricingPlanPage() {
                                                     <div>
                                                         <div className="ao-name">{addon.Name}</div>
                                                         <div className="ao-price">
-                                                            {displayCurrency === "Rs." || displayCurrency === "INR" || displayCurrency === "₹" ? "₹" : "$"}
-                                                            {Number(addon.Price).toLocaleString(
-                                                                displayCurrency === "Rs." ? "en-IN" : "en-US",
-                                                                {
-                                                                    minimumFractionDigits: displayCurrency === "$" ? 2 : 0,
-                                                                    maximumFractionDigits: displayCurrency === "$" ? 2 : 0,
-                                                                }
-                                                            )}
+                                                            {currencySymbol}
+                                                            {formatPrice(addon.Price)}
                                                             <span>
                                                                 {addon.BillingCycle ? ` / ${addon.BillingCycle.toLowerCase()}` : ""}
                                                             </span>
@@ -1149,25 +1199,27 @@ export default function PricingPlanPage() {
 function OOAddons({
     teal = false,
     addOns,
+    currencySymbol = "₹",
 }: {
     teal?: boolean;
     addOns: any[];
+    currencySymbol?: string;
 }) {
     const cls = "oo-addon-row" + (teal ? " teal-row" : "");
     const formatPrice = (addon: any) => {
         if (!addon) return "";
 
         if (addon.Price !== undefined && addon.Price !== null) {
-            return `₹${Number(addon.Price).toLocaleString("en-IN")}`;
+            return `${currencySymbol}${Number(addon.Price).toLocaleString()}`;
         }
 
         return "";
     };
-        return (
+    return (
         <>
             {addOns?.map((addon, index) => (
                 addon ? (
-                <div className={cls} key={addon.Id || index}>
+                <div className={cls} key={`oo-addon-${addon.Id ?? "item"}-${index}`}>
                     <div className="oo-addon-icon">
                         <svg viewBox="0 0 24 24">
                             <line x1="19" y1="5" x2="5" y2="19" />

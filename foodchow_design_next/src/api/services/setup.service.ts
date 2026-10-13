@@ -177,10 +177,13 @@ export const restaurantService = {
 
   async getPointPlanDetails(shopId: string | number) {
     try {
+      // Use Next.js API route proxy to avoid CORS blockage
+      const { data } = await axios.get(`/api/my-plan?shop_id=${shopId}`);
+      return data;
+    } catch {
+      // Fallback directly to live URL
       const { data } = await axios.get(`https://www.foodchow.com/api/FoodChowWD/GetPointPlanDetailscurrent?shop_id=${shopId}`);
       return data;
-    } catch (error) {
-      throw error;
     }
   }
 };
@@ -675,6 +678,17 @@ export const setupService = {
       }
     );
     console.log("GET SHOP INVOICES RESPONSE:", data);
+    return data;
+  },
+
+  // Plan Purchases
+  async getPricingPlanPurchases(shopId: number | string) {
+    const { data } = await foodchowClient.get(
+      ENDPOINTS.setup.getFoodchowPricingPlanPurchases,
+      {
+        params: { shop_id: shopId },
+      }
+    );
     return data;
   },
 };

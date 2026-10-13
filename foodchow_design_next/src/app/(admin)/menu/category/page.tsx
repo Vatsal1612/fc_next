@@ -41,6 +41,7 @@ export default function CategoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [draggedCategoryId, setDraggedCategoryId] = useState<number | null>(null);
 
   // ── Edit modal state ──
   const [editOpen, setEditOpen] = useState(false);
@@ -71,27 +72,82 @@ export default function CategoryPage() {
   const pageStart = (page - 1) * PAGE_SIZE;
   const pagedCategories = categories.slice(pageStart, pageStart + PAGE_SIZE);
 
-  // ── Load categories from the FoodChow API ──
-  useEffect(() => {
+  const loadCategories = async () => {
     const currentShop = SHOP_ID || getShopId();
     if (!currentShop) return;
-    let active = true;
-    setLoading(true);
-    menuService
-      .categoriesByShop(currentShop)
-      .then((data) => {
-        if (active) setCategories(data);
-      })
-      .catch((err) => {
-        if (active) setError(err?.message ?? "Failed to load categories");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
+    try {
+      setLoading(true);
+      const data = await menuService.categoriesByShop(currentShop);
+      setCategories(data);
+    } catch (err: any) {
+      setError(err?.message ?? "Failed to load categories");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Load categories from the FoodChow API ──
+  useEffect(() => {
+    loadCategories();
   }, [SHOP_ID]);
+
+  // ── Drag & Drop handlers ──
+  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, catId: number) => {
+    setDraggedCategoryId(catId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(catId));
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLTableRowElement>, targetCatId: number) => {
+    e.preventDefault();
+    const sourceIdStr = e.dataTransfer.getData("text/plain");
+    const sourceCatId = Number(sourceIdStr);
+
+    if (!sourceCatId || sourceCatId === targetCatId) {
+      setDraggedCategoryId(null);
+      return;
+    }
+
+    const currentList = [...categories];
+    const sourceIdx = currentList.findIndex((c) => c.id === sourceCatId);
+    const targetIdx = currentList.findIndex((c) => c.id === targetCatId);
+
+    if (sourceIdx === -1 || targetIdx === -1) {
+      setDraggedCategoryId(null);
+      return;
+    }
+
+    const [movedCat] = currentList.splice(sourceIdx, 1);
+    currentList.splice(targetIdx, 0, movedCat);
+
+    // Optimistic update
+    setCategories(currentList);
+    setDraggedCategoryId(null);
+
+    const catIds = currentList.map((c) => c.id);
+    const posIds = currentList.map((_, idx) => idx + 1);
+
+    try {
+      await menuService.changeCategoryPosition(catIds, posIds);
+      Swal.fire({
+        icon: "success",
+        title: "Position Updated",
+        text: "Category position reordered successfully.",
+        timer: 1500,
+        showConfirmButton: false,
+        toast: true,
+        position: "top-end",
+      });
+    } catch (err) {
+      console.error("Failed to update category position:", err);
+      loadCategories();
+    }
+  };
 
   // ── React handlers ──
 
@@ -714,6 +770,7 @@ export default function CategoryPage() {
                   <table id="catTable">
                     <thead>
                       <tr>
+                        <th style={{ width: "40px" }}></th>
                         <th style={{ width: "50px" }}>
                           <input type="checkbox" className="cb" id="selectAll" />
                         </th>
@@ -725,7 +782,7 @@ export default function CategoryPage() {
                     <tbody id="catTableBody">
                       {loading && (
                         <tr>
-                          <td colSpan={4} style={{ textAlign: "center", padding: "24px" }}>
+                          <td colSpan={5} style={{ textAlign: "center", padding: "24px" }}>
                             Loading categories…
                           </td>
                         </tr>
@@ -733,7 +790,7 @@ export default function CategoryPage() {
                       {!loading && error && (
                         <tr>
                           <td
-                            colSpan={4}
+                            colSpan={5}
                             style={{ textAlign: "center", padding: "24px", color: "#e53e3e" }}
                           >
                             {error}
@@ -742,7 +799,7 @@ export default function CategoryPage() {
                       )}
                       {!loading && !error && categories.length === 0 && (
                         <tr>
-                          <td colSpan={4} style={{ textAlign: "center", padding: "24px" }}>
+                          <td colSpan={5} style={{ textAlign: "center", padding: "24px" }}>
                             No categories found.
                           </td>
                         </tr>
@@ -750,7 +807,29 @@ export default function CategoryPage() {
                       {!loading &&
                         !error &&
                         pagedCategories.map((cat) => (
-                          <tr key={cat.id} data-id={cat.id}>
+                          <tr
+                            key={cat.id}
+                            data-id={cat.id}
+                            draggable={true}
+                            onDragStart={(e) => handleDragStart(e, cat.id)}
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, cat.id)}
+                            onDragEnd={() => setDraggedCategoryId(null)}
+                            style={{
+                              opacity: draggedCategoryId === cat.id ? 0.4 : 1,
+                              cursor: "default",
+                              transition: "opacity 0.2s ease",
+                            }}
+                          >
+                            <td>
+                              <div
+                                className="drag-handle"
+                                style={{ cursor: "grab" }}
+                                title="Drag to reorder position"
+                              >
+                                <i className="fa-solid fa-bars"></i>
+                              </div>
+                            </td>
                             <td>
                               <input type="checkbox" className="cb row-cb" />
                             </td>
