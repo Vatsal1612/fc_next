@@ -674,10 +674,22 @@ export default function ItemDealsPage() {
     );
   };
 
-  const handleOpenItemModal = (groupId: string) => {
+  const handleOpenItemModal = async (groupId: string) => {
     setEditingGroupId(groupId);
     setExpandedCategory(null);
     setIsItemModalOpen(true);
+
+    const effShopId = getEffectiveShopId();
+    if (effShopId) {
+      try {
+        const categoryData = await menuService.getItems(effShopId);
+        if (Array.isArray(categoryData) && categoryData.length > 0) {
+          setCategories(categoryData);
+        }
+      } catch (err) {
+        console.error("Error refreshing categories for item group modal:", err);
+      }
+    }
   };
 
   const handleItemSelection = (

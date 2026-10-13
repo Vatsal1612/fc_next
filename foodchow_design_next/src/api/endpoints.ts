@@ -48,6 +48,7 @@ export const ENDPOINTS = {
     saveItemCodeTypeSetting: "/FoodChowRMS/ItemCodeTypeSetting",
     updateItemCode: "/FoodChowRMS/UpdateItemCode",
     changeItemPosition: "/FoodItem/ChangeItemPosition",
+    changeCategoryPosition: "/FoodCategory/ChangeCategoryPosition",
 
     // Tax
     getAllTax: "/TaxMaster/GetAllStoreTax",
@@ -445,6 +446,7 @@ export const ENDPOINTS = {
 
     // Shop Invoices
     getShopInvoices: "/Marketplace/GetShopInvoiceList",
+    getFoodchowPricingPlanPurchases: "/MenuMaster/GetFoodchowPricingPlanPurchases",
   },
 
 

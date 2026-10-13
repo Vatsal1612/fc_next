@@ -55,18 +55,15 @@ interface LDrawPolygon {
 interface LeafletStatic {
   map(
     id: string,
-    opts: {
-      center: unknown;
-      zoom: number;
-      layers: LLayer[];
-      zoomControl: boolean;
-    }
+    opts: Record<string, unknown>
   ): LMap;
 
   tileLayer(
     url: string,
-    opts: { maxZoom: number }
+    opts?: Record<string, unknown>
   ): LLayer;
+
+  latLngBounds(southWest: unknown, northEast: unknown): any;
 
   circle(
     center: unknown,
@@ -258,30 +255,46 @@ export default function DeliveryPage() {
       const defaultCenter = [21.1702, 72.8311];
       const streetLayer = L.tileLayer(
         "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        { maxZoom: 19 },
+        { maxZoom: 19, noWrap: true },
       );
       const terrainLayer = L.tileLayer(
         "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
-        { maxZoom: 17 },
+        { maxZoom: 17, noWrap: true },
       );
       // Satellite without labels
       const satelliteLayer = L.tileLayer(
-        "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}",
-        { maxZoom: 19 },
+        "https://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}",
+        { maxZoom: 19, noWrap: true },
       );
       // Satellite with labels (Hybrid)
       const hybridLayer = L.tileLayer(
-        "http://mt0.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}",
-        { maxZoom: 19 },
+        "https://mt0.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}",
+        { maxZoom: 19, noWrap: true },
       );
+
+      const bounds = L.latLngBounds
+        ? L.latLngBounds([-85, -180], [85, 180])
+        : [[-85, -180], [85, 180]];
 
       const map = L.map("map", {
         center: defaultCenter,
-        zoom: 13,
+        zoom: 14,
+        minZoom: 3,
+        maxBounds: bounds,
+        maxBoundsViscosity: 1.0,
+        worldCopyJump: false,
         layers: [hybridLayer], // default to satellite with labels
         zoomControl: false,
       });
       mapRef.current = map;
+
+      // Invalidate size immediately once initialized
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 100);
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 350);
 
       const terrainCheckbox = byId("terrainToggleCheckbox") as HTMLInputElement | null;
       const labelsCheckbox = byId("labelsToggleCheckbox") as HTMLInputElement | null;
@@ -1837,6 +1850,16 @@ export default function DeliveryPage() {
         const groupedZones = groupZones(rawZones);
 
         setZones(groupedZones);
+
+        // If zones exist, center map on first zone or fit bounds
+        if (groupedZones.length > 0 && mapRef.current) {
+          const firstZone = groupedZones[0];
+          const lat = Number(firstZone.latitude ?? firstZone.lat ?? firstZone.latArray?.[0]);
+          const lng = Number(firstZone.longitude ?? firstZone.lng ?? firstZone.longArray?.[0]);
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            mapRef.current.setView([lat, lng], 14);
+          }
+        }
       } catch (error) {
         console.error("Error fetching delivery zones:", error);
       }
@@ -1846,10 +1869,21 @@ export default function DeliveryPage() {
   }, []);
 
   useEffect(() => {
-    if (deliveryType === "zone" && mapRef.current) {
-      setTimeout(() => {
-        mapRef.current?.invalidateSize();
-      }, 100);
+    if (deliveryType === "zone") {
+      const runInvalidate = () => {
+        if (mapRef.current) {
+          mapRef.current.invalidateSize();
+        }
+      };
+      runInvalidate();
+      const t1 = setTimeout(runInvalidate, 100);
+      const t2 = setTimeout(runInvalidate, 300);
+      const t3 = setTimeout(runInvalidate, 600);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+      };
     }
   }, [deliveryType]);
 

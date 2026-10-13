@@ -18,6 +18,56 @@ import ReportPagination from "@/components/shared/ReportPagination";
 
 import "./page.css";
 
+function ItemThumbnail({
+  src,
+  alt,
+  rawImg,
+}: {
+  src: string;
+  alt: string;
+  rawImg: string | null | undefined;
+}) {
+  const [currentSrc, setCurrentSrc] = useState(src);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setCurrentSrc(src);
+    setHasError(false);
+  }, [src]);
+
+  if (!rawImg || hasError) {
+    return (
+      <div className="placeholder-img">
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <i className="fa-solid fa-concierge-bell"></i>
+          <span>No Image</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="placeholder-img">
+      <img
+        src={currentSrc}
+        style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 4 }}
+        alt={alt}
+        onError={() => {
+          const cleanName = String(rawImg || "")
+            .replace(/^https?:\/\/[^\/]+\/(FoodItemImages\/)?/, "")
+            .replace(/^\//, "");
+
+          if (currentSrc.includes("admin.foodchow.com") && cleanName) {
+            setCurrentSrc(`https://www.foodchow.com/FoodItemImages/${cleanName}`);
+          } else {
+            setHasError(true);
+          }
+        }}
+      />
+    </div>
+  );
+}
+
 export default function ItemsPage() {
 
   const SHOP_ID = useShopId();
@@ -2184,11 +2234,12 @@ export default function ItemsPage() {
                         const pageStart = (page - 1) * pageSize;
                         const visibleItems = allItems.slice(pageStart, pageStart + pageSize);
 
-                        return visibleItems.map((item: any) => {
+                        return visibleItems.map((item: any, itemIdx: number) => {
                           const category = item._category;
+                          const stableKey = item.item_Id ? `${item.item_Id}-${itemIdx}` : `item-${itemIdx}`;
                           return (
                             <tr
-                              key={item.item_Id}
+                              key={stableKey}
                               data-item-id={item.item_Id}
                               data-cate-id={category.id}
                               data-item-image={getImageUrl(item.item_Image ?? item.Item_Image)}
@@ -2258,35 +2309,11 @@ export default function ItemsPage() {
                               </td>
 
                               <td>
-                                <div className="placeholder-img">
-                                  {(item.item_Image || item.Item_Image || item.image || item.item_image) ? (
-                                    <img
-                                      src={getImageUrl(item.item_Image ?? item.Item_Image ?? item.image ?? item.item_image)}
-                                      style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 4 }}
-                                      alt={item.item_Name ?? item.Item_Name ?? "Item"}
-                                      onError={(e) => {
-                                        const target = e.target as HTMLImageElement;
-                                        const rawImg = item.item_Image ?? item.Item_Image ?? item.image ?? item.item_image;
-                                        const cleanName = String(rawImg || "")
-                                          .replace(/^https?:\/\/[^\/]+\/(FoodItemImages\/)?/, "")
-                                          .replace(/^\//, "");
-
-                                        if (target.src.includes("admin.foodchow.com") && cleanName) {
-                                          target.src = `https://www.foodchow.com/FoodItemImages/${cleanName}`;
-                                          return;
-                                        }
-                                        target.style.display = "none";
-                                        if (target.nextElementSibling) {
-                                          (target.nextElementSibling as HTMLElement).style.display = "flex";
-                                        }
-                                      }}
-                                    />
-                                  ) : null}
-                                  <div style={{ display: (item.item_Image || item.Item_Image || item.image || item.item_image) ? "none" : "flex", flexDirection: "column", alignItems: "center" }}>
-                                    <i className="fa-solid fa-concierge-bell"></i>
-                                    <span>No Image</span>
-                                  </div>
-                                </div>
+                                <ItemThumbnail
+                                  src={getImageUrl(item.item_Image ?? item.Item_Image ?? item.image ?? item.item_image)}
+                                  alt={item.item_Name ?? item.Item_Name ?? "Item"}
+                                  rawImg={item.item_Image ?? item.Item_Image ?? item.image ?? item.item_image}
+                                />
                               </td>
 
                               <td>

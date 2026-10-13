@@ -35,12 +35,15 @@
     padding: 0;
   }
 
-  .layout {
+  /* ═══ APP CONTAINER ═══ */
+  .app-container {
     display: flex;
+    width: 100%;
     height: calc(100vh - 60px);
     overflow: hidden;
   }
 
+  /* ═══ MAIN ═══ */
   .main {
     flex: 1;
     display: flex;
@@ -49,28 +52,27 @@
     min-width: 0;
   }
 
-  .content-area {
+  .page-content {
     flex: 1;
     overflow-y: auto;
-    padding: 32px;
-    display: block;
+    padding: 22px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
   }
 
-  .card {
-    background: var(--white);
+  /* ═══ PAGE CARD ═══ */
+  .page-card {
+    background: #ffffff;
+    border-radius: 12px;
     border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 40px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+    padding: 32px 36px;
     width: 100%;
-    max-width: 900px;
-    margin: 0 auto;
+    box-sizing: border-box;
   }
 
   .page-title {
     text-align: center;
-
-
     color: var(--ink);
     margin-bottom: 20px;
   }
@@ -126,7 +128,8 @@
   }
 
   .store-btn i {
-  font-size: var(--text-page-heading); line-height: var(--lh-page-heading);
+    font-size: var(--text-page-heading);
+    line-height: var(--lh-page-heading);
   }
 
   .store-btn .btn-text {
@@ -137,13 +140,15 @@
   }
 
   .store-btn .btn-small {
-  font-size: var(--text-button); line-height: var(--lh-button);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
+    font-weight: var(--weight-semibold);
   }
 
   .store-btn .btn-large {
-  font-size: var(--text-button); line-height: var(--lh-button);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
+    font-weight: var(--weight-semibold);
   }
 
   .windows-btn {
@@ -155,8 +160,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-  font-size: var(--text-subheading); line-height: var(--lh-subheading);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-subheading);
+    line-height: var(--lh-subheading);
+    font-weight: var(--weight-semibold);
     text-decoration: none;
     transition: transform 0.2s;
     border: none;
@@ -169,236 +175,130 @@
     box-shadow: 0 4px 12px rgba(10, 168, 158, 0.25);
   }
 
-  /* ── Table Reservation Ask Screen Styles ── */
-  .table-reservation-ask-card {
-    max-width: 820px;
-    margin: 0 auto;
-    padding: 44px 36px;
-    border-radius: 16px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
-    animation: fadeInAsk 0.3s ease-out;
+  /* ── Live Ask/tableReservation Card Styles (1:1 with other setup cards) ── */
+  .ask-table-card {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 32px 36px;
+    width: 100%;
+    min-height: 240px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    animation: fadeInAsk 0.2s ease-out;
   }
 
   @keyframes fadeInAsk {
     from {
       opacity: 0;
-      transform: translateY(12px);
+      transform: translateY(6px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
     }
   }
 
-  .ask-header {
-    text-align: center;
-    margin-bottom: 36px;
-  }
-
-  .ask-pill-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
-    background: #e0f2fe;
-    color: #0284c7;
-    font-size: 0.75rem;
+  .ask-table-title {
+    font-size: 1.45rem;
     font-weight: 700;
-    letter-spacing: 0.8px;
-    border-radius: 20px;
-    margin-bottom: 14px;
+    color: #2b3445;
+    margin-bottom: 24px;
+    font-family: inherit;
+    letter-spacing: -0.2px;
   }
 
-  .ask-title {
-    font-size: 1.85rem;
-    font-weight: 700;
-    color: #1e293b;
-    margin-bottom: 12px;
-    letter-spacing: -0.5px;
-  }
-
-  .ask-subtitle {
-    font-size: 0.98rem;
-    color: #64748b;
-    max-width: 620px;
-    margin: 0 auto;
-    line-height: 1.6;
-  }
-
-  .reservation-options-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    margin-bottom: 36px;
-  }
-
-  .reservation-option-card {
-    display: flex;
-    align-items: flex-start;
-    gap: 20px;
-    padding: 24px;
-    border: 2px solid #e2e8f0;
-    border-radius: 14px;
-    background: #ffffff;
-    cursor: pointer;
-    transition: all 0.22s ease-in-out;
-    position: relative;
-  }
-
-  .reservation-option-card:hover {
-    border-color: #0aa89e;
-    background: #fcfefe;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(10, 168, 158, 0.08);
-  }
-
-  .reservation-option-card.active {
-    border-color: #0aa89e;
-    background: #f2faf9;
-    box-shadow: 0 6px 20px rgba(10, 168, 158, 0.12);
-  }
-
-  .option-radio-indicator {
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    border: 2px solid #cbd5e1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: 3px;
-    flex-shrink: 0;
-    transition: all 0.2s ease;
-  }
-
-  .reservation-option-card.active .option-radio-indicator {
-    border-color: #0aa89e;
-  }
-
-  .radio-inner {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: transparent;
-    transition: background 0.2s ease;
-  }
-
-  .reservation-option-card.active .radio-inner {
-    background: #0aa89e;
-  }
-
-  .option-content {
-    flex: 1;
-  }
-
-  .option-title-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 6px;
-  }
-
-  .option-title {
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: #1e293b;
-  }
-
-  .option-badge-recommended {
-    background: #dcfce7;
-    color: #15803d;
-    font-size: 0.72rem;
-    font-weight: 700;
-    padding: 3px 10px;
-    border-radius: 12px;
-    letter-spacing: 0.3px;
-  }
-
-  .option-desc {
-    font-size: 0.92rem;
-    color: #64748b;
-    margin-bottom: 12px;
+  .ask-table-question {
+    font-size: 1.05rem;
+    font-weight: 500;
+    color: #4a5568;
+    margin-bottom: 24px;
     line-height: 1.5;
   }
 
-  .option-features {
-    list-style: none;
-    padding: 0;
-    margin: 0;
+  .ask-choice-buttons {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .option-features li {
-    font-size: 0.85rem;
-    color: #334155;
-    font-weight: 500;
-    display: flex;
+    gap: 14px;
     align-items: center;
-    gap: 8px;
+    margin-bottom: 32px;
   }
 
-  .option-features li i.fa-check {
-    color: #0aa89e;
-    font-size: 0.8rem;
-  }
-
-  .option-features.dim li {
-    color: #94a3b8;
-  }
-
-  .ask-actions {
-    display: flex;
+  .btn-choice-yes,
+  .btn-choice-no {
+    min-width: 96px;
+    height: 38px;
+    border-radius: 4px;
+    border: none;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    transition: all 0.2s ease;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 16px;
+    padding: 0 24px;
+  }
+
+  /* YES button: Teal when active, gray when inactive */
+  .btn-choice-yes.active {
+    background: #0aa89e;
+    color: #ffffff;
+  }
+
+  .btn-choice-yes.inactive {
+    background: #0aa89e;
+    color: #ffffff;
+  }
+
+  /* NO button: Active darker charcoal/gray (#52575c) or #7e8284, inactive #7e8284 */
+  .btn-choice-no.active {
+    background: #52575c;
+    color: #ffffff;
+  }
+
+  .btn-choice-no.inactive {
+    background: #7e8284;
+    color: #ffffff;
+  }
+
+  .btn-choice-yes:hover,
+  .btn-choice-no:hover {
+    filter: brightness(0.92);
+  }
+
+  .ask-action-row {
     margin-top: 10px;
   }
 
-  .btn-continue {
+  /* SETUP and PROCEED button */
+  .btn-ask-submit {
+    min-width: 100px;
+    height: 40px;
+    padding: 0 30px;
+    border-radius: 4px;
+    border: none;
     background: #0aa89e;
     color: #ffffff;
-    font-size: 1rem;
+    font-size: 0.88rem;
     font-weight: 700;
-    padding: 13px 36px;
-    border-radius: 8px;
-    border: none;
     cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: background 0.2s ease, transform 0.15s ease;
     display: inline-flex;
     align-items: center;
-    gap: 10px;
-    transition: all 0.2s ease;
-    box-shadow: 0 4px 14px rgba(10, 168, 158, 0.3);
+    justify-content: center;
   }
 
-  .btn-continue:hover {
+  .btn-ask-submit:hover {
     background: #088c83;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 18px rgba(10, 168, 158, 0.4);
   }
 
-  .btn-continue:disabled {
+  .btn-ask-submit:disabled {
     opacity: 0.65;
     cursor: not-allowed;
-    transform: none;
-  }
-
-  .btn-skip {
-    background: transparent;
-    color: #64748b;
-    font-size: 0.95rem;
-    font-weight: 600;
-    padding: 13px 24px;
-    border-radius: 8px;
-    border: 1px solid transparent;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .btn-skip:hover {
-    background: #f1f5f9;
-    color: #334155;
   }
 
   .preference-reset-wrap {
@@ -477,4 +377,3 @@
     }
   }
 }
-

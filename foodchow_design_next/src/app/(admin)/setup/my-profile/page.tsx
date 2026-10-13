@@ -341,22 +341,38 @@ export default function MyProfilePage() {
 
       const streetLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "OpenStreetMap",
+        maxZoom: 19,
+        noWrap: true,
       });
       const terrainLayer = L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
         attribution: "Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap (CC-BY-SA)",
+        maxZoom: 17,
+        noWrap: true,
       });
       // Satellite without labels
-      const satelliteLayer = L.tileLayer("http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}", {
+      const satelliteLayer = L.tileLayer("https://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}", {
         attribution: "Google Maps",
+        maxZoom: 19,
+        noWrap: true,
       });
       // Satellite with labels (Hybrid)
-      const hybridLayer = L.tileLayer("http://mt0.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}", {
+      const hybridLayer = L.tileLayer("https://mt0.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}", {
         attribution: "Google Maps",
+        maxZoom: 19,
+        noWrap: true,
       });
+
+      const bounds = L.latLngBounds
+        ? L.latLngBounds([-85, -180], [85, 180])
+        : [[-85, -180], [85, 180]];
 
       map = L.map("map", {
         layers: [hybridLayer], // default to satellite with labels
         zoomControl: false,
+        minZoom: 3,
+        maxBounds: bounds,
+        maxBoundsViscosity: 1.0,
+        worldCopyJump: false,
       }).setView([lat, lng], 16);
 
       (window as any).myMap = map;
@@ -573,11 +589,15 @@ export default function MyProfilePage() {
 
       // If switching to the map step, force Leaflet to recalculate size explicitly
       if (n === 3) {
-        setTimeout(() => {
+        const runInvalidate = () => {
           if ((window as any).myMap) {
             (window as any).myMap.invalidateSize();
           }
-        }, 100);
+        };
+        runInvalidate();
+        setTimeout(runInvalidate, 100);
+        setTimeout(runInvalidate, 300);
+        setTimeout(runInvalidate, 600);
       }
     };
 

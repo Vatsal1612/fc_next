@@ -667,7 +667,8 @@
 
     thead th:nth-child(1),
     thead th:nth-child(2),
-    thead th:nth-child(4) {
+    thead th:nth-child(3),
+    thead th:nth-child(5) {
         text-align: center;
     }
 
@@ -692,8 +693,29 @@
     }
 
     /* Category Name column left-aligned */
-    tbody td:nth-child(3) {
+    tbody td:nth-child(4) {
         text-align: left;
+    }
+
+    .drag-handle {
+        color: #666;
+        cursor: grab;
+        font-size: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border: 1px solid #ccc;
+        border-radius: 50%;
+        background: #fafafa;
+        transition: all 0.2s ease;
+    }
+
+    .drag-handle:hover {
+        background: #eef7f6;
+        border-color: var(--teal);
+        color: var(--teal);
     }
 
     /* ── Checkbox ── */

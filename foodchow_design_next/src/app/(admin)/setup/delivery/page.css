@@ -176,7 +176,14 @@
     border: 1px solid #e2e8f0;
     border-radius: 8px;
     z-index: 1;
+    background: #e5e3df;
     transition: height 0.3s ease;
+  }
+
+  #map .leaflet-pane,
+  #map .leaflet-tile,
+  #map .leaflet-marker-icon {
+    max-width: none !important;
   }
 
   .map-wrapper-canvas.map-fullscreen {
