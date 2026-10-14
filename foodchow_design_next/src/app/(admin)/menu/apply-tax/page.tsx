@@ -1010,22 +1010,51 @@ export default function ApplyTaxPage() {
     async function loadProducts() {
       try {
         const activeShopId = getShopId();
-        const response = await menuService.getItemListWithSize(activeShopId, TAX_ID, taxType);
+        const items = await menuService.getItemListWithSize(activeShopId, TAX_ID, taxType);
 
-        const items = response;
-        sampleProducts = items.map((item: any) => ({
-          id: item.item_id || 0,
-          item_size_id: item.item_size_id || 0,
-          name: item.size_name && item.size_name.trim() !== ''
-            ? `${item.item_name} (${item.size_name})`
-            : item.item_name,
-          category: item.size_name && item.size_name.trim() !== '' ? item.size_name : "Default",
-          price: item.item_price || 0,
-          priceWithTax: item.item_price || 0,
-          taxApplied: item.is_tax || false,
-          taxList: item.tax_list
-        }));
+        const productsWithTax = await Promise.all(
+          items.map(async (item: any) => {
+            const itemId = item.item_id || 0;
+            const sizeId = item.item_size_id || 0;
+            let isTax = false;
+            let taxList: any[] = [];
 
+            try {
+              const taxRes = await menuService.getTaxDetailsWithSize(itemId, sizeId);
+              const taxes = Array.isArray(taxRes)
+                ? taxRes
+                : (taxRes?.data ? (typeof taxRes.data === "string" ? JSON.parse(taxRes.data) : taxRes.data) : []);
+              
+              taxList = (taxes || []).map((t: any) => ({
+                tax_id: t.tax_id ?? t.food_shop_tax_id ?? 0,
+                tax_name: t.tax_name ?? "",
+                tax_perc: t.tax_percentage ?? t.tax_perc ?? 0,
+                tax_type: t.tax_type ?? 0,
+                tax_amount: t.tax_percentage ? ((item.item_price || 0) * t.tax_percentage) / 100 : 0,
+              }));
+
+              isTax = taxList.some((t: any) => Number(t.tax_id) === Number(TAX_ID));
+            } catch (e) {
+              console.error("Error fetching tax details for item:", itemId, e);
+            }
+
+            const price = item.item_price || 0;
+            return {
+              id: itemId,
+              item_size_id: sizeId,
+              name: item.size_name && item.size_name.trim() !== ''
+                ? `${item.item_name} (${item.size_name})`
+                : item.item_name,
+              category: item.size_name && item.size_name.trim() !== '' ? item.size_name : "Default",
+              price: price,
+              priceWithTax: isTax ? calculatePriceWithTax(price, taxPercentage) : price,
+              taxApplied: isTax,
+              taxList: taxList
+            };
+          })
+        );
+
+        sampleProducts = productsWithTax;
         setProducts(sampleProducts);
         renderProductList();
         updateProductModalCounts();
@@ -1344,7 +1373,7 @@ export default function ApplyTaxPage() {
       productList?.removeEventListener("click", onListClick);
       window.removeEventListener("click", onWindowClick);
     };
-  }, [taxId, shopId, router]);
+  }, [taxId, shopId, router, taxPercentage, taxType]);
 
   // Loading state
   // if (loading) {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { WizardFooter } from "@/components/shared/WizardFooter";
+import { ReportPagination } from "@/components/shared/ReportPagination";
 import { useShopId } from "@/utils/shop";
 import "./page.css";
 import {
@@ -16,19 +17,32 @@ export default function ItemCodePage() {
   const [itemCodeType, setItemCodeType] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const loadData = async () => {
+  const loadData = async (targetShopId?: number) => {
     try {
       setLoading(true);
 
-      const [itemResponse, typeResponse] = await Promise.all([
-        menuService.getItemNames(SHOP_ID),
-        menuService.getItemCodeTypeSetting(SHOP_ID),
+      const effectiveShopId =
+        targetShopId ||
+        SHOP_ID ||
+        (typeof window !== "undefined"
+          ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
+          : 0);
+
+      if (!effectiveShopId) return;
+
+      const [itemResponse, typeResponse] = await Promise.allSettled([
+        menuService.getItemNames(effectiveShopId),
+        menuService.getItemCodeTypeSetting(effectiveShopId),
       ]);
 
-      setItems(itemResponse);
-      setItemCodeType(typeResponse.item_code_type);
+      if (itemResponse.status === "fulfilled") {
+        setItems(itemResponse.value);
+      }
+      if (typeResponse.status === "fulfilled" && typeResponse.value) {
+        setItemCodeType(Number(typeResponse.value.item_code_type ?? 0));
+      }
     } catch (error) {
-      console.error(error);
+      console.error("Error loading item codes:", error);
     } finally {
       setLoading(false);
     }
@@ -83,6 +97,8 @@ export default function ItemCodePage() {
   //   }
   // };
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const filteredItems = items.filter((item) => {
     const matchesSearch = item.item_name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -101,8 +117,14 @@ export default function ItemCodePage() {
     return matchesSearch && matchesType;
   });
 
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+  const validCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (validCurrentPage - 1) * pageSize;
+  const paginatedItems = filteredItems.slice(startIndex, startIndex + pageSize);
+
   const handleTypeChange = async (newType: number) => {
     setItemCodeType(newType);
+    setCurrentPage(1);
 
     try {
       await menuService.saveItemCodeTypeSetting(SHOP_ID, newType);
@@ -196,8 +218,12 @@ export default function ItemCodePage() {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (SHOP_ID) {
+      loadData(SHOP_ID);
+    } else {
+      loadData();
+    }
+  }, [SHOP_ID]);
 
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
@@ -260,7 +286,10 @@ export default function ItemCodePage() {
                     placeholder="Search items"
                     id="searchInput"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setCurrentPage(1);
+                    }}
                   />
                 </div>
 
@@ -298,7 +327,7 @@ export default function ItemCodePage() {
                         </td>
                       </tr>
                     ) : (
-                      filteredItems.map((item) => (
+                      paginatedItems.map((item) => (
                         <tr key={item.item_id}>
                           <td>{item.item_name}</td>
                           <td>
@@ -332,6 +361,23 @@ export default function ItemCodePage() {
                   </tbody>
                 </table>
               </div>
+
+              {filteredItems.length > 0 && (
+                <div className="item-code-pagination-container">
+                  <ReportPagination
+                    currentPage={validCurrentPage}
+                    totalPages={totalPages}
+                    totalRecords={filteredItems.length}
+                    pageSize={pageSize}
+                    pageSizeOptions={[10, 25, 50, 100]}
+                    onPageChange={(page) => setCurrentPage(page)}
+                    onPageSizeChange={(size) => {
+                      setPageSize(size);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             <WizardFooter />
