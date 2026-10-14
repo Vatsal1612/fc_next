@@ -279,7 +279,6 @@ export default function CategoryPage() {
     const $ = <T extends HTMLElement = HTMLElement>(id: string): T | null =>
       document.getElementById(id) as T | null;
 
-    const searchInput = $<HTMLInputElement>("searchInput");
     const selectAll = $<HTMLInputElement>("selectAll");
     const deleteAllBtn = $("deleteAllBtn");
     const openAddModal = $("openAddModal");
@@ -316,24 +315,7 @@ export default function CategoryPage() {
       if (fileInput) fileInput.value = "";
     }
 
-    // ── Search ──
-    const onSearch = function (this: HTMLInputElement) {
-      const q = this.value.toLowerCase().trim();
-      const rows = document.querySelectorAll<HTMLTableRowElement>("#catTableBody tr");
-      let v = 0;
-      rows.forEach((r) => {
-        const name = r.querySelector(".cat-name")?.textContent?.toLowerCase() || "";
-        const show = !q || name.includes(q);
-        r.style.display = show ? "" : "none";
-        if (show) v++;
-      });
-      const tf = $("tableFooter");
-      if (tf)
-        tf.textContent = q
-          ? `Showing ${v} of ${rows.length} entries (filtered)`
-          : `Showing 1 to ${rows.length} of ${rows.length} entries`;
-    };
-    searchInput?.addEventListener("input", onSearch);
+    // ── Search handled via React state searchQuery ──
 
     const onSelectAll = function (this: HTMLInputElement) {
       document
@@ -700,7 +682,6 @@ export default function CategoryPage() {
     cropApply?.addEventListener("click", applyCrop);
 
     return () => {
-      searchInput?.removeEventListener("input", onSearch);
       selectAll?.removeEventListener("change", onSelectAll);
       deleteAllBtn?.removeEventListener("click", onDeleteAll);
       openAddModal?.removeEventListener("click", onOpenAdd);
@@ -762,7 +743,16 @@ export default function CategoryPage() {
                       <circle cx="11" cy="11" r="8" />
                       <line x1="21" y1="21" x2="16.65" y2="16.65" />
                     </svg>
-                    <input type="text" id="searchInput" placeholder="Search categories…" />
+                    <input
+                      type="text"
+                      id="searchInput"
+                      placeholder="Search categories…"
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setPage(1);
+                      }}
+                    />
                   </div>
                 </div>
                 <div className="table-wrap">
@@ -911,9 +901,9 @@ export default function CategoryPage() {
                     id="tableFooter"
                     style={{ width: "100%" }}
                   >
-                    {!loading && !error && (
+                    {!loading && !error && filteredCategories.length > 0 && (
                       <ReportPagination
-                        currentPage={page}
+                        currentPage={validCurrentPage}
                         totalPages={totalPages}
                         totalRecords={categories.length}
                         pageSize={pageSize}

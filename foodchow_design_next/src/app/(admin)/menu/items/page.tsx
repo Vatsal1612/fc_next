@@ -1234,23 +1234,25 @@ export default function ItemsPage() {
           inputsHtml += `<input type="number" min="0" step="0.01" class="table-input item-price-input" value="${escapeHtml(priceValue)}">`;
         }
 
+        const itemDesc = String(item?.description ?? item?.Description ?? "");
+
         quickEditTableBody.insertAdjacentHTML(
           "beforeend",
           `
                 <tr data-item-id="${itemId}" data-cate-id="${row.dataset.cateId ?? ""}">
-                    <td>${index + 1}</td>
-                    <td class="edit-item-name" style="width: 250px;">
-                        <textarea class="form-input" style="resize: none; height: 40px; margin-bottom: 5px; width: 100%; border-radius: 6px; border: 1px solid darkgray;">${escapeHtml(itemName)}</textarea>
-                        <textarea class="form-input" style="resize: none; height: 50px; width: 100%; border-radius: 6px; border: 1px solid darkgray;" placeholder="Description"></textarea>
+                    <td style="font-weight: 600; color: #64748b; padding-top: 14px;">${index + 1}</td>
+                    <td class="edit-item-name" style="width: 260px; min-width: 240px; padding: 10px 12px;">
+                        <textarea class="form-input item-name-textarea" style="resize: vertical; min-height: 38px; height: 38px; margin-bottom: 6px; width: 100%; border-radius: 8px; border: 1px solid #cbd5e1; padding: 6px 10px; font-size: 13px; font-family: inherit; box-sizing: border-box; outline: none; transition: border-color 0.2s;">${escapeHtml(itemName)}</textarea>
+                        <textarea class="form-input item-desc-textarea" style="resize: vertical; min-height: 44px; height: 44px; width: 100%; border-radius: 8px; border: 1px solid #cbd5e1; padding: 6px 10px; font-size: 12px; font-family: inherit; box-sizing: border-box; outline: none; transition: border-color 0.2s;" placeholder="Description">${escapeHtml(itemDesc)}</textarea>
                     </td>
-                    <td class="edit-item-size" style="vertical-align: top; padding-top: 15px; font-weight: bold;">${sizesHtml}</td>
-                    <td style="vertical-align: top; padding-top: 10px;"><div style="display: flex; flex-direction: column;">${inputsHtml}</div></td>
-                    <td style="vertical-align: top; padding-top: 10px;">
-                        <div style="display: flex; flex-direction: column;">
+                    <td class="edit-item-size" style="vertical-align: middle; font-weight: 600;">${sizesHtml}</td>
+                    <td style="vertical-align: middle;"><div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">${inputsHtml}</div></td>
+                    <td style="vertical-align: middle;">
+                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
                            ${sizesHtml === "No Size Available" ? `<input type="text" class="table-input" value="0" style="margin-bottom:6px;">` : item.FoodItemSizeList?.map((s: any) => `<input type="text" class="table-input" value="${s.Weight ?? 0}" style="margin-bottom:6px;">`).join('') || `<input type="text" class="table-input" value="0">`}
                         </div>
                     </td>
-                    <td style="vertical-align: top; padding-top: 10px;">
+                    <td style="vertical-align: middle;">
                         <div class="dropdown-container">
                             <div class="dropdown-trigger"><span>Select Unit</span><i class="fa-solid fa-caret-down"></i></div>
                             <div class="dropdown-menu">
@@ -1262,7 +1264,7 @@ export default function ItemsPage() {
                             </div>
                         </div>
                     </td>
-                    <td style="vertical-align: top; padding-top: 10px;">
+                    <td style="vertical-align: middle;">
                         <input type="number" class="table-input" placeholder="Min Qty" value="1">
                     </td>
                 </tr>`
@@ -1331,7 +1333,7 @@ export default function ItemsPage() {
         });
         const inputs = Array.from(editRow.querySelectorAll<HTMLInputElement>(".item-price-input"));
         if (!item || inputs.length === 0) {
-          await Swal.fire("Unable to save prices", "An item or price field is missing. Reload the page and try again.", "error");
+          await Swal.fire("Unable to save changes", "An item or price field is missing. Reload the page and try again.", "error");
           return;
         }
 
@@ -1342,6 +1344,11 @@ export default function ItemsPage() {
           await Swal.fire("Enter valid prices", "Prices must be zero or greater.", "warning");
           return;
         }
+
+        const nameTextarea = editRow.querySelector<HTMLTextAreaElement>(".item-name-textarea");
+        const descTextarea = editRow.querySelector<HTMLTextAreaElement>(".item-desc-textarea");
+        const editedName = (nameTextarea?.value ?? "").trim() || String(item.item_Name ?? item.Item_Name ?? "");
+        const editedDesc = (descTextarea?.value ?? "").trim();
 
         const hasVariants = inputs.some((input) => input.dataset.isVariant === "true");
         const itemSizes: Array<{ Size_Id: number; Price: string }> = [];
@@ -1360,11 +1367,13 @@ export default function ItemsPage() {
           }
         }
 
+        const cateId = Number(item.cate_Id ?? item.Cate_Id ?? editRow.dataset.cateId ?? 0);
+
         payloads.push({
           Item_Id: itemId,
-          Cate_Id: Number(item.cate_Id ?? item.Cate_Id ?? editRow.dataset.cateId ?? 0),
-          Item_Name: String(item.item_Name ?? item.Item_Name ?? ""),
-          Description: String(item.description ?? item.Description ?? ""),
+          Cate_Id: cateId,
+          Item_Name: editedName,
+          Description: editedDesc,
           Is_Veg: Number(item.is_veg ?? item.Is_Veg ?? 1),
           barcode: String(item.barcode ?? ""),
           base64Image: "",
@@ -1376,18 +1385,40 @@ export default function ItemsPage() {
       }
 
       if (payloads.length === 0) {
-        await Swal.fire("No items to update", "There are no item prices to save.", "info");
+        await Swal.fire("No items to update", "There are no item changes to save.", "info");
         return;
       }
 
       try {
+        if (confirmYesBtn) {
+          confirmYesBtn.setAttribute("disabled", "true");
+          confirmYesBtn.innerText = "Saving...";
+        }
+
         const results = await Promise.allSettled(
           payloads.map((payload) => menuService.editStoreItem(payload))
         );
-        const failedCount = results.filter((result) => result.status === "rejected").length;
-        if (failedCount > 0) {
+
+        const failedList: string[] = [];
+        results.forEach((result, idx) => {
+          if (result.status === "rejected") {
+            failedList.push(payloads[idx]?.Item_Name || `Item #${payloads[idx]?.Item_Id}`);
+          } else if (result.status === "fulfilled") {
+            const val = result.value;
+            if (val && (val.success === false || val.Success === false)) {
+              failedList.push(val.message || payloads[idx]?.Item_Name || `Item #${payloads[idx]?.Item_Id}`);
+            }
+          }
+        });
+
+        if (failedList.length > 0) {
           await loadItems();
-          await Swal.fire("Prices not fully saved", `${failedCount} item update(s) failed. Successfully saved items have been reloaded.`, "error");
+          if (confirmUpdateModal) confirmUpdateModal.style.display = "none";
+          await Swal.fire(
+            "Some items could not be saved",
+            `${failedList.length} item update(s) failed: ${failedList.slice(0, 3).join(", ")}${failedList.length > 3 ? "..." : ""}`,
+            "error"
+          );
           return;
         }
 
@@ -1396,13 +1427,18 @@ export default function ItemsPage() {
         if (quickEditModal) quickEditModal.style.display = "none";
         await Swal.fire({
           icon: "success",
-          title: "Prices updated",
+          title: "Changes saved successfully",
           timer: 1500,
           showConfirmButton: false,
         });
       } catch (error) {
-        console.error("Failed to save item prices:", error);
-        await Swal.fire("Error", "Failed to save item prices. Please try again.", "error");
+        console.error("Failed to save quick edit items:", error);
+        await Swal.fire("Error", "Failed to save item changes. Please try again.", "error");
+      } finally {
+        if (confirmYesBtn) {
+          confirmYesBtn.removeAttribute("disabled");
+          confirmYesBtn.innerText = "Yes";
+        }
       }
     };
     confirmYesBtn?.addEventListener("click", confirmYesHandler);
