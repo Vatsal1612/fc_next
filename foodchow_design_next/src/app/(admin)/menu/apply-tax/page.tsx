@@ -935,6 +935,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { menuService } from "@/api/services/menu.service";
 import { getShopId, useShopId, isApiSuccess } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 import "./page.css";
 
 interface Product {
@@ -959,6 +960,8 @@ export default function ApplyTaxPage() {
   const router = useRouter();
   const taxId = searchParams.get("taxId");
   const shopId = useShopId();
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const [taxName, setTaxName] = useState<string>("");
   const [taxPercentage, setTaxPercentage] = useState<number>(0);
   const [taxType, setTaxType] = useState<number>(0);
@@ -1102,11 +1105,11 @@ export default function ApplyTaxPage() {
             <div style="display:flex;align-items:center;gap:16px;flex-shrink:0;">
               <div style="text-align:right;">
                 <div style="font-size:11px;color:var(--text-muted);font-weight:500;">Without Tax</div>
-                <span style="font-size:13px;font-weight:600;color:var(--text-secondary);font-family:var(--font-mono);">₹${priceWithoutTax.toFixed(2)}</span>
+                <span style="font-size:13px;font-weight:600;color:var(--text-secondary);font-family:var(--font-mono);">${escapeHtml(currencySymbol)}${priceWithoutTax.toFixed(2)}</span>
               </div>
               <div style="text-align:right;">
                 <div style="font-size:11px;color:var(--text-muted);font-weight:500;">With Tax</div>
-                <span style="font-size:14px;font-weight:700;color:${checked ? 'var(--teal-dark)' : 'var(--text-muted)'};font-family:var(--font-mono);">₹${priceWithTax.toFixed(2)}</span>
+                <span style="font-size:14px;font-weight:700;color:${checked ? 'var(--teal-dark)' : 'var(--text-muted)'};font-family:var(--font-mono);">${escapeHtml(currencySymbol)}${priceWithTax.toFixed(2)}</span>
               </div>
               ${appliedTaxes.length ? `
               <div style="
@@ -1133,7 +1136,7 @@ export default function ApplyTaxPage() {
                           font-weight:700;
                           color:var(--teal);
                       ">
-                          ₹${tax.tax_amount.toFixed(2)}
+                          ${escapeHtml(currencySymbol)}${tax.tax_amount.toFixed(2)}
                       </div>
                   </div>
               `

@@ -6,10 +6,13 @@ import Swal from "sweetalert2";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import { useShopId } from "@/utils/shop";
 import ReportPagination from "@/components/shared/ReportPagination";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 import "./page.css";
 
 export default function ExtraPage() {
   const SHOP_ID = useShopId();
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const [categories, setCategories] = useState<ExtraCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -175,8 +178,7 @@ export default function ExtraPage() {
 
   // ── Pagination ──
   const totalPages = Math.max(1, Math.ceil(allExtras.length / pageSize));
-  const validCurrentPage = Math.min(page, totalPages);
-  const pageStart = (validCurrentPage - 1) * pageSize;
+  const pageStart = (page - 1) * pageSize;
   const pagedExtras = allExtras.slice(pageStart, pageStart + pageSize);
 
   // ── Helper functions ──
@@ -191,7 +193,7 @@ export default function ExtraPage() {
     return validSizes.map((size, index) => (
       <div key={index} className="variant-pill" data-size={size.size_name || "standard"}>
         <span className="v-label">{size.size_name || "standard"}</span>
-        <span className="v-cost">Rs. {size.price}</span>
+        <span className="v-cost">{currencySymbol} {size.price}</span>
       </div>
     ));
   };
@@ -688,8 +690,6 @@ export default function ExtraPage() {
     setPage(1);
   };
 
-
-
   // ── Render ──
   return (
     <div id="pg-menu-extra">
@@ -814,7 +814,7 @@ export default function ExtraPage() {
                             ) : (
                               <div className="variant-pill" data-size="standard">
                                 <span className="v-label">standard</span>
-                                <span className="v-cost">Rs. {extra.price}</span>
+                                <span className="v-cost">{currencySymbol} {extra.price}</span>
                               </div>
                             )}
                           </div>
@@ -906,22 +906,22 @@ export default function ExtraPage() {
                   </div>
                 </div>
 
-                <footer className="footer-pagination">
-                  {!loading && !error && allExtras.length > 0 && (
+                <div style={{ marginTop: "16px", width: "100%" }}>
+                  {!loading && !error && (
                     <ReportPagination
-                      currentPage={validCurrentPage}
+                      currentPage={page}
                       totalPages={totalPages}
                       totalRecords={allExtras.length}
                       pageSize={pageSize}
-                      pageSizeOptions={[10, 25, 50, 100]}
                       onPageChange={(p) => setPage(p)}
                       onPageSizeChange={(newSize) => {
                         setPageSize(newSize);
                         setPage(1);
                       }}
+                      pageSizeOptions={[10, 25, 50, 100]}
                     />
                   )}
-                </footer>
+                </div>
               </div>
 
               {/* ADD NEW EXTRAS WORKSPACE PANEL */}
@@ -1013,7 +1013,7 @@ export default function ExtraPage() {
 
                           <div className="form-group">
                             <label>
-                              Price (Rs.)
+                              Price ({currencySymbol})
                               <span className="required-asterisk">*</span>
                             </label>
 
@@ -1058,7 +1058,7 @@ export default function ExtraPage() {
                     >
                       <div className="form-group">
                         <label>
-                          Price (Rs.)
+                          Price ({currencySymbol})
                           <span className="required-asterisk">*</span>
                         </label>
 
@@ -1241,7 +1241,7 @@ export default function ExtraPage() {
 
                             <div className="form-group">
                               <label>
-                                Price (Rs.)
+                                Price ({currencySymbol})
                                 <span className="required-asterisk">*</span>
                               </label>
                               <input
@@ -1280,7 +1280,7 @@ export default function ExtraPage() {
                     >
                       <div className="form-group">
                         <label>
-                          Price (Rs.)
+                          Price ({currencySymbol})
                           <span className="required-asterisk">*</span>
                         </label>
                         <input

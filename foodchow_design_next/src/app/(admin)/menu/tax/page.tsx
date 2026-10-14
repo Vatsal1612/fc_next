@@ -1020,6 +1020,8 @@ import { WizardFooter } from "@/components/shared/WizardFooter";
 import "./page.css";
 import { menuService } from "@/api/services/menu.service";
 import { getShopId, useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
+import ReportPagination from "@/components/shared/ReportPagination";
 import Swal from "sweetalert2";
 
 // Types
@@ -1042,6 +1044,8 @@ interface FormData {
 export default function TaxPage() {
   // State
   const router = useRouter();
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const [taxes, setTaxes] = useState<Tax[]>([]);
   const [loading, setLoading] = useState(true);
   const [appliedTaxType, setAppliedTaxType] = useState<number | null>(null);
@@ -1050,6 +1054,8 @@ export default function TaxPage() {
   >("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const shopId = useShopId();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [, setIsHelpModalOpen] = useState(false);
@@ -1141,6 +1147,17 @@ export default function TaxPage() {
       return matchesType && matchesSearch;
     });
   }, [taxes, filterType, searchQuery]);
+
+  // Reset to first page when filtering or searching
+  useEffect(() => {
+    setPage(1);
+  }, [filterType, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredTaxes.length / pageSize));
+  const pageStart = (page - 1) * pageSize;
+  const pagedTaxes = useMemo(() => {
+    return filteredTaxes.slice(pageStart, pageStart + pageSize);
+  }, [filteredTaxes, pageStart, pageSize]);
 
   useEffect(() => {
     fetchTaxes();
@@ -1709,7 +1726,7 @@ export default function TaxPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredTaxes.map((tax, index) => {
+                      {pagedTaxes.map((tax, index) => {
                         // console.log("appliedTaxType =", appliedTaxType);
                         console.log("tax =", tax.name, tax.type);
                         console.log({
@@ -1727,7 +1744,7 @@ export default function TaxPage() {
                         return (
 
                           <tr key={tax.id}>
-                            <td>{index + 1}</td>
+                            <td>{pageStart + index + 1}</td>
                             <td className="tax-name-cell">{tax.name}</td>
                             <td>
                               <span className="rate-text-val">{tax.rate}%</span>
@@ -1861,7 +1878,7 @@ export default function TaxPage() {
                     </button>
                   </div>
                 ) : (
-                  filteredTaxes.map((tax, index) => {
+                  pagedTaxes.map((tax, index) => {
                     // console.log("appliedTaxType =", appliedTaxType);
                     console.log("tax =", tax.name, tax.type);
                     console.log({
@@ -1912,7 +1929,7 @@ export default function TaxPage() {
                         </button>
 
                         <div className="grid-card-footer">
-                          <span className="results-badge"># {index + 1}</span>
+                          <span className="results-badge"># {pageStart + index + 1}</span>
                           <div className="grid-card-actions">
                             <button
                               className="btn-action-sq btn-sq-edit"
@@ -1960,6 +1977,24 @@ export default function TaxPage() {
                     )
                   })
                 )}
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {!loading && filteredTaxes.length > 0 && (
+              <div style={{ marginTop: "24px", paddingTop: "16px", borderTop: "1px solid #f1f5f9" }}>
+                <ReportPagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  totalRecords={filteredTaxes.length}
+                  pageSize={pageSize}
+                  onPageChange={(p) => setPage(p)}
+                  onPageSizeChange={(newSize) => {
+                    setPageSize(newSize);
+                    setPage(1);
+                  }}
+                  pageSizeOptions={[10, 25, 50, 100]}
+                />
               </div>
             )}
           </div>
@@ -2129,24 +2164,24 @@ export default function TaxPage() {
                 </div>
                 <div className="calc-preview-box">
                   <div className="calc-preview-title">
-                    Live Calculation Preview (Base $100)
+                    Live Calculation Preview (Base {currencySymbol}100)
                   </div>
                   <div className="calc-row">
                     <span>Base price of item:</span>
                     <span className="calc-value">
-                      ${previewCalculation.base.toFixed(2)}
+                      {currencySymbol}{previewCalculation.base.toFixed(2)}
                     </span>
                   </div>
                   <div className="calc-row">
                     <span>{previewCalculation.label}</span>
                     <span className="calc-value">
-                      ${previewCalculation.taxAmt.toFixed(2)}
+                      {currencySymbol}{previewCalculation.taxAmt.toFixed(2)}
                     </span>
                   </div>
                   <div className="calc-row">
                     <span>Customer total:</span>
                     <span className="calc-value">
-                      ${previewCalculation.total.toFixed(2)}
+                      {currencySymbol}{previewCalculation.total.toFixed(2)}
                     </span>
                   </div>
                 </div>

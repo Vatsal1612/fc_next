@@ -1124,11 +1124,11 @@ export default function PricingPlanPage() {
                                     ></div>
                                     <div className="ao-subtotal-row">
                                         <span>Subtotal</span>
-                                        <span id="ao-subtotal">₹ 0.00</span>
+                                        <span id="ao-subtotal">{currencySymbol} 0.00</span>
                                     </div>
                                     <div className="ao-total-row">
                                         <span>Total</span>
-                                        <span id="ao-total">₹ 0.00</span>
+                                        <span id="ao-total">{currencySymbol} 0.00</span>
                                     </div>
                                     <div className="ao-trust-row">
                                         <div className="ao-trust-item">
@@ -1158,7 +1158,7 @@ export default function PricingPlanPage() {
                                         </div>
                                     </div>
                                     <button className="ao-pay-btn" id="ao-pay-btn">
-                                        Proceed to pay (₹ 0.00)
+                                        Proceed to pay ({currencySymbol} 0.00)
                                     </button>
                                     <div className="ao-card-icon">
                                         <svg width="40" height="26" viewBox="0 0 40 26" fill="none">

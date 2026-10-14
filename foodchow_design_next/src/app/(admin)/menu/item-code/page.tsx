@@ -36,7 +36,36 @@ export default function ItemCodePage() {
       ]);
 
       if (itemResponse.status === "fulfilled") {
-        setItems(itemResponse.value);
+        const rawItems = itemResponse.value;
+        const allEmpty = rawItems.every(
+          (it) => it.item_code === null || it.item_code === undefined || String(it.item_code).trim() === ""
+        );
+
+        if (allEmpty) {
+          // Pre-populate display with +1 sequence (1, 2, 3...) in browser memory only without saving to API
+          const sequenced = rawItems.map((it, idx) => ({
+            ...it,
+            item_code: String(idx + 1),
+          }));
+          setItems(sequenced);
+        } else {
+          // If some items already have codes, fill missing empty codes starting from max numeric code + 1
+          const numericCodes = rawItems
+            .map((it) => parseInt(String(it.item_code ?? "").trim(), 10))
+            .filter((n) => !isNaN(n) && n > 0);
+          let nextCode = numericCodes.length > 0 ? Math.max(...numericCodes) + 1 : 1;
+
+          const filled = rawItems.map((it) => {
+            const codeStr = String(it.item_code ?? "").trim();
+            if (codeStr === "") {
+              const assigned = String(nextCode);
+              nextCode++;
+              return { ...it, item_code: assigned };
+            }
+            return it;
+          });
+          setItems(filled);
+        }
       }
       if (typeResponse.status === "fulfilled" && typeResponse.value) {
         setItemCodeType(Number(typeResponse.value.item_code_type ?? 0));

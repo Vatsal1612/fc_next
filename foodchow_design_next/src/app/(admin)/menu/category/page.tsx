@@ -40,7 +40,6 @@ export default function CategoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [searchQuery, setSearchQuery] = useState("");
   const [draggedCategoryId, setDraggedCategoryId] = useState<number | null>(null);
 
   // ── Edit modal state ──
@@ -68,13 +67,9 @@ export default function CategoryPage() {
     setEditImagePreviewRef.current = setEditImagePreview;
   }, []);
 
-  const filteredCategories = categories.filter((c) =>
-    (c.cate_name || "").toLowerCase().includes(searchQuery.toLowerCase().trim())
-  );
-  const totalPages = Math.max(1, Math.ceil(filteredCategories.length / pageSize));
-  const validCurrentPage = Math.min(page, totalPages);
-  const pageStart = (validCurrentPage - 1) * pageSize;
-  const pagedCategories = filteredCategories.slice(pageStart, pageStart + pageSize);
+  const totalPages = Math.max(1, Math.ceil(categories.length / pageSize));
+  const pageStart = (page - 1) * pageSize;
+  const pagedCategories = categories.slice(pageStart, pageStart + pageSize);
 
   const loadCategories = async () => {
     const currentShop = SHOP_ID || getShopId();
@@ -910,14 +905,14 @@ export default function CategoryPage() {
                       <ReportPagination
                         currentPage={validCurrentPage}
                         totalPages={totalPages}
-                        totalRecords={filteredCategories.length}
+                        totalRecords={categories.length}
                         pageSize={pageSize}
-                        pageSizeOptions={[10, 25, 50, 100]}
                         onPageChange={(p) => setPage(p)}
                         onPageSizeChange={(newSize) => {
                           setPageSize(newSize);
                           setPage(1);
                         }}
+                        pageSizeOptions={[10, 25, 50, 100]}
                       />
                     )}
                   </div>
