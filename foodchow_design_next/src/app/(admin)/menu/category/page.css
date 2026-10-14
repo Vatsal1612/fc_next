@@ -430,29 +430,32 @@
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 10px 18px;
+        padding: 10px 22px;
         background: #ffffff;
         border: 1.5px solid var(--line);
-        border-radius: 6px;
+        border-radius: var(--radius-md, 12px);
         color: var(--muted);
-  font-size: var(--text-button); line-height: var(--lh-button);
-  font-weight: var(--weight-semibold);
+        font-size: var(--text-button);
+        line-height: var(--lh-button);
+        font-weight: var(--weight-semibold);
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         outline: none;
-        height: 38px;
+        height: 42px;
+        letter-spacing: 0.04em;
     }
 
     .btn-help:hover {
         border-color: var(--teal);
         color: var(--teal);
         background: #e6f7f5;
-        transform: translateY(-1px);
+        transform: translateY(-1.5px);
+        box-shadow: 0 4px 12px rgba(10, 168, 158, 0.15);
     }
 
     .btn-help svg {
-        width: 15px;
-        height: 15px;
+        width: 16px;
+        height: 16px;
         fill: none;
         stroke: currentColor;
         stroke-width: 2.2;
@@ -549,26 +552,35 @@
     .btn {
         border: none;
         cursor: pointer;
-  font-weight: var(--weight-semibold);
-        border-radius: 9px;
-        transition: .15s;
+        font-weight: var(--weight-semibold);
+        border-radius: var(--radius-md, 12px);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         white-space: nowrap;
         display: inline-flex;
         align-items: center;
-        gap: 7px;
+        gap: 8px;
     }
 
     .btn-primary {
-        background: var(--teal);
+        background: linear-gradient(135deg, var(--teal) 0%, var(--teal-dark) 100%);
         color: #fff;
-        padding: 10px 18px;
-  font-size: var(--text-button); line-height: var(--lh-button);
-        letter-spacing: .05em;
+        padding: 10px 22px;
+        font-size: var(--text-button);
+        line-height: var(--lh-button);
+        letter-spacing: .04em;
         text-transform: uppercase;
+        border-radius: var(--radius-md, 12px);
+        box-shadow: 0 4px 12px rgba(10, 168, 158, 0.25);
     }
 
     .btn-primary:hover {
-        background: var(--teal-dark);
+        background: linear-gradient(135deg, var(--teal-dark) 0%, #066d66 100%);
+        transform: translateY(-1.5px);
+        box-shadow: 0 6px 18px rgba(10, 168, 158, 0.35);
+    }
+
+    .btn-primary:active {
+        transform: translateY(0);
     }
 
     .btn svg {
@@ -576,7 +588,7 @@
         height: 16px;
         stroke: currentColor;
         fill: none;
-        stroke-width: 2;
+        stroke-width: 2.5;
     }
 
     /* ═══════════════════════════════════════════
@@ -885,12 +897,18 @@
 
     /* ── Table Footer ── */
     .table-footer {
-        padding: 12px 18px;
-  font-size: var(--text-helper); line-height: var(--lh-helper);
+        padding: 12px 24px;
+        font-size: var(--text-helper);
+        line-height: var(--lh-helper);
         color: var(--muted);
-  font-weight: var(--weight-medium);
+        font-weight: var(--weight-medium);
         background: #fff;
         border-top: 1px solid var(--line);
+    }
+
+    .table-footer .report-pagination-wrapper {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
     }
     /* ── Modal styling ── */
     .modal-overlay {

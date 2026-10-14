@@ -5,9 +5,8 @@ import { menuService, type ExtraCategory, type ExtraOption } from "@/api/service
 import Swal from "sweetalert2";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import { useShopId } from "@/utils/shop";
+import ReportPagination from "@/components/shared/ReportPagination";
 import "./page.css";
-
-const PAGE_SIZE = 10;
 
 export default function ExtraPage() {
   const SHOP_ID = useShopId();
@@ -16,6 +15,7 @@ export default function ExtraPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("All Category");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [activeTab, setActiveTab] = useState("extras-view");
   const [sizeRows, setSizeRows] = useState([
     {
@@ -174,9 +174,10 @@ export default function ExtraPage() {
   );
 
   // ── Pagination ──
-  const totalPages = Math.max(1, Math.ceil(allExtras.length / PAGE_SIZE));
-  const pageStart = (page - 1) * PAGE_SIZE;
-  const pagedExtras = allExtras.slice(pageStart, pageStart + PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(allExtras.length / pageSize));
+  const validCurrentPage = Math.min(page, totalPages);
+  const pageStart = (validCurrentPage - 1) * pageSize;
+  const pagedExtras = allExtras.slice(pageStart, pageStart + pageSize);
 
   // ── Helper functions ──
   const getDietClass = (isVeg: number) => isVeg === 1 ? "veg-box" : "non-veg-box";
@@ -687,14 +688,7 @@ export default function ExtraPage() {
     setPage(1);
   };
 
-  // ── Handle pagination ──
-  const handlePrevious = () => {
-    if (page > 1) setPage(page - 1);
-  };
 
-  const handleNext = () => {
-    if (page < totalPages) setPage(page + 1);
-  };
 
   // ── Render ──
   return (
@@ -913,36 +907,20 @@ export default function ExtraPage() {
                 </div>
 
                 <footer className="footer-pagination">
-                  <div className="pagination-controls-left">
-                    <button
-                      className="nav-control-btn"
-                      onClick={handlePrevious}
-                      disabled={page <= 1}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="19" y1="12" x2="5" y2="12"></line>
-                        <polyline points="12 19 5 12 12 5"></polyline>
-                      </svg>
-                      Previous
-                    </button>
-                  </div>
-                  <div className="progress-indicator-text">
-                    {!loading && !error && (
-                      <>Showing <strong>{allExtras.length > 0 ? `${pageStart + 1}-${Math.min(pageStart + PAGE_SIZE, allExtras.length)}` : "0"} of {allExtras.length}</strong> entries</>
-                    )}
-                    {loading && <>Loading...</>}
-                  </div>
-                  <button
-                    className="nav-control-btn"
-                    onClick={handleNext}
-                    disabled={page >= totalPages}
-                  >
-                    Next
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="5" y1="12" x2="19" y2="12"></line>
-                      <polyline points="12 5 19 12 12 19"></polyline>
-                    </svg>
-                  </button>
+                  {!loading && !error && allExtras.length > 0 && (
+                    <ReportPagination
+                      currentPage={validCurrentPage}
+                      totalPages={totalPages}
+                      totalRecords={allExtras.length}
+                      pageSize={pageSize}
+                      pageSizeOptions={[10, 25, 50, 100]}
+                      onPageChange={(p) => setPage(p)}
+                      onPageSizeChange={(newSize) => {
+                        setPageSize(newSize);
+                        setPage(1);
+                      }}
+                    />
+                  )}
                 </footer>
               </div>
 

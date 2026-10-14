@@ -21,8 +21,6 @@ function getCategoryImageUrl(imagePath?: string | null): string | null {
   return `https://admin.foodchow.com/CategoryImages/${imagePath}`;
 }
 
-const PAGE_SIZE = 10;
-
 const showToast = (icon: "success" | "error" | "warning", title: string) => {
   Swal.fire({
     toast: true,
@@ -41,6 +39,8 @@ export default function CategoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [searchQuery, setSearchQuery] = useState("");
   const [draggedCategoryId, setDraggedCategoryId] = useState<number | null>(null);
 
   // ── Edit modal state ──
@@ -68,9 +68,13 @@ export default function CategoryPage() {
     setEditImagePreviewRef.current = setEditImagePreview;
   }, []);
 
-  const totalPages = Math.max(1, Math.ceil(categories.length / PAGE_SIZE));
-  const pageStart = (page - 1) * PAGE_SIZE;
-  const pagedCategories = categories.slice(pageStart, pageStart + PAGE_SIZE);
+  const filteredCategories = categories.filter((c) =>
+    (c.cate_name || "").toLowerCase().includes(searchQuery.toLowerCase().trim())
+  );
+  const totalPages = Math.max(1, Math.ceil(filteredCategories.length / pageSize));
+  const validCurrentPage = Math.min(page, totalPages);
+  const pageStart = (validCurrentPage - 1) * pageSize;
+  const pagedCategories = filteredCategories.slice(pageStart, pageStart + pageSize);
 
   const loadCategories = async () => {
     const currentShop = SHOP_ID || getShopId();
@@ -280,7 +284,6 @@ export default function CategoryPage() {
     const $ = <T extends HTMLElement = HTMLElement>(id: string): T | null =>
       document.getElementById(id) as T | null;
 
-    const searchInput = $<HTMLInputElement>("searchInput");
     const selectAll = $<HTMLInputElement>("selectAll");
     const deleteAllBtn = $("deleteAllBtn");
     const openAddModal = $("openAddModal");
@@ -317,24 +320,7 @@ export default function CategoryPage() {
       if (fileInput) fileInput.value = "";
     }
 
-    // ── Search ──
-    const onSearch = function (this: HTMLInputElement) {
-      const q = this.value.toLowerCase().trim();
-      const rows = document.querySelectorAll<HTMLTableRowElement>("#catTableBody tr");
-      let v = 0;
-      rows.forEach((r) => {
-        const name = r.querySelector(".cat-name")?.textContent?.toLowerCase() || "";
-        const show = !q || name.includes(q);
-        r.style.display = show ? "" : "none";
-        if (show) v++;
-      });
-      const tf = $("tableFooter");
-      if (tf)
-        tf.textContent = q
-          ? `Showing ${v} of ${rows.length} entries (filtered)`
-          : `Showing 1 to ${rows.length} of ${rows.length} entries`;
-    };
-    searchInput?.addEventListener("input", onSearch);
+    // ── Search handled via React state searchQuery ──
 
     const onSelectAll = function (this: HTMLInputElement) {
       document
@@ -701,7 +687,6 @@ export default function CategoryPage() {
     cropApply?.addEventListener("click", applyCrop);
 
     return () => {
-      searchInput?.removeEventListener("input", onSearch);
       selectAll?.removeEventListener("change", onSelectAll);
       deleteAllBtn?.removeEventListener("click", onDeleteAll);
       openAddModal?.removeEventListener("click", onOpenAdd);
@@ -763,7 +748,16 @@ export default function CategoryPage() {
                       <circle cx="11" cy="11" r="8" />
                       <line x1="21" y1="21" x2="16.65" y2="16.65" />
                     </svg>
-                    <input type="text" id="searchInput" placeholder="Search categories…" />
+                    <input
+                      type="text"
+                      id="searchInput"
+                      placeholder="Search categories…"
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setPage(1);
+                      }}
+                    />
                   </div>
                 </div>
                 <div className="table-wrap">
@@ -912,13 +906,18 @@ export default function CategoryPage() {
                     id="tableFooter"
                     style={{ width: "100%" }}
                   >
-                    {!loading && !error && (
+                    {!loading && !error && filteredCategories.length > 0 && (
                       <ReportPagination
-                        currentPage={page}
+                        currentPage={validCurrentPage}
                         totalPages={totalPages}
-                        totalRecords={categories.length}
-                        pageSize={PAGE_SIZE}
+                        totalRecords={filteredCategories.length}
+                        pageSize={pageSize}
+                        pageSizeOptions={[10, 25, 50, 100]}
                         onPageChange={(p) => setPage(p)}
+                        onPageSizeChange={(newSize) => {
+                          setPageSize(newSize);
+                          setPage(1);
+                        }}
                       />
                     )}
                   </div>

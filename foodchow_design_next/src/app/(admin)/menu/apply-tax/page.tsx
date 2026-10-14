@@ -1018,9 +1018,8 @@ export default function ApplyTaxPage() {
             const sizeId = item.item_size_id || 0;
             let isTax = false;
             let taxList: any[] = [];
-
             try {
-              const taxRes = await menuService.getTaxDetailsWithSize(itemId, sizeId);
+              const taxRes: any = await menuService.getTaxDetailsWithSize(itemId, sizeId);
               const taxes = Array.isArray(taxRes)
                 ? taxRes
                 : (taxRes?.data ? (typeof taxRes.data === "string" ? JSON.parse(taxRes.data) : taxRes.data) : []);
