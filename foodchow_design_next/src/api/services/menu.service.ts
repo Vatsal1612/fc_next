@@ -806,7 +806,35 @@ export const menuService = {
 
     console.log("ITEM API:", data);
 
-    return data.data ? JSON.parse(data.data) : [];
+    let parsedList: any[] = [];
+    if (data) {
+      if (typeof data.data === "string") {
+        try {
+          parsedList = JSON.parse(data.data);
+        } catch {
+          parsedList = [];
+        }
+      } else if (Array.isArray(data.data)) {
+        parsedList = data.data;
+      } else if (Array.isArray(data)) {
+        parsedList = data;
+      }
+    }
+
+    return parsedList.map((row: any) => ({
+      item_id: Number(row.item_id ?? row.ItemId ?? row.id ?? 0),
+      item_name: String(row.item_name ?? row.ItemName ?? row.name ?? ""),
+      item_code:
+        row.item_code !== undefined && row.item_code !== null
+          ? String(row.item_code).trim()
+          : row.ItemCode !== undefined && row.ItemCode !== null
+          ? String(row.ItemCode).trim()
+          : row.itemcode !== undefined && row.itemcode !== null
+          ? String(row.itemcode).trim()
+          : row.code !== undefined && row.code !== null
+          ? String(row.code).trim()
+          : "",
+    }));
   },
   /** Get Item Code Type Setting */
   async getItemCodeTypeSetting(
