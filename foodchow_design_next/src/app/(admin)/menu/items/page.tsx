@@ -15,6 +15,7 @@ import Swal from "sweetalert2";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import { useShopId } from "@/utils/shop";
 import ReportPagination from "@/components/shared/ReportPagination";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 
 import "./page.css";
 
@@ -71,6 +72,12 @@ function ItemThumbnail({
 export default function ItemsPage() {
 
   const SHOP_ID = useShopId();
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
+  const currencySymbolRef = useRef(currencySymbol);
+  useEffect(() => {
+    currencySymbolRef.current = currencySymbol;
+  }, [currencySymbol]);
   const [itemName, setItemName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -1547,7 +1554,7 @@ export default function ItemsPage() {
               <div>
                 <label>Price</label>
                 <div class="price-input-wrapper">
-                  <span class="price-prefix-badge">Rs.</span>
+                  <span class="price-prefix-badge">${escapeHtml(currencySymbolRef.current)}</span>
                   <input type="number" class="form-input variant-price" min="0" step="0.01" value="${escapeHtml(String(price))}" />
                 </div>
               </div>
@@ -1728,7 +1735,7 @@ export default function ItemsPage() {
           <div>
             <label>Price</label>
             <div class="price-input-wrapper">
-              <span class="price-prefix-badge">Rs.</span>
+              <span class="price-prefix-badge">${escapeHtml(currencySymbolRef.current)}</span>
               <input type="number" class="form-input variant-price" min="0" step="0.01" required />
             </div>
           </div>
@@ -2297,14 +2304,14 @@ export default function ItemsPage() {
                                         {sizeList.map((size, idx: number) => (
                                           <div key={idx} style={{ display: "flex", justifyContent: "space-between", background: "#f8f9fa", padding: "4px 8px", borderRadius: "4px", fontSize: "13px" }}>
                                             <span style={{ fontWeight: 500 }}>{String(size.size_name ?? size.Size_Name ?? size.Size_name ?? size.name ?? "Size")}</span>
-                                            <span>Rs.{String(getItemSizePrice(size, itemFallbackPrice))}</span>
+                                            <span>{currencySymbol}{String(getItemSizePrice(size, itemFallbackPrice))}</span>
                                           </div>
                                         ))}
                                       </div>
                                     );
                                   }
 
-                                  return <span>Rs.{itemFallbackPrice}</span>;
+                                  return <span>{currencySymbol}{itemFallbackPrice}</span>;
                                 })()}
                               </td>
 
@@ -2477,7 +2484,7 @@ export default function ItemsPage() {
                   <div className="form-group" id="singlePriceSection">
                     <label className="form-label">Price</label>
                     <div className="price-input-wrapper">
-                      <span className="price-prefix-badge">Rs.</span>
+                      <span className="price-prefix-badge">{currencySymbol}</span>
                       {/* <input type="text" className="form-input" /> */}
                       <input
                         type="text"
@@ -2508,7 +2515,7 @@ export default function ItemsPage() {
                         <div>
                           <label>Price</label>
                           <div className="price-input-wrapper">
-                            <span className="price-prefix-badge">Rs.</span>
+                            <span className="price-prefix-badge">{currencySymbol}</span>
                             <input type="number" className="form-input variant-price" min="0" step="0.01" required />
                           </div>
                         </div>
@@ -2777,7 +2784,7 @@ export default function ItemsPage() {
                                     }}
                                   >
                                     {opt.ingredient_name}
-                                    {opt.price > 0 ? ` (Rs.${opt.price})` : ""}
+                                    {opt.price > 0 ? ` (${currencySymbol}${opt.price})` : ""}
                                   </span>
                                 ))}
                               </div>
@@ -2866,7 +2873,7 @@ export default function ItemsPage() {
                   <div className="form-group" id="editSinglePriceSection">
                     <label className="form-label">Price</label>
                     <div className="price-input-wrapper">
-                      <span className="price-prefix-badge">Rs.</span>
+                      <span className="price-prefix-badge">{currencySymbol}</span>
                       <input type="text" className="form-input" id="editItemPriceInput" />
                     </div>
                   </div>
@@ -3102,7 +3109,7 @@ export default function ItemsPage() {
                                     }}
                                   >
                                     {opt.ingredient_name}
-                                    {opt.price > 0 ? ` (Rs.${opt.price})` : ""}
+                                    {opt.price > 0 ? ` (${currencySymbol}${opt.price})` : ""}
                                   </span>
                                 ))}
                               </div>
@@ -3223,7 +3230,7 @@ export default function ItemsPage() {
                   <th>Sr. No.</th>
                   <th>Item Name</th>
                   <th>Item Size</th>
-                  <th>Item Price (Rs.)</th>
+                  <th>Item Price ({currencySymbol})</th>
                   <th>Weight</th>
                   <th>Unit</th>
                   <th>Min. Order Qty</th>

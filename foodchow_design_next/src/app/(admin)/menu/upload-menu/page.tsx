@@ -1,11 +1,15 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import Swal from "sweetalert2";
 import { menuService } from "@/api/services/menu.service";
+import { getShopId } from "@/utils/shop";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import "./page.css";
 
 export default function UploadMenuPage() {
+  const router = useRouter();
   const [screen, setScreen] = useState<"choose" | "upload">("choose");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -26,7 +30,11 @@ export default function UploadMenuPage() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Failed to download sample:", err);
-      alert("Failed to download sample file. Please try again.");
+      Swal.fire({
+        icon: "error",
+        title: "Download Failed",
+        text: "Failed to download sample file. Please try again.",
+      });
     } finally {
       setDownloading(false);
     }
@@ -34,24 +42,42 @@ export default function UploadMenuPage() {
 
   const handleUploadAndSave = async () => {
     if (!selectedFile) {
-      alert("Please choose an Excel file first.");
+      Swal.fire({
+        icon: "warning",
+        title: "No File Selected",
+        text: "Please select an Excel (.xls / .xlsx) file to upload.",
+      });
       return;
     }
-    const shopId = sessionStorage.getItem("shop_id");
+    const shopId = getShopId();
     if (!shopId) {
-      alert("Shop ID not found. Please log in again.");
+      Swal.fire({
+        icon: "error",
+        title: "Shop Not Found",
+        text: "Shop ID not found. Please log in again.",
+      });
       return;
     }
     setUploading(true);
     try {
-      await menuService.uploadMenuExcel(shopId, selectedFile);
-      alert("Menu uploaded successfully!");
+      await menuService.uploadMenuExcel(String(shopId), selectedFile);
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
-      setScreen("choose");
-    } catch (err) {
+      await Swal.fire({
+        icon: "success",
+        title: "Success!",
+        text: "Menu uploaded successfully! Redirecting to items...",
+        timer: 2000,
+        showConfirmButton: true,
+      });
+      router.push("/menu/items");
+    } catch (err: any) {
       console.error("Failed to upload menu:", err);
-      alert("Failed to upload menu. Please try again.");
+      Swal.fire({
+        icon: "error",
+        title: "Upload Failed",
+        text: err?.message || "Failed to upload menu. Please verify file format and try again.",
+      });
     } finally {
       setUploading(false);
     }

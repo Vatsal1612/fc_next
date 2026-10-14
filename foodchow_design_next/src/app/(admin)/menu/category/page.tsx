@@ -21,8 +21,6 @@ function getCategoryImageUrl(imagePath?: string | null): string | null {
   return `https://admin.foodchow.com/CategoryImages/${imagePath}`;
 }
 
-const PAGE_SIZE = 10;
-
 const showToast = (icon: "success" | "error" | "warning", title: string) => {
   Swal.fire({
     toast: true,
@@ -41,6 +39,7 @@ export default function CategoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [draggedCategoryId, setDraggedCategoryId] = useState<number | null>(null);
 
   // ── Edit modal state ──
@@ -68,9 +67,9 @@ export default function CategoryPage() {
     setEditImagePreviewRef.current = setEditImagePreview;
   }, []);
 
-  const totalPages = Math.max(1, Math.ceil(categories.length / PAGE_SIZE));
-  const pageStart = (page - 1) * PAGE_SIZE;
-  const pagedCategories = categories.slice(pageStart, pageStart + PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(categories.length / pageSize));
+  const pageStart = (page - 1) * pageSize;
+  const pagedCategories = categories.slice(pageStart, pageStart + pageSize);
 
   const loadCategories = async () => {
     const currentShop = SHOP_ID || getShopId();
@@ -917,8 +916,13 @@ export default function CategoryPage() {
                         currentPage={page}
                         totalPages={totalPages}
                         totalRecords={categories.length}
-                        pageSize={PAGE_SIZE}
+                        pageSize={pageSize}
                         onPageChange={(p) => setPage(p)}
+                        onPageSizeChange={(newSize) => {
+                          setPageSize(newSize);
+                          setPage(1);
+                        }}
+                        pageSizeOptions={[10, 25, 50, 100]}
                       />
                     )}
                   </div>
