@@ -36,7 +36,7 @@ function ItemThumbnail({
     setHasError(false);
   }, [src]);
 
-  if (!rawImg || hasError) {
+  if (!rawImg || !currentSrc || !currentSrc.trim() || hasError) {
     return (
       <div className="placeholder-img">
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -162,24 +162,31 @@ export default function ItemsPage() {
     const candidates = [
       size.item_price,
       size.Item_Price,
+      size.ItemPrice,
       size.price,
       size.Price,
       size.net_price,
       size.Net_Price,
+      size.NetPrice,
       size.Net_Prices,
+      size.total_price,
+      size.Total_Price,
+      size.TotalPrice,
+      size.Total_Prices,
       size.final_amount,
       size.Final_Amount,
-      size.Total_Price,
-      size.total_price,
+      (size.FoodShopSizeModel as any)?.price,
+      (size.FoodShopSizeModel as any)?.TotalPrice,
+      (size.FoodShopSizeModel as any)?.Net_Prices,
     ];
     const populatedPrice = candidates.find(
-      (value) => value !== null && value !== undefined && value !== "" && Number(value) !== 0
+      (value) => value !== null && value !== undefined && String(value).trim() !== "" && !isNaN(Number(value)) && Number(value) > 0
     );
     if (populatedPrice !== undefined) return populatedPrice;
-    if (fallbackPrice !== undefined && fallbackPrice !== null && fallbackPrice !== "" && Number(fallbackPrice) !== 0) {
+    if (fallbackPrice !== undefined && fallbackPrice !== null && String(fallbackPrice).trim() !== "" && !isNaN(Number(fallbackPrice)) && Number(fallbackPrice) > 0) {
       return fallbackPrice;
     }
-    return candidates.find((value) => value !== null && value !== undefined && value !== "") ?? 0;
+    return candidates.find((value) => value !== null && value !== undefined && String(value).trim() !== "") ?? 0;
   };
 
   const loadItems = async () => {
@@ -223,8 +230,22 @@ export default function ItemsPage() {
               return (rowSizeId && String(esId) === String(rowSizeId)) || (rowSizeName && esName === rowSizeName);
             });
 
+            // Calculate existing non-zero price if present
+            const existingNonZeroPrice = matchingExisting ? getItemSizePrice(matchingExisting) : undefined;
+            const hasExistingNonZero = existingNonZeroPrice !== undefined && Number(existingNonZeroPrice) > 0;
+
+            // Row non-zero price
+            const rowCandidate = [row.item_price, row.Item_Price, row.price, row.Price, row.net_price, row.Net_Price, row.final_amount].find(
+              (v) => v !== undefined && v !== null && String(v).trim() !== "" && !isNaN(Number(v)) && Number(v) > 0
+            );
+
+            // Prioritize positive non-zero price from row or existing sizes
             const candidatePrice =
-              (row.item_price !== undefined && row.item_price !== null && !isNaN(Number(row.item_price)))
+              rowCandidate !== undefined
+                ? rowCandidate
+                : hasExistingNonZero
+                ? existingNonZeroPrice
+                : (row.item_price !== undefined && row.item_price !== null && !isNaN(Number(row.item_price)))
                 ? row.item_price
                 : (row.price !== undefined && row.price !== null && !isNaN(Number(row.price)))
                 ? row.price
