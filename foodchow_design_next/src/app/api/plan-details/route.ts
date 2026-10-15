@@ -45,59 +45,29 @@ console.log("=================================================");
 
     console.log("Original API Response:", data);
 
+    // The live backend API returns the prices in the requested currency directly ($ or Rs.).
+    // If not INR and text still has Rs./₹, clean up currency display symbols.
     const isINR = currency === "Rs." || currency === "INR" || currency === "₹";
+    const targetSymbol = currency === "AUD" ? "A$" : currency === "CAD" ? "C$" : currency === "EUR" ? "€" : currency === "GBP" ? "£" : "$";
 
     if (!isINR && data?.Result) {
-      // If FoodChow returned INR prices, convert to target currency
-      const INR_TO_USD = 0.0117;
-      const targetSymbol = currency === "AUD" ? "A$" : currency === "EUR" ? "€" : currency === "GBP" ? "£" : "$";
-
-      // Pricing
-      if (Array.isArray(data.Result.Pricing)) {
-        data.Result.Pricing = data.Result.Pricing.map((pricing: any) => ({
-          ...pricing,
-          Price:
-            pricing.Price !== null && pricing.Price !== undefined
-              ? Number(pricing.Price) * INR_TO_USD
-              : pricing.Price,
-          OriginalPrice:
-            pricing.OriginalPrice !== null && pricing.OriginalPrice !== undefined
-              ? Number(pricing.OriginalPrice) * INR_TO_USD
-              : pricing.OriginalPrice,
-        }));
-      }
-
-      // Total Value
-      if (data.Result.TotalValue !== null && data.Result.TotalValue !== undefined) {
-        data.Result.TotalValue = Number(data.Result.TotalValue) * INR_TO_USD;
-      }
-
-      // Total Savings
-      if (data.Result.TotalSavings !== null && data.Result.TotalSavings !== undefined) {
-        data.Result.TotalSavings = Number(data.Result.TotalSavings) * INR_TO_USD;
-      }
-
-      // Billing text
       if (typeof data.Result.BillingText === "string") {
         data.Result.BillingText = data.Result.BillingText
-          .replace(/₹/g, "")
-          .replace(/Rs\./gi, "")
-          .replace(/Rs/gi, "");
-
-        const pricing = data.Result.Pricing?.[0];
-        if (pricing?.Price !== undefined) {
-          data.Result.BillingText = `${targetSymbol}${Number(pricing.Price).toFixed(2)} / ${
-            pricing.BillingCycle === "YEAR" ? "Year" : "Month"
-          }`;
-        }
+          .replace(/₹/g, targetSymbol)
+          .replace(/Rs\.\s?/gi, targetSymbol)
+          .replace(/Rs\s?/gi, targetSymbol);
       }
-
-      // Guarantee / descriptions
       if (typeof data.Result.Guarantee?.Description === "string") {
-        data.Result.Guarantee.Description = data.Result.Guarantee.Description.replace(
-          /Rs\.?\s?/gi,
-          targetSymbol
-        );
+        data.Result.Guarantee.Description = data.Result.Guarantee.Description
+          .replace(/₹/g, targetSymbol)
+          .replace(/Rs\.\s?/gi, targetSymbol)
+          .replace(/Rs\s?/gi, targetSymbol);
+      }
+      if (typeof data.Result.Guarantee?.Title === "string") {
+        data.Result.Guarantee.Title = data.Result.Guarantee.Title
+          .replace(/₹/g, targetSymbol)
+          .replace(/Rs\.\s?/gi, targetSymbol)
+          .replace(/Rs\s?/gi, targetSymbol);
       }
     }
 

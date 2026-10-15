@@ -909,7 +909,7 @@ export default function CategoryPage() {
                   >
                     {!loading && !error && filteredCategories.length > 0 && (
                       <ReportPagination
-                        currentPage={validCurrentPage}
+                        currentPage={page}
                         totalPages={totalPages}
                         totalRecords={filteredCategories.length}
                         pageSize={pageSize}

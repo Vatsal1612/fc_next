@@ -214,11 +214,6 @@ export default function MyPlanPage() {
 
     return (
         <div id="pg-menu-my-plan">
-            <link
-                rel="stylesheet"
-                href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-            />
-
             <div className="layout">
                 <div className="main">
                     <div className="content-area">
