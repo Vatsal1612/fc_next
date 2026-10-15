@@ -1,0 +1,311 @@
+/* ============================================================================
+   Menu Language Page Styles — scoped to #pg-menu-menu-language-page
+   ============================================================================ */
+
+#pg-menu-menu-language-page {
+  width: 100%;
+  min-height: 100%;
+  background-color: var(--main-bg, #f5f7fa);
+}
+
+#pg-menu-menu-language-page .app-container {
+  width: 100%;
+  min-height: 100%;
+}
+
+#pg-menu-menu-language-page .main-content {
+  width: 100%;
+  padding: 1.5rem;
+}
+
+/* ── Main Card Container ── */
+#pg-menu-menu-language-page .supprtd_card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 28px 32px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  margin-bottom: 24px;
+}
+
+/* ── Card Header Row ── */
+#pg-menu-menu-language-page .header-row-flex {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+#pg-menu-menu-language-page .supported_title h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+/* ── Help Button ── */
+#pg-menu-menu-language-page .btn-help-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  background: #ffffff;
+  border: 1.5px solid var(--primary-color, #00a896);
+  border-radius: 6px;
+  color: var(--primary-color, #00a896);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  height: 36px;
+  text-transform: uppercase;
+  outline: none;
+}
+
+#pg-menu-menu-language-page .btn-help-top:hover {
+  background: var(--active-bg, #e6f7f5);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 168, 150, 0.15);
+}
+
+#pg-menu-menu-language-page .btn-help-top svg {
+  stroke: currentColor;
+}
+
+/* ── Screen 3: Read-Only Display Card ── */
+#pg-menu-menu-language-page .view-mode-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 20px;
+}
+
+#pg-menu-menu-language-page .view-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+#pg-menu-menu-language-page .view-detail-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#pg-menu-menu-language-page .view-detail-card .label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+#pg-menu-menu-language-page .view-detail-card .value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* ── Action Buttons ── */
+#pg-menu-menu-language-page .btn-action-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+#pg-menu-menu-language-page .btn-primary-teal {
+  background: var(--primary-color, #00a896);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 32px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#pg-menu-menu-language-page .btn-primary-teal:hover:not(:disabled) {
+  background: var(--primary-dark, #008f7f);
+  box-shadow: 0 4px 12px rgba(0, 168, 150, 0.25);
+  transform: translateY(-1px);
+}
+
+#pg-menu-menu-language-page .btn-primary-teal:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+#pg-menu-menu-language-page .btn-cancel-gray {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+#pg-menu-menu-language-page .btn-cancel-gray:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+/* ── Screens 1 & 2: Edit Forms ── */
+#pg-menu-menu-language-page .lang-type-toggle {
+  display: inline-flex;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 8px;
+  gap: 4px;
+  margin-bottom: 24px;
+}
+
+#pg-menu-menu-language-page .lang-type-btn {
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+#pg-menu-menu-language-page .lang-type-btn.active {
+  background: #ffffff;
+  color: var(--primary-color, #00a896);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* ── Form Controls ── */
+#pg-menu-menu-language-page .form-group-custom {
+  margin-bottom: 22px;
+}
+
+#pg-menu-menu-language-page .form-label-custom {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 8px;
+}
+
+#pg-menu-menu-language-page .form-select-custom,
+#pg-menu-menu-language-page .form-input-custom {
+  width: 100%;
+  max-width: 420px;
+  height: 44px;
+  padding: 8px 14px;
+  font-size: 14px;
+  color: #1e293b;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#pg-menu-menu-language-page .form-select-custom:focus,
+#pg-menu-menu-language-page .form-input-custom:focus {
+  border-color: var(--primary-color, #00a896);
+  box-shadow: 0 0 0 3px rgba(0, 168, 150, 0.15);
+}
+
+#pg-menu-menu-language-page .form-input-custom:disabled {
+  background: #f8fafc;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+/* ── Radio Controls ── */
+#pg-menu-menu-language-page .radio-group-horizontal {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  margin-top: 8px;
+}
+
+#pg-menu-menu-language-page .radio-group-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+#pg-menu-menu-language-page .custom-radio-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+
+#pg-menu-menu-language-page .custom-radio-label input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border: 2px solid #94a3b8;
+  border-radius: 50%;
+  outline: none;
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.2s;
+  margin: 0;
+}
+
+#pg-menu-menu-language-page .custom-radio-label input[type="radio"]:checked {
+  border-color: var(--primary-color, #00a896);
+}
+
+#pg-menu-menu-language-page .custom-radio-label input[type="radio"]:checked::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 8px;
+  height: 8px;
+  background: var(--primary-color, #00a896);
+  border-radius: 50%;
+}
+
+/* ── Dual Language Form Layout ── */
+#pg-menu-menu-language-page .dual-lang-row {
+  display: flex;
+  gap: 24px;
+  max-width: 860px;
+}
+
+#pg-menu-menu-language-page .dual-lang-col {
+  flex: 1;
+}
+
+#pg-menu-menu-language-page .radio-section-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  max-width: 860px;
+  margin-top: 10px;
+}

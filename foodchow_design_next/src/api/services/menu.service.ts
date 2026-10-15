@@ -1679,6 +1679,22 @@ export const menuService = {
     return response.data;
   },
 
+  async getMarketplaceData(currency: string = "INR") {
+    // Use the Next.js API proxy to avoid browser CORS restrictions
+    const response = await axios.get(
+      "/api/marketplace-data",
+      {
+        params: {
+          currency,
+        },
+      }
+    );
+
+    console.log("MARKETPLACE DATA RESPONSE:", response.data);
+
+    return response.data;
+  },
+
   async createSubscription(
     payload: CreateSubscriptionPayload
   ) {

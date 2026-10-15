@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
 
     const planId = searchParams.get("planId") || "1";
-    const currency = searchParams.get("currency") || "Rs.";
+    const currency = searchParams.get("currency") || "INR";
 
     console.log("=================================");
     console.log("PLAN DETAILS ROUTE");

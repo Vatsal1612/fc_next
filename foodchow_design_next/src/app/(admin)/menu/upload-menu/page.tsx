@@ -63,11 +63,11 @@ export default function UploadMenuPage() {
       await Swal.fire({
         icon: "success",
         title: "Success!",
-        text: "Menu uploaded successfully! Redirecting to items...",
+        text: "Menu uploaded successfully! Redirecting to categories...",
         timer: 2000,
         showConfirmButton: true,
       });
-      router.push("/menu/items");
+      router.push("/menu/category");
     } catch (err: any) {
       console.error("Failed to upload menu:", err);
       Swal.fire({
@@ -108,7 +108,12 @@ export default function UploadMenuPage() {
                     <button className="btn btn-primary" onClick={() => setScreen("upload")}>
                       WITH EXCEL
                     </button>
-                    <button className="btn btn-secondary">MANUALLY</button>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => router.push("/menu/category")}
+                    >
+                      MANUALLY
+                    </button>
                   </div>
                 </div>
               </div>
@@ -177,7 +182,7 @@ export default function UploadMenuPage() {
                     onClick={handleUploadAndSave}
                     disabled={uploading}
                   >
-                    {uploading ? "UPLOADING..." : "UPLOAD & SAVE"}
+                    {uploading ? "UPLOADING..." : "UPLOAD EXCEL"}
                   </button>
                   <button className="btn btn-ghost" onClick={() => setScreen("choose")}>
                     ← Back

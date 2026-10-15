@@ -350,38 +350,63 @@
   background-color: var(--main-bg);
 }
 
-.logoutWrapper {
-  margin-top: 100px;
-  width: 100%;
-  padding: 8px 5px;
+.languageBtn {
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.2;
+}
 
+.languageBtn:hover {
+  color: var(--primary-color);
+  background-color: var(--active-bg);
+}
+
+.languageBtn.active {
+  color: var(--primary-color);
+  background-color: var(--active-bg);
+  border-color: var(--primary-color);
+}
+
+.logoutWrapper {
+  margin-top: auto;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 10px 5px 14px;
 }
 
 .logoutBtn {
-  width: 100%;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-
+  width: calc(100% - 10px);
+  margin: 0 5px;
+  padding: 10px 4px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-
-  padding: 12px 0;
-
-  color: #666;
-  font-size: var(--text-helper);
-  line-height: var(--lh-helper);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-light);
+  font-size: 11px;
+  line-height: 1.2;
+  gap: 4px;
+  transition: all 0.2s;
 }
 
 .logoutBtn i {
   font-size: var(--text-subheading);
   line-height: var(--lh-subheading);
-  margin-bottom: 5px;
 }
 
 .logoutBtn:hover {
-  color: #00a896;
-  background: #e9fbf8;
+  color: #ef4444;
+  background-color: #fef2f2;
 }

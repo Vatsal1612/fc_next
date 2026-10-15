@@ -4,7 +4,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
 
-    const currency = searchParams.get("currency") || "Rs.";
+    const currency = searchParams.get("currency") || "INR";
 
     const response = await fetch(
       `https://admin.foodchow.com/Marketplace/GetAddOns?currency=${encodeURIComponent(

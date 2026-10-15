@@ -84,11 +84,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname,useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { NAV_SECTIONS, type NavSection } from "@/constants/navigation";
 import { cn } from "@/utils";
 import styles from "./shell.module.css";
 import { setupService } from "@/api/services/setup.service";
+import { LanguageIcon } from "./LanguageIcon";
+import { SupportedLanguagesModal } from "./SupportedLanguagesModal";
 
 /** Resolve the active section from the current pathname (falls back to the first). */
 function getActiveSection(pathname: string): NavSection {
@@ -114,6 +116,7 @@ export function Sidebar() {
   const router = useRouter();
   const [shopName, setShopName] = useState("Loading...");
   const [shopLogo, setShopLogo] = useState<string | null>(null);
+  const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchShopInfo = async () => {
@@ -141,11 +144,10 @@ export function Sidebar() {
   }, []);
 
   const handleLogout = () => {
-  sessionStorage.removeItem("isLoggedIn");
-  sessionStorage.removeItem("shop_id");
-
-  router.replace("/login");
-};
+    sessionStorage.removeItem("isLoggedIn");
+    sessionStorage.removeItem("shop_id");
+    router.replace("/login");
+  };
 
   return (
     <>
@@ -163,30 +165,52 @@ export function Sidebar() {
             <i className={section.icon} />
             <span>{section.label}</span>
           </Link>
-          
         ))}
-           {/* Logout Button */}
+
+        {/* Supported Languages Modal Trigger - placed directly near Support button */}
+        <button
+          type="button"
+          className={cn(
+            styles.menuItem,
+            styles.languageBtn,
+            isLanguageModalOpen && styles.active
+          )}
+          onClick={() => setIsLanguageModalOpen(true)}
+          title="Change Languages / Supported Languages"
+        >
+          <LanguageIcon size={24} />
+          <span>Supported Language</span>
+        </button>
+
+        {/* Logout Button pinned to bottom */}
         <div className={styles.logoutWrapper}>
           <button
             className={styles.logoutBtn}
             onClick={handleLogout}
+            title="Log Out"
           >
             <i className="fas fa-sign-out-alt" />
             <span>Log Out</span>
           </button>
         </div>
       </div>
-      
+
+      {/* Global Supported Languages Modal */}
+      <SupportedLanguagesModal
+        isOpen={isLanguageModalOpen}
+        onClose={() => setIsLanguageModalOpen(false)}
+      />
+
 
       {/* Inner Sidebar */}
       <div className={styles.sidebarInner}>
         <div className={styles.shopInfoWrapper}>
           <div className={styles.shopInfo}>
             {shopLogo ? (
-              <img 
-                src={`https://admin.foodchow.com/LogoImages/${shopLogo}`} 
-                alt="Shop Logo" 
-                style={{ width: "24px", height: "24px", borderRadius: "50%", objectFit: "cover" }} 
+              <img
+                src={`https://admin.foodchow.com/LogoImages/${shopLogo}`}
+                alt="Shop Logo"
+                style={{ width: "24px", height: "24px", borderRadius: "50%", objectFit: "cover" }}
               />
             ) : (
               <i className="fas fa-store" />
