@@ -79,10 +79,13 @@ export default function ItemsPage() {
     currencySymbolRef.current = currencySymbol;
   }, [currencySymbol]);
   const [itemName, setItemName] = useState("");
+  const [secondaryItemName, setSecondaryItemName] = useState("");
   const [description, setDescription] = useState("");
+  const [secondaryDescription, setSecondaryDescription] = useState("");
   const [price, setPrice] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [isVeg] = useState("1");
+  const [secondaryLanguageName, setSecondaryLanguageName] = useState<string | null>(null);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const categoriesRef = useRef<MenuCategory[]>([]);
   useEffect(() => {
@@ -125,6 +128,7 @@ export default function ItemsPage() {
   const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
   const [filterCategoryId, setFilterCategoryId] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Ref so the useEffect crop logic can push the cropped base64 back to React state
   const setEditBase64ImageRef = useRef(setEditBase64Image);
@@ -407,18 +411,25 @@ export default function ItemsPage() {
             : 0) ||
           7895;
 
-        const [cats, menus, itemVariants, itemChoices, itemExtras] = await Promise.allSettled([
+        const [cats, menus, itemVariants, itemChoices, itemExtras, shopLangs] = await Promise.allSettled([
           menuService.categoriesByShop(effectiveShopId),
           menuService.getAllShopMenuType(effectiveShopId),
           menuService.variantsByShop(effectiveShopId),
           menuService.getChoices(effectiveShopId),
           menuService.extrasByShop(effectiveShopId),
+          menuService.getAllLanguage(effectiveShopId),
         ]);
         if (cats.status === "fulfilled") {
           setCategories(cats.value);
         }
         if (menus.status === "fulfilled" && menus.value) {
           setMenuTypes(menus.value);
+        }
+        if (shopLangs.status === "fulfilled" && Array.isArray(shopLangs.value) && shopLangs.value.length > 0) {
+          const l = shopLangs.value[0];
+          if (l.Secondary_language && l.secondary_language_name) {
+            setSecondaryLanguageName(l.secondary_language_name);
+          }
         }
         if (itemVariants.status === "fulfilled") {
           const raw = itemVariants.value ?? [];
@@ -531,7 +542,9 @@ export default function ItemsPage() {
 
       // Clear form
       setItemName("");
+      setSecondaryItemName("");
       setDescription("");
+      setSecondaryDescription("");
       setPrice("");
       setCategoryId("");
       const variantCheckbox = document.getElementById("containVariantCheckbox") as HTMLInputElement | null;
@@ -1875,47 +1888,7 @@ export default function ItemsPage() {
     editContainsChoices?.addEventListener("change", handleEditChoicesToggle);
     editContainsExtras?.addEventListener("change", handleEditExtrasToggle);
 
-    // ===== SEARCH & FILTER =====
-    const searchInput = document.getElementById(
-      "search"
-    ) as HTMLInputElement | null;
-    const categoryFilterSelect = document.getElementById(
-      "categoryFilterSelect"
-    ) as HTMLSelectElement | null;
-    const showingEntriesText = document.getElementById("showingEntriesText");
-
-    function applyFilters() {
-      if (!searchInput || !categoryFilterSelect || !mainItemsTable) return;
-      const searchTerm = searchInput.value.trim().toLowerCase();
-      const selectedCategory = categoryFilterSelect.value;
-      const allRows = mainItemsTable.querySelectorAll<HTMLElement>("tbody tr");
-      let visibleCount = 0;
-      allRows.forEach((row) => {
-        const itemNameEl = row.querySelector<HTMLElement>(".item-name");
-        const itemName = itemNameEl ? itemNameEl.innerText.toLowerCase() : "";
-        const rowCategory = row.getAttribute("data-category") || "";
-        const matchesSearch =
-          searchTerm === "" || itemName.includes(searchTerm);
-        const matchesCategory =
-          selectedCategory === "all" || rowCategory === selectedCategory;
-        if (matchesSearch && matchesCategory) {
-          row.style.display = "";
-          visibleCount++;
-        } else {
-          row.style.display = "none";
-        }
-      });
-      const totalRows = allRows.length;
-      if (showingEntriesText)
-        showingEntriesText.textContent =
-          visibleCount === 0
-            ? "No entries found"
-            : `Showing 1 to ${visibleCount} of ${totalRows} entries`;
-      setTimeout(updateScrollbar, 50);
-    }
-
-    searchInput?.addEventListener("input", applyFilters);
-    categoryFilterSelect?.addEventListener("change", applyFilters);
+    // Search is handled via React state (searchTerm)
 
     // ===== CLEANUP =====
     return () => {
@@ -1972,8 +1945,6 @@ export default function ItemsPage() {
       document.removeEventListener("click", editClickHandler);
       cancelEditItemFormBtn?.removeEventListener("click", cancelEditHandler);
       editUploadImageBtn?.removeEventListener("click", editUploadHandler);
-      searchInput?.removeEventListener("input", applyFilters);
-      categoryFilterSelect?.removeEventListener("change", applyFilters);
       document.removeEventListener(
         "click",
         variantClickHandler
@@ -2041,7 +2012,16 @@ export default function ItemsPage() {
                   <span className="table-top-title">All Items</span>
                   <div className="search-box-container">
                     <i className="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="search" placeholder="Search items..." />
+                    <input
+                      type="text"
+                      id="search"
+                      placeholder="Search items..."
+                      value={searchTerm}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setPage(1);
+                      }}
+                    />
                   </div>
                 </div>
 
@@ -2234,9 +2214,27 @@ export default function ItemsPage() {
                           ? items
                           : items.filter(c => String(c.id) === filterCategoryId);
 
-                        const allItems = filteredCategories.flatMap((category) =>
-                          (category.item_list || []).map((item: any) => ({ ...item, _category: category }))
-                        );
+                        const normalizedSearch = searchTerm.trim().toLowerCase();
+
+                        const allItems = filteredCategories
+                          .flatMap((category) =>
+                            (category.item_list || []).map((item: any) => ({ ...item, _category: category }))
+                          )
+                          .filter((item: any) => {
+                            if (!normalizedSearch) return true;
+                            const name = String(item.item_Name ?? item.Item_Name ?? "").toLowerCase();
+                            return name.includes(normalizedSearch);
+                          });
+
+                        if (allItems.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={7} style={{ textAlign: "center", padding: "40px", color: "#64748b" }}>
+                                No items found
+                              </td>
+                            </tr>
+                          );
+                        }
 
                         const pageStart = (page - 1) * pageSize;
                         const visibleItems = allItems.slice(pageStart, pageStart + pageSize);
@@ -2379,7 +2377,16 @@ export default function ItemsPage() {
                         ? items
                         : items.filter(c => String(c.id) === filterCategoryId);
 
-                      const allItems = filteredCategories.flatMap((c) => c.item_list || []);
+                      const normalizedSearch = searchTerm.trim().toLowerCase();
+
+                      const allItems = filteredCategories
+                        .flatMap((c) => c.item_list || [])
+                        .filter((item: any) => {
+                          if (!normalizedSearch) return true;
+                          const name = String(item.item_Name ?? item.Item_Name ?? "").toLowerCase();
+                          return name.includes(normalizedSearch);
+                        });
+
                       const totalItems = allItems.length;
                       const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
@@ -2440,27 +2447,70 @@ export default function ItemsPage() {
                       ))}
                     </select>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">
-                      Item Name<span className="required-star">*</span>
-                    </label>
-                    {/* <input type="text" className="form-input" /> */}
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={itemName}
-                      onChange={(e) => setItemName(e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Item Description</label>
-                    {/* <textarea className="form-input form-textarea" defaultValue=""></textarea> */}
-                    <textarea
-                      className="form-input form-textarea"
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                    ></textarea>
-                  </div>
+                  {secondaryLanguageName ? (
+                    <>
+                      <div className="form-group">
+                        <label className="form-label">
+                          Item Name (English)<span className="required-star">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={itemName}
+                          onChange={(e) => setItemName(e.target.value)}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">
+                          Item Name ({secondaryLanguageName})<span className="required-star">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={secondaryItemName}
+                          onChange={(e) => setSecondaryItemName(e.target.value)}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Item Description (English)</label>
+                        <textarea
+                          className="form-input form-textarea"
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                        ></textarea>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Item Description ({secondaryLanguageName})</label>
+                        <textarea
+                          className="form-input form-textarea"
+                          value={secondaryDescription}
+                          onChange={(e) => setSecondaryDescription(e.target.value)}
+                        ></textarea>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="form-group">
+                        <label className="form-label">
+                          Item Name<span className="required-star">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={itemName}
+                          onChange={(e) => setItemName(e.target.value)}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Item Description</label>
+                        <textarea
+                          className="form-input form-textarea"
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                        ></textarea>
+                      </div>
+                    </>
+                  )}
                   <div className="form-group">
                     <label className="form-label">
                       Sold By<span className="required-star">*</span>
@@ -2843,20 +2893,55 @@ export default function ItemsPage() {
                       <option value="DRINKS">DRINKS</option>
                     </select>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">
-                      Item Name<span className="required-star">*</span>
-                    </label>
-                    <input type="text" className="form-input" id="editItemNameInput" />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Item Description</label>
-                    <textarea
-                      className="form-input form-textarea"
-                      id="editItemDescInput"
-                      defaultValue=""
-                    ></textarea>
-                  </div>
+                  {secondaryLanguageName ? (
+                    <>
+                      <div className="form-group">
+                        <label className="form-label">
+                          Item Name (English)<span className="required-star">*</span>
+                        </label>
+                        <input type="text" className="form-input" id="editItemNameInput" />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">
+                          Item Name ({secondaryLanguageName})<span className="required-star">*</span>
+                        </label>
+                        <input type="text" className="form-input" id="editSecondaryItemNameInput" />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Item Description (English)</label>
+                        <textarea
+                          className="form-input form-textarea"
+                          id="editItemDescInput"
+                          defaultValue=""
+                        ></textarea>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Item Description ({secondaryLanguageName})</label>
+                        <textarea
+                          className="form-input form-textarea"
+                          id="editSecondaryItemDescInput"
+                          defaultValue=""
+                        ></textarea>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="form-group">
+                        <label className="form-label">
+                          Item Name<span className="required-star">*</span>
+                        </label>
+                        <input type="text" className="form-input" id="editItemNameInput" />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Item Description</label>
+                        <textarea
+                          className="form-input form-textarea"
+                          id="editItemDescInput"
+                          defaultValue=""
+                        ></textarea>
+                      </div>
+                    </>
+                  )}
                   <div className="form-group">
                     <label className="form-label">
                       Sold By<span className="required-star">*</span>

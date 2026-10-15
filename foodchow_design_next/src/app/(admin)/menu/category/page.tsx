@@ -40,6 +40,7 @@ export default function CategoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [searchQuery, setSearchQuery] = useState("");
   const [draggedCategoryId, setDraggedCategoryId] = useState<number | null>(null);
 
   // ── Edit modal state ──
@@ -67,9 +68,14 @@ export default function CategoryPage() {
     setEditImagePreviewRef.current = setEditImagePreview;
   }, []);
 
-  const totalPages = Math.max(1, Math.ceil(categories.length / pageSize));
+  const filteredCategories = categories.filter((cat) => {
+    if (!searchQuery.trim()) return true;
+    return String(cat.cate_name || "").toLowerCase().includes(searchQuery.trim().toLowerCase());
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filteredCategories.length / pageSize));
   const pageStart = (page - 1) * pageSize;
-  const pagedCategories = categories.slice(pageStart, pageStart + pageSize);
+  const pagedCategories = filteredCategories.slice(pageStart, pageStart + pageSize);
 
   const loadCategories = async () => {
     const currentShop = SHOP_ID || getShopId();
@@ -279,7 +285,6 @@ export default function CategoryPage() {
     const $ = <T extends HTMLElement = HTMLElement>(id: string): T | null =>
       document.getElementById(id) as T | null;
 
-    const searchInput = $<HTMLInputElement>("searchInput");
     const selectAll = $<HTMLInputElement>("selectAll");
     const deleteAllBtn = $("deleteAllBtn");
     const openAddModal = $("openAddModal");
@@ -316,24 +321,7 @@ export default function CategoryPage() {
       if (fileInput) fileInput.value = "";
     }
 
-    // ── Search ──
-    const onSearch = function (this: HTMLInputElement) {
-      const q = this.value.toLowerCase().trim();
-      const rows = document.querySelectorAll<HTMLTableRowElement>("#catTableBody tr");
-      let v = 0;
-      rows.forEach((r) => {
-        const name = r.querySelector(".cat-name")?.textContent?.toLowerCase() || "";
-        const show = !q || name.includes(q);
-        r.style.display = show ? "" : "none";
-        if (show) v++;
-      });
-      const tf = $("tableFooter");
-      if (tf)
-        tf.textContent = q
-          ? `Showing ${v} of ${rows.length} entries (filtered)`
-          : `Showing 1 to ${rows.length} of ${rows.length} entries`;
-    };
-    searchInput?.addEventListener("input", onSearch);
+    // ── Search handled by React state (searchQuery) ──
 
     const onSelectAll = function (this: HTMLInputElement) {
       document
@@ -700,7 +688,6 @@ export default function CategoryPage() {
     cropApply?.addEventListener("click", applyCrop);
 
     return () => {
-      searchInput?.removeEventListener("input", onSearch);
       selectAll?.removeEventListener("change", onSelectAll);
       deleteAllBtn?.removeEventListener("click", onDeleteAll);
       openAddModal?.removeEventListener("click", onOpenAdd);
@@ -762,7 +749,16 @@ export default function CategoryPage() {
                       <circle cx="11" cy="11" r="8" />
                       <line x1="21" y1="21" x2="16.65" y2="16.65" />
                     </svg>
-                    <input type="text" id="searchInput" placeholder="Search categories…" />
+                    <input
+                      type="text"
+                      id="searchInput"
+                      placeholder="Search categories…"
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setPage(1);
+                      }}
+                    />
                   </div>
                 </div>
                 <div className="table-wrap">
@@ -915,7 +911,7 @@ export default function CategoryPage() {
                       <ReportPagination
                         currentPage={page}
                         totalPages={totalPages}
-                        totalRecords={categories.length}
+                        totalRecords={filteredCategories.length}
                         pageSize={pageSize}
                         onPageChange={(p) => setPage(p)}
                         onPageSizeChange={(newSize) => {

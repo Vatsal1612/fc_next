@@ -931,11 +931,12 @@
 // ##############
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { menuService } from "@/api/services/menu.service";
 import { getShopId, useShopId, isApiSuccess } from "@/utils/shop";
 import { useSessionCurrency } from "@/hooks/useSessionCurrency";
+import ReportPagination from "@/components/shared/ReportPagination";
 import "./page.css";
 
 interface Product {
@@ -967,6 +968,21 @@ export default function ApplyTaxPage() {
   const [taxType, setTaxType] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [, setProducts] = useState<Product[]>([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalFilteredCount, setTotalFilteredCount] = useState(0);
+
+  const renderProductListRef = useRef<(() => void) | null>(null);
+  const pageRef = useRef(page);
+  const pageSizeRef = useRef(pageSize);
+  pageRef.current = page;
+  pageSizeRef.current = pageSize;
+
+  useEffect(() => {
+    if (renderProductListRef.current) {
+      renderProductListRef.current();
+    }
+  }, [page, pageSize]);
 
   const fetchTaxDetails = useCallback(async (id: number) => {
     try {
@@ -1082,6 +1098,8 @@ export default function ApplyTaxPage() {
           p.category.toLowerCase().includes(query)
       );
 
+      setTotalFilteredCount(filtered.length);
+
       if (filtered.length === 0) {
         list.innerHTML = `<div class="product-empty-state" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 2rem;color:var(--text-muted);gap:8px;">
           <svg viewBox="0 0 24 24" style="width:40px;height:40px;opacity:0.4;" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -1090,7 +1108,12 @@ export default function ApplyTaxPage() {
         return;
       }
 
-      list.innerHTML = filtered
+      const currentPage = pageRef.current || 1;
+      const currentPageSize = pageSizeRef.current || 10;
+      const startIndex = (currentPage - 1) * currentPageSize;
+      const paginatedItems = filtered.slice(startIndex, startIndex + currentPageSize);
+
+      list.innerHTML = paginatedItems
         .map((product) => {
           const checked = product.taxApplied || false;
           const appliedTaxes = product.taxList || [];
@@ -1226,6 +1249,8 @@ export default function ApplyTaxPage() {
         "productSearchInput"
       ) as HTMLInputElement | null;
       productSearchQuery = input ? input.value.trim() : "";
+      pageRef.current = 1;
+      setPage(1);
       renderProductList();
     }
 
@@ -1361,9 +1386,11 @@ export default function ApplyTaxPage() {
     };
     window.addEventListener("click", onWindowClick);
 
+    renderProductListRef.current = renderProductList;
     loadProducts();
 
     return () => {
+      renderProductListRef.current = null;
       clearTimeout(toastTimeout);
       searchInput?.removeEventListener("input", filterProducts);
       selectAllCb?.removeEventListener("change", onSelectAllChange);
@@ -1648,6 +1675,28 @@ export default function ApplyTaxPage() {
               >
                 {/* Rendered by JS */}
               </div>
+
+              {totalFilteredCount > 0 && (
+                <div style={{ padding: "0.75rem 1.75rem", borderTop: "1px solid var(--border)", background: "#fff" }}>
+                  <ReportPagination
+                    currentPage={page}
+                    totalPages={Math.max(1, Math.ceil(totalFilteredCount / pageSize))}
+                    totalRecords={totalFilteredCount}
+                    pageSize={pageSize}
+                    onPageChange={(p) => {
+                      pageRef.current = p;
+                      setPage(p);
+                    }}
+                    onPageSizeChange={(newSize) => {
+                      pageSizeRef.current = newSize;
+                      pageRef.current = 1;
+                      setPageSize(newSize);
+                      setPage(1);
+                    }}
+                    pageSizeOptions={[10, 25, 50, 100]}
+                  />
+                </div>
+              )}
 
               <div
                 className="product-modal-footer"

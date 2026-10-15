@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { setupService } from "@/api/services/setup.service";
 import Script from "next/script";
+import Swal from "sweetalert2";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import { ReportPagination } from "@/components/shared/ReportPagination";
 import "./page.css";
@@ -40,6 +41,7 @@ interface LMap {
   addLayer(layer: LLayer): void;
   panBy(offset: [number, number]): void;
   invalidateSize(): void;
+  fitBounds(bounds: unknown, options?: unknown): void;
   on(event: string, handler: (e: { layer: LLayer }) => void): void;
 }
 interface LCircle extends LLayer {
@@ -137,6 +139,13 @@ export default function DeliveryPage() {
   const [deletingAreaId, setDeletingAreaId] = useState<number | null>(null);
 
   const [zones, setZones] = useState<any[]>([]);
+  const zonesRef = useRef<any[]>([]);
+  useEffect(() => {
+    zonesRef.current = zones;
+    if (renderAllZonesRef.current) {
+      renderAllZonesRef.current(zones);
+    }
+  }, [zones]);
 
   // Pagination States
   const [currentPage, setCurrentPage] = useState(1);
@@ -159,7 +168,9 @@ export default function DeliveryPage() {
   const editModeRef = useRef<"FORM" | "MAP" | null>(null);
 
   const mapRef = useRef<LMap | null>(null);
+  const zonesLayerGroupRef = useRef<any | null>(null);
   const loadZoneOnMapRef = useRef<((zone: any) => void) | null>(null);
+  const renderAllZonesRef = useRef<((zonesToRender?: any[]) => void) | null>(null);
 
   const mapEditorRef = useRef<any | null>(null);
   const validateFreeDeliveryAmount = (): boolean => {
@@ -652,6 +663,110 @@ export default function DeliveryPage() {
         console.error("Unknown zone shape:", shape);
       };
       loadZoneOnMapRef.current = loadZoneOnMap;
+
+      // ── DISPLAY ALL ZONES ON MAP ──
+      const renderAllZones = (zonesList?: any[]): void => {
+        if (!map || !(window as any).L) return;
+        const currentZones = zonesList ?? zonesRef.current ?? [];
+        if (!zonesLayerGroupRef.current) {
+          zonesLayerGroupRef.current = (L as any).featureGroup().addTo(map);
+        } else {
+          zonesLayerGroupRef.current.clearLayers();
+        }
+
+        const validBoundsPoints: [number, number][] = [];
+
+        currentZones.forEach((zone: any) => {
+          const shape = String(zone.type ?? zone.shape ?? "").trim().toUpperCase();
+          const zoneColor = zone.color ?? zone.col ?? "#00a89d";
+          const zoneName = zone.zone_no ?? zone.name ?? "Delivery Zone";
+          const minOrder = zone.min_order ?? "0";
+          const deliveryFee = zone.delivery_fee ?? "0";
+          const popupContent = `
+            <div style="font-family: inherit; font-size: 13px; min-width: 150px;">
+              <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px; color: #1e293b;">
+                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${zoneColor}; margin-right:6px;"></span>
+                ${zoneName}
+              </div>
+              <div style="color: #64748b; font-size: 12px; margin-bottom: 2px;">Min Order: <strong>${minOrder}</strong></div>
+              <div style="color: #64748b; font-size: 12px;">Delivery Fee: <strong>${deliveryFee}</strong></div>
+            </div>
+          `;
+
+          if (shape === "CIRCLE") {
+            const lat = Number(zone.latitude ?? zone.lat ?? zone.latArray?.[0]);
+            const lng = Number(zone.longitude ?? zone.lng ?? zone.longArray?.[0]);
+            const radius = Number(zone.radius ?? 1000);
+
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+              validBoundsPoints.push([lat, lng]);
+              const circleLayer = (L as any).circle([lat, lng], {
+                color: zoneColor,
+                fillColor: zoneColor,
+                fillOpacity: 0.28,
+                weight: 2,
+                radius,
+              });
+              circleLayer.bindPopup(popupContent);
+              zonesLayerGroupRef.current.addLayer(circleLayer);
+            }
+          } else if (shape === "SHAPE") {
+            let latArray: any = zone.latArray ?? zone.latitudeArray ?? [];
+            let longArray: any = zone.longArray ?? zone.longitudeArray ?? [];
+
+            if (typeof latArray === "string") {
+              try { latArray = JSON.parse(latArray); } catch { latArray = []; }
+            }
+            if (typeof longArray === "string") {
+              try { longArray = JSON.parse(longArray); } catch { longArray = []; }
+            }
+
+            if (Array.isArray(latArray) && Array.isArray(longArray) && latArray.length > 0 && latArray.length === longArray.length) {
+              const points = latArray
+                .map((lat: any, index: number) => {
+                  const latitude = Number(lat);
+                  const longitude = Number(longArray[index]);
+                  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+                  return [latitude, longitude] as [number, number];
+                })
+                .filter(Boolean) as [number, number][];
+
+              if (points.length >= 3) {
+                points.forEach((p) => validBoundsPoints.push(p));
+                const polyLayer = (L as any).polygon(points, {
+                  color: zoneColor,
+                  fillColor: zoneColor,
+                  fillOpacity: 0.28,
+                  weight: 2,
+                });
+                polyLayer.bindPopup(popupContent);
+                zonesLayerGroupRef.current.addLayer(polyLayer);
+              }
+            }
+          }
+        });
+
+        // Fit map view to zones if available and not actively editing
+        if (!editingZoneRef.current && validBoundsPoints.length > 0) {
+          try {
+            if (validBoundsPoints.length === 1) {
+              map.setView(validBoundsPoints[0], 14);
+            } else {
+              const groupBounds = zonesLayerGroupRef.current.getBounds();
+              if (groupBounds && groupBounds.isValid && groupBounds.isValid()) {
+                map.fitBounds(groupBounds, { padding: [30, 30] });
+              }
+            }
+          } catch (e) {
+            console.log("Could not auto-fit zone bounds:", e);
+          }
+        }
+      };
+      renderAllZonesRef.current = renderAllZones;
+
+      // Render zones once map is initialized
+      renderAllZones();
+
       const exitMapEditMode = (): void => {
         console.log("========== EXIT MAP EDIT MODE ==========");
 
@@ -691,7 +806,10 @@ export default function DeliveryPage() {
         editingZoneRef.current = null;
         editModeRef.current = null;
 
-        // 4. Reset buttons
+        // 4. Restore all zones on map
+        renderAllZones();
+
+        // 5. Reset buttons
         const defaultActions =
           byId("default-actions");
 
@@ -713,7 +831,7 @@ export default function DeliveryPage() {
           shapeActions.style.display = "none";
         }
 
-        // 5. Hide instructions
+        // 6. Hide instructions
         const circleInstruction =
           byId("circleInstructionLabel");
 
@@ -926,12 +1044,12 @@ export default function DeliveryPage() {
           const shopId = sessionStorage.getItem("shop_id");
 
           if (!shopId) {
-            alert("Shop ID not found.");
+            Swal.fire({ icon: "error", title: "Error", text: "Shop ID not found." });
             return;
           }
 
           if (!activeDrawnLayer && !editingZoneRef.current) {
-            alert("Please create a delivery zone first.");
+            Swal.fire({ icon: "warning", title: "Warning", text: "Please create a delivery zone first." });
             return;
           }
 
@@ -951,22 +1069,22 @@ export default function DeliveryPage() {
             (byId("formTime") as HTMLSelectElement | null)?.value || "10 Minute";
 
           if (!name) {
-            alert("Please enter zone name.");
+            Swal.fire({ icon: "warning", title: "Warning", text: "Please enter zone name." });
             return;
           }
 
           if (!minAmt) {
-            alert("Please enter minimum order amount.");
+            Swal.fire({ icon: "warning", title: "Warning", text: "Please enter minimum order amount." });
             return;
           }
 
           if (!freeAmt) {
-            alert("Please enter free delivery amount.");
+            Swal.fire({ icon: "warning", title: "Warning", text: "Please enter free delivery amount." });
             return;
           }
 
           if (!fees) {
-            alert("Please enter delivery fees.");
+            Swal.fire({ icon: "warning", title: "Warning", text: "Please enter delivery fees." });
             return;
           }
           if (!validateFreeDeliveryAmount()) {
@@ -1087,7 +1205,7 @@ export default function DeliveryPage() {
             radius = "0";
 
           } else {
-            alert("Unable to get zone coordinates.");
+            Swal.fire({ icon: "error", title: "Error", text: "Unable to get zone coordinates." });
             return;
           }
           const payload = {
@@ -1133,7 +1251,7 @@ export default function DeliveryPage() {
               zoneToEdit.zone_id;
 
             if (!zoneId) {
-              alert("Delivery zone ID not found.");
+              Swal.fire({ icon: "error", title: "Error", text: "Delivery zone ID not found." });
               console.error("Zone object:", zoneToEdit);
               return;
             }
@@ -1148,7 +1266,7 @@ export default function DeliveryPage() {
           console.log("SELECT ZONE RESPONSE:", response);
 
           if (response?.success === false) {
-            alert(response?.message || "Failed to save delivery zone.");
+            Swal.fire({ icon: "error", title: "Error", text: response?.message || "Failed to save delivery zone." });
             return;
           }
           // Reset Add/Update mode after successful save
@@ -1172,11 +1290,14 @@ export default function DeliveryPage() {
           console.error("Message:", error?.message);
           console.error("================================");
 
-          alert(
-            error?.response?.data?.message ||
-            error?.message ||
-            "Something went wrong while saving the delivery zone."
-          );
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text:
+              error?.response?.data?.message ||
+              error?.message ||
+              "Something went wrong while saving the delivery zone.",
+          });
         }
       };
 
@@ -1185,19 +1306,19 @@ export default function DeliveryPage() {
         const zone = editingZoneRef.current;
 
         if (!zone) {
-          alert("No zone selected.");
+          Swal.fire({ icon: "warning", title: "Warning", text: "No zone selected." });
           return;
         }
 
         if (!activeDrawnLayer) {
-          alert("Zone is not loaded on the map.");
+          Swal.fire({ icon: "warning", title: "Warning", text: "Zone is not loaded on the map." });
           return;
         }
 
         const shopId = sessionStorage.getItem("shop_id");
 
         if (!shopId) {
-          alert("Shop ID not found.");
+          Swal.fire({ icon: "error", title: "Error", text: "Shop ID not found." });
           return;
         }
 
@@ -1247,7 +1368,7 @@ export default function DeliveryPage() {
         }
 
         else {
-          alert("Unable to read zone coordinates.");
+          Swal.fire({ icon: "error", title: "Error", text: "Unable to read zone coordinates." });
           return;
         }
 
@@ -1302,7 +1423,7 @@ export default function DeliveryPage() {
             zone.zone_id;
 
           if (!zoneId) {
-            alert("Delivery zone ID not found.");
+            Swal.fire({ icon: "error", title: "Error", text: "Delivery zone ID not found." });
             return;
           }
 
@@ -1318,10 +1439,11 @@ export default function DeliveryPage() {
           );
 
           if (response?.success === false) {
-            alert(
-              response?.message ||
-              "Failed to update zone."
-            );
+            Swal.fire({
+              icon: "error",
+              title: "Error",
+              text: response?.message || "Failed to update zone.",
+            });
             return;
           }
 
@@ -1329,9 +1451,13 @@ export default function DeliveryPage() {
           // UPDATE SUCCESS
           // -----------------------------------------
 
-          alert(
-            "Delivery zone updated successfully."
-          );
+          Swal.fire({
+            icon: "success",
+            title: "Success",
+            text: "Delivery zone updated successfully.",
+            timer: 2000,
+            showConfirmButton: false,
+          });
 
           // IMPORTANT:
           // Exit Leaflet map editing completely
@@ -1374,11 +1500,14 @@ export default function DeliveryPage() {
 
           console.error(error);
 
-          alert(
-            error?.response?.data?.message ||
-            error?.message ||
-            "Something went wrong while updating the delivery zone."
-          );
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text:
+              error?.response?.data?.message ||
+              error?.message ||
+              "Something went wrong while updating the delivery zone.",
+          });
         }
       };
       byId("updateMapZoneBtn")?.addEventListener(
@@ -1513,7 +1642,7 @@ export default function DeliveryPage() {
         const shopId = sessionStorage.getItem("shop_id");
 
         if (!shopId) {
-          alert("Shop ID not found");
+          Swal.fire({ icon: "error", title: "Error", text: "Shop ID not found." });
           return;
         }
 
@@ -1523,7 +1652,7 @@ export default function DeliveryPage() {
         try {
           const response = await setupService.deleteDeliveryZone(Number(shopId), zoneId);
           if (response?.success === false) {
-            alert(response?.message || "Failed to delete zone");
+            Swal.fire({ icon: "error", title: "Error", text: response?.message || "Failed to delete zone" });
             if (confirmBtn) confirmBtn.textContent = "YES, DELETE IT";
             return;
           }
@@ -1534,16 +1663,29 @@ export default function DeliveryPage() {
           setZones(groupZones(rawZones));
 
           closeDeleteModal();
+          Swal.fire({
+            icon: "success",
+            title: "Deleted!",
+            text: "Delivery zone deleted successfully.",
+            timer: 2000,
+            showConfirmButton: false,
+          });
         } catch (error: any) {
           console.error("Delete Error:", error);
-          alert(error?.response?.data?.message || error?.message || "Failed to delete zone");
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: error?.response?.data?.message || error?.message || "Failed to delete zone",
+          });
         } finally {
           if (confirmBtn) confirmBtn.textContent = "YES, DELETE IT";
         }
       };
       byId("confirmDeleteBtn")?.addEventListener("click", () => { void onConfirmDelete(); });
 
-      const onHelp = (): void => alert("Help coming soon!");
+      const onHelp = (): void => {
+        Swal.fire({ icon: "info", title: "Help", text: "Delivery setup help coming soon!" });
+      };
       const helpBtns = Array.from(
         document.querySelectorAll<HTMLButtonElement>("#pg-setup-delivery .btn-help"),
       );
@@ -1698,7 +1840,7 @@ export default function DeliveryPage() {
 
   const handleSaveArea = async () => {
     if (!areaName.trim()) {
-      alert("Please enter the Delivery Area name.");
+      Swal.fire({ icon: "warning", title: "Warning", text: "Please enter the Delivery Area name." });
       return;
     }
     const minVal = parseFloat(areaMinAmt);
@@ -1706,19 +1848,19 @@ export default function DeliveryPage() {
     const feeVal = parseFloat(areaFee);
 
     if (isNaN(minVal) || minVal < 0) {
-      alert("Please enter valid Minimum Order Amount.");
+      Swal.fire({ icon: "warning", title: "Warning", text: "Please enter valid Minimum Order Amount." });
       return;
     }
     if (isNaN(freeVal) || freeVal < 0) {
-      alert("Please enter valid Minimum Order Amount For Free Delivery.");
+      Swal.fire({ icon: "warning", title: "Warning", text: "Please enter valid Minimum Order Amount For Free Delivery." });
       return;
     }
     if (freeVal <= minVal) {
-      alert("'Minimum order amount for free delivery' should be more than 'Minimum order amount'.");
+      Swal.fire({ icon: "warning", title: "Warning", text: "'Minimum order amount for free delivery' should be more than 'Minimum order amount'." });
       return;
     }
     if (isNaN(feeVal) || feeVal < 0) {
-      alert("Please enter valid Delivery Fee.");
+      Swal.fire({ icon: "warning", title: "Warning", text: "Please enter valid Delivery Fee." });
       return;
     }
 
@@ -1744,7 +1886,7 @@ export default function DeliveryPage() {
           delivery_hours: dHours,
           delivery_minute: dMinute,
         });
-        showNotification("Delivery area updated successfully!");
+        Swal.fire({ icon: "success", title: "Success", text: "Delivery area updated successfully!", timer: 1500, showConfirmButton: false });
       } else {
         await setupService.addCustomDeliveryLocation({
           shop_id: shopId,
@@ -1755,20 +1897,19 @@ export default function DeliveryPage() {
           delivery_hours: dHours,
           delivery_minute: dMinute,
         });
-        showNotification("Delivery area added successfully!");
+        Swal.fire({ icon: "success", title: "Success", text: "Delivery area added successfully!", timer: 1500, showConfirmButton: false });
       }
 
       setShowAreaModal(false);
       if (shopId) fetchAreas(shopId);
     } catch (err) {
       console.error("Error saving area:", err);
-      alert("Error saving area. Please try again.");
+      Swal.fire({ icon: "error", title: "Error", text: "Error saving area. Please try again." });
     }
   };
 
   const handleDeleteAreaClick = async (areaId: number) => {
     try {
-      const { default: Swal } = await import("sweetalert2");
       const result = await Swal.fire({
         title: "Are you sure?",
         text: "This will delete the delivery area that you have selected!",
@@ -1783,12 +1924,12 @@ export default function DeliveryPage() {
 
       if (result.isConfirmed) {
         await setupService.deleteCustomDeliveryLocation(areaId);
-        showNotification("Delivery area deleted successfully!");
+        Swal.fire({ icon: "success", title: "Deleted!", text: "Delivery area deleted successfully!", timer: 1500, showConfirmButton: false });
         if (shopId) fetchAreas(shopId);
       }
     } catch (err) {
       console.error("Error deleting area:", err);
-      alert("Failed to delete area.");
+      Swal.fire({ icon: "error", title: "Error", text: "Failed to delete area." });
     }
   };
 
@@ -1796,13 +1937,13 @@ export default function DeliveryPage() {
     if (!deletingAreaId) return;
     try {
       await setupService.deleteCustomDeliveryLocation(deletingAreaId);
-      showNotification("Delivery area deleted successfully!");
+      Swal.fire({ icon: "success", title: "Deleted!", text: "Delivery area deleted successfully!", timer: 1500, showConfirmButton: false });
       setShowDeleteAreaModal(false);
       setDeletingAreaId(null);
       if (shopId) fetchAreas(shopId);
     } catch (err) {
       console.error("Error deleting area:", err);
-      alert("Failed to delete area.");
+      Swal.fire({ icon: "error", title: "Error", text: "Failed to delete area." });
     }
   };
 

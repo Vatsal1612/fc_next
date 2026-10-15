@@ -114,6 +114,10 @@ export const ENDPOINTS = {
     //Menu Language
     getSupportedLanguageList: "/FoodChowWD/GetSupportedLanguageList",
     getAllLanguage: "/FoodChowRMS/GetAllLanguage",
+    getSupportedLanguageForShop: "/FoodChowWD/GetSupportedLanguageForShop",
+    saveLanguageForShop: "/FoodChowWD/SaveLanguageForShop",
+    deleteLanguageForShop: "/FoodChowWD/DeleteLanguageForShop",
+    setDefaultLanguageforShop: "/FoodChowWD/SetDefaultLanguageforShop",
 
     // Upload Menu Excel
     uploadMenuExcel: "/MenuMaster/UploadMenuExcel",

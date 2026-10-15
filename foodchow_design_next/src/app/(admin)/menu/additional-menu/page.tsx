@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Swal from "sweetalert2";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import { menuService, type AddShopMenuPayload, type ShopMenuType, type TimingPayload, type MenuItemPayload, type AdditionalMenuCategory } from "@/api/services/menu.service";
 import { useShopId } from "@/utils/shop";
@@ -146,12 +148,15 @@ export default function AdditionalMenuPage() {
         : await menuService.addShopMenu(payload);
 
       if (response.response_code === "1") {
-        alert(response.message);
+        await Swal.fire({
+          icon: "success",
+          title: "Success",
+          text: response.message || "Your Menu has been saved successfully!",
+        });
 
         setEditingMenuId(null);
         setMenuName("");
         setMenuItems([]);
-        // setTimings([]);
         setTimings(
           DAYS.map(day => ({
             shop_id: SHOP_ID.toString(),
@@ -167,10 +172,19 @@ export default function AdditionalMenuPage() {
         await loadMenus();
         setViewMode("list");
       } else {
-        alert(response.message);
+        await Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: response.message || "Failed to save menu.",
+        });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      await Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err?.message || "Something went wrong while saving menu.",
+      });
     }
   };
 
@@ -178,14 +192,26 @@ export default function AdditionalMenuPage() {
     try {
       const response = await menuService.deleteShopMenu(menuId);
       if (response.response_code === "1") {
-        alert(response.message);
+        await Swal.fire({
+          icon: "success",
+          title: "Deleted!",
+          text: response.message || "Menu deleted successfully.",
+        });
         await loadMenus();
       } else {
-        alert(response.message);
+        await Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: response.message || "Failed to delete menu.",
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Failed to delete menu");
+      await Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error?.message || "Failed to delete menu",
+      });
     }
   };
 
@@ -210,23 +236,10 @@ export default function AdditionalMenuPage() {
     }
   };
 
+  const router = useRouter();
+
   const handleOpenAddMenu = () => {
-    setEditingMenuId(null);
-    setMenuName("");
-    setMenuItems([]);
-    setTimings(
-      DAYS.map((day) => ({
-        shop_id: SHOP_ID.toString(),
-        menu_id: 0,
-        days_name: day,
-        open_time: "10:00 AM",
-        close_time: "10:00 PM",
-        close_day: 0,
-        is_24hours: 0,
-      }))
-    );
-    setCurrentStep(1);
-    setViewMode("form");
+    router.push("/menu/additional-menu/add");
   };
 
   const isItemSelected = (itemId: number) => {
@@ -295,41 +308,83 @@ export default function AdditionalMenuPage() {
     try {
 
       const status = checked ? 1 : 0;
+      const apiType = menuType === "online" ? "oo" : "pos";
 
-
-      console.log({
+      console.log("Updating menu status:", {
         menuId,
         menuType,
+        apiType,
         status,
         SHOP_ID,
       });
+
+      // Optimistically update UI immediately
+      setMenus((prev) =>
+        prev.map((menu) =>
+          menu.id === menuId
+            ? {
+                ...menu,
+                ...(menuType === "online"
+                  ? { for_online: status }
+                  : { for_pos: status }),
+              }
+            : menu
+        )
+      );
+
       const response = await menuService.updateMenuStatus(
         menuId,
-        menuType,
-        checked ? 1 : 0,
+        apiType,
+        status,
         SHOP_ID
       );
 
-      if (response.response_code === "1") {
-        // update UI immediately
+      console.log("updateMenuStatus response:", response);
+
+      const isSuccess =
+        response?.response_code === "1" ||
+        response?.status === 200 ||
+        response?.message === "SUCCESS" ||
+        response?.data === "Menu Updated successfully !";
+
+      if (isSuccess) {
+        const typeLabel = menuType === "online" ? "Online Order" : "POS";
+        const stateLabel = checked ? "enabled" : "disabled";
+        await Swal.fire({
+          toast: true,
+          position: "top-end",
+          icon: "success",
+          title: response.data || response.message || `${typeLabel} ${stateLabel} successfully!`,
+          showConfirmButton: false,
+          timer: 2000,
+        });
+      } else {
+        // Revert on failure
         setMenus((prev) =>
           prev.map((menu) =>
             menu.id === menuId
               ? {
-                ...menu,
-                ...(menuType === "online"
-                  ? { for_online: checked ? 1 : 0 }
-                  : { for_pos: checked ? 1 : 0 }),
-              }
+                  ...menu,
+                  ...(menuType === "online"
+                    ? { for_online: checked ? 0 : 1 }
+                    : { for_pos: checked ? 0 : 1 }),
+                }
               : menu
           )
         );
-      } else {
-        alert(response.message);
+        await Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: response?.message || "Failed to update menu status",
+        });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Failed to update menu status");
+      await Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err?.message || "Failed to update menu status",
+      });
     }
   };
 
@@ -1134,9 +1189,13 @@ export default function AdditionalMenuPage() {
                         id="submit-update-btn"
                         type="button"
                         style={{ padding: "10px 24px", fontSize: "13.5px" }}
-                        onClick={() => {
+                        onClick={async () => {
                           if (!menuName.trim()) {
-                            alert("Please enter a menu name.");
+                            await Swal.fire({
+                              icon: "warning",
+                              title: "Required",
+                              text: "Please enter a menu name.",
+                            });
                             return;
                           }
                           setCurrentStep(2);

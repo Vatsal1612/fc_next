@@ -40,6 +40,14 @@ export interface SupportedLanguage {
   lang_code_short: string;
 }
 
+export interface SupportedLanguageForShop {
+  id: number;
+  lang_name: string;
+  lang_code: string;
+  entry_exists: string; // "true" | "false"
+  is_default_language: string; // "1" | "0"
+}
+
 /** Extras types */
 export interface ExtraSize {
   item_ingredient_size_id: number;
@@ -611,6 +619,39 @@ export const menuService = {
     console.log("AddMenuLanguage POST Response:", data);
     return data;
   },
+  async getSupportedLanguageForShop(shopId: number): Promise<SupportedLanguageForShop[]> {
+    const { data } = await foodchowWDClient.get(
+      `${ENDPOINTS.menu.getSupportedLanguageForShop}?shop_id=${shopId}`
+    );
+    if (!data.data) {
+      return [];
+    }
+    try {
+      const parsed = typeof data.data === "string" ? JSON.parse(data.data) : data.data;
+      return parsed ?? [];
+    } catch (error) {
+      console.error("Failed to parse supported languages for shop:", error);
+      return [];
+    }
+  },
+  async saveLanguageForShop(shopId: number, supportedLangId: number): Promise<any> {
+    const { data } = await foodchowWDClient.get(
+      `${ENDPOINTS.menu.saveLanguageForShop}?shop_id=${shopId}&supported_lang_id=${supportedLangId}`
+    );
+    return data;
+  },
+  async deleteLanguageForShop(shopId: number, supportedLangId: number): Promise<any> {
+    const { data } = await foodchowWDClient.get(
+      `${ENDPOINTS.menu.deleteLanguageForShop}?shop_id=${shopId}&supported_lang_id=${supportedLangId}`
+    );
+    return data;
+  },
+  async setDefaultLanguageForShop(shopId: number, supportedLangId: number): Promise<any> {
+    const { data } = await foodchowWDClient.get(
+      `${ENDPOINTS.menu.setDefaultLanguageforShop}?shop_id=${shopId}&supported_lang_id=${supportedLangId}`
+    );
+    return data;
+  },
   /** Shop-wise categories (with subcategories) for the given shop. */
   async categoriesByShop(shopId: number): Promise<MenuCategory[]> {
     const effectiveShopId =
@@ -828,12 +869,12 @@ export const menuService = {
         row.item_code !== undefined && row.item_code !== null
           ? String(row.item_code).trim()
           : row.ItemCode !== undefined && row.ItemCode !== null
-          ? String(row.ItemCode).trim()
-          : row.itemcode !== undefined && row.itemcode !== null
-          ? String(row.itemcode).trim()
-          : row.code !== undefined && row.code !== null
-          ? String(row.code).trim()
-          : "",
+            ? String(row.ItemCode).trim()
+            : row.itemcode !== undefined && row.itemcode !== null
+              ? String(row.itemcode).trim()
+              : row.code !== undefined && row.code !== null
+                ? String(row.code).trim()
+                : "",
     }));
   },
   /** Get Item Code Type Setting */
@@ -1739,16 +1780,17 @@ export const menuService = {
 
   async updateMenuStatus(
     menuId: number,
-    menuType: "online" | "pos",
+    menuType: "online" | "pos" | "oo",
     status: number,
     shopId: number
   ) {
+    const apiMenuType = menuType === "online" ? "oo" : menuType;
     const { data } = await foodchowWDClient.get(
       ENDPOINTS.menu.enableMenuForPosOrOnline,
       {
         params: {
           menu_id: menuId,
-          menu_type: menuType,
+          menu_type: apiMenuType,
           status,
           shop_id: shopId,
         },
@@ -1759,30 +1801,137 @@ export const menuService = {
   },
 
   async uploadMenuExcel(shopId: number | string, file: File) {
-    const formData = new FormData();
-    formData.append("shop_id", String(shopId));
-    formData.append("file", file);
+    const XLSX = await import("xlsx");
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: "array" });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const rawData = XLSX.utils.sheet_to_json<any>(worksheet, { defval: "" });
 
-    const { data } = await foodchowClient.post(
-      ENDPOINTS.menu.uploadMenuExcel,
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+    if (!rawData || rawData.length === 0) {
+      throw new Error("The uploaded Excel file contains no data.");
+    }
+
+    // Verify expected columns
+    const firstRow = rawData[0];
+    const hasCategory = Object.keys(firstRow).some((k) => k.toLowerCase().includes("category"));
+    const hasItemName = Object.keys(firstRow).some((k) => k.toLowerCase().includes("item"));
+    const hasPrice = Object.keys(firstRow).some((k) => k.toLowerCase().includes("price"));
+
+    if (!hasCategory || !hasItemName || !hasPrice) {
+      throw new Error("Uploaded file is not properly formatted. Required columns: Category, Item_Name, Price.");
+    }
+
+    // Fetch existing categories to reuse their IDs if they match
+    let existingCategories: any[] = [];
+    try {
+      existingCategories = await this.categoriesByShop(Number(shopId));
+    } catch (e) {
+      console.warn("Could not load existing categories:", e);
+    }
+
+    const categoryMap = new Map<string, string>();
+    for (const cat of existingCategories) {
+      if (cat.name) {
+        categoryMap.set(cat.name.toLowerCase().trim(), String(cat.id));
       }
-    );
-    console.log("UPLOAD MENU EXCEL RESPONSE:", data);
-    return data;
+    }
+
+    let importedItemsCount = 0;
+
+    for (const row of rawData) {
+      const cateKey = Object.keys(row).find((k) => k.toLowerCase().includes("category")) || "Category";
+      const itemKey = Object.keys(row).find((k) => k.toLowerCase().includes("item")) || "Item_Name";
+      const descKey = Object.keys(row).find((k) => k.toLowerCase().includes("desc")) || "Description";
+      const priceKey = Object.keys(row).find((k) => k.toLowerCase().includes("price")) || "Price";
+      const vegKey = Object.keys(row).find((k) => k.toLowerCase().includes("veg")) || "Is_Veg";
+
+      const categoryName = String(row[cateKey] || "").trim();
+      let itemName = String(row[itemKey] || "").trim();
+      const description = String(row[descKey] || "").trim();
+      const price = String(row[priceKey] || "0").trim();
+      const isVeg =
+        row[vegKey] === 0 ||
+        String(row[vegKey]).toLowerCase() === "0" ||
+        String(row[vegKey]).toLowerCase().includes("non")
+          ? "0"
+          : "1";
+
+      if (!categoryName && !itemName) continue;
+      if (!itemName) itemName = categoryName;
+      if (Number(price) <= 0) continue;
+
+      // 1. Resolve or create category
+      const normCatName = categoryName.toLowerCase().trim();
+      let cateId = categoryMap.get(normCatName);
+
+      if (!cateId) {
+        try {
+          const catRes = await foodchowClient.post(ENDPOINTS.menu.addStoreCategory, {
+            id: 0,
+            shop_id: Number(shopId),
+            cate_name: categoryName,
+            cate_image: "",
+            description: "",
+            parent_id: 0,
+          });
+
+          // Handlers for { Data: 123 } or { Data: [ { id: 123 } ] }
+          const resData = catRes.data?.Data ?? catRes.data?.data;
+          if (typeof resData === "number" || typeof resData === "string") {
+            cateId = String(resData);
+          } else if (Array.isArray(resData) && resData.length > 0) {
+            cateId = String(resData[0].id || resData[0].cate_id || resData[0].LAST_INSERT_ID || 0);
+          }
+
+          if (cateId && cateId !== "0") {
+            categoryMap.set(normCatName, cateId);
+          }
+        } catch (catErr) {
+          console.error(`Failed to add category ${categoryName}:`, catErr);
+        }
+      }
+
+      if (!cateId || cateId === "0") {
+        // Fallback to first known category or skip
+        cateId = existingCategories[0] ? String(existingCategories[0].id) : "0";
+      }
+
+      // 2. Add item via QuickAddStoreItemWithStock
+      try {
+        await foodchowClient.post(ENDPOINTS.menu.addItem, {
+          Cate_Id: cateId,
+          Item_Name: itemName,
+          Description: description,
+          Is_Veg: isVeg,
+          unit: "",
+          price: price,
+          non_Veg_Type: "0",
+          Shop_Id: String(shopId),
+          is_manage_stock: 0,
+          sold_out_flag: 0,
+          barcode: "",
+          open_price: 0,
+          is_size_available: 0,
+        });
+        importedItemsCount++;
+      } catch (itemErr) {
+        console.error(`Failed to add item ${itemName}:`, itemErr);
+      }
+    }
+
+    return {
+      success: true,
+      count: importedItemsCount,
+      message: `Menus have been Uploaded Successfully (${importedItemsCount} items imported)!`,
+    };
   },
 
   async downloadSampleMenuExcel() {
-    const response = await foodchowClient.get(
-      ENDPOINTS.menu.downloadSampleMenuExcel,
-      {
-        responseType: "blob",
-      }
-    );
-    return response.data;
+    const response = await fetch("/SampleMenu.xlsx");
+    if (!response.ok) {
+      throw new Error("Sample file not found");
+    }
+    return await response.blob();
   },
 };
