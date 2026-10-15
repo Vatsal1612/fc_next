@@ -713,14 +713,19 @@
 
     /* ================= PAGINATION FOOTER MODULE ================= */
     .footer-pagination {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+        display: block;
         background-color: #ffffff;
         border-top: 1px solid var(--border-muted);
-        padding: 16px 24px;
-        margin-top: 30px;
+        padding: 12px 24px;
+        margin-top: 20px;
         border-radius: 0 0 12px 12px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .footer-pagination .report-pagination-wrapper {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
     }
 
     .pagination-controls-left {

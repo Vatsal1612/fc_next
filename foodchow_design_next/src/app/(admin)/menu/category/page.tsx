@@ -907,9 +907,9 @@ export default function CategoryPage() {
                     id="tableFooter"
                     style={{ width: "100%" }}
                   >
-                    {!loading && !error && (
+                    {!loading && !error && filteredCategories.length > 0 && (
                       <ReportPagination
-                        currentPage={page}
+                        currentPage={validCurrentPage}
                         totalPages={totalPages}
                         totalRecords={filteredCategories.length}
                         pageSize={pageSize}
