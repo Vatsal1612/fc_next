@@ -19,15 +19,12 @@ export default function UploadMenuPage() {
   const handleDownloadSample = async () => {
     setDownloading(true);
     try {
-      const blob = await menuService.downloadSampleMenuExcel();
-      const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement("a");
-      link.href = url;
+      link.href = "/SampleMenu.xlsx";
       link.setAttribute("download", "SampleMenu.xlsx");
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Failed to download sample:", err);
       Swal.fire({

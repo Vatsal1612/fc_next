@@ -26,6 +26,8 @@ const HELP_VIDEOS: Record<string, string> = {
 
 const VIEW_OPTIONS = ["View", "Webpage", "Order Online Page"] as const;
 
+
+
 interface HeaderProps {
   onToggleSidebar: () => void;
 }
@@ -73,10 +75,12 @@ export function Header({ onToggleSidebar }: HeaderProps) {
       .catch((err) => console.error("Failed to load subdomain:", err));
   }, []);
 
-  // Close the dropdown on any outside click (matches the original window click handler).
+  // Close the dropdowns on any outside click (matches the original window click handler).
   useEffect(() => {
     if (!dropdownOpen) return;
-    const close = () => setDropdownOpen(false);
+    const close = () => {
+      setDropdownOpen(false);
+    };
     window.addEventListener("click", close);
     return () => window.removeEventListener("click", close);
   }, [dropdownOpen]);
@@ -141,6 +145,8 @@ export function Header({ onToggleSidebar }: HeaderProps) {
             ))}
           </div>
         </div>
+
+
 
         <button className={styles.btnHelpHeader} onClick={openHelpModal}>
           <i className="far fa-question-circle" /> HELP

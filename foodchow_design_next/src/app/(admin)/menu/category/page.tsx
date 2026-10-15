@@ -40,6 +40,7 @@ export default function CategoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [searchQuery, setSearchQuery] = useState("");
   const [draggedCategoryId, setDraggedCategoryId] = useState<number | null>(null);
 
   // ── Edit modal state ──
@@ -67,9 +68,14 @@ export default function CategoryPage() {
     setEditImagePreviewRef.current = setEditImagePreview;
   }, []);
 
-  const totalPages = Math.max(1, Math.ceil(categories.length / pageSize));
+  const filteredCategories = categories.filter((cat) => {
+    if (!searchQuery.trim()) return true;
+    return String(cat.cate_name || "").toLowerCase().includes(searchQuery.trim().toLowerCase());
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filteredCategories.length / pageSize));
   const pageStart = (page - 1) * pageSize;
-  const pagedCategories = categories.slice(pageStart, pageStart + pageSize);
+  const pagedCategories = filteredCategories.slice(pageStart, pageStart + pageSize);
 
   const loadCategories = async () => {
     const currentShop = SHOP_ID || getShopId();
@@ -315,7 +321,7 @@ export default function CategoryPage() {
       if (fileInput) fileInput.value = "";
     }
 
-    // ── Search handled via React state searchQuery ──
+    // ── Search handled by React state (searchQuery) ──
 
     const onSelectAll = function (this: HTMLInputElement) {
       document
@@ -905,7 +911,7 @@ export default function CategoryPage() {
                       <ReportPagination
                         currentPage={validCurrentPage}
                         totalPages={totalPages}
-                        totalRecords={categories.length}
+                        totalRecords={filteredCategories.length}
                         pageSize={pageSize}
                         onPageChange={(p) => setPage(p)}
                         onPageSizeChange={(newSize) => {
