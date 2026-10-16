@@ -568,8 +568,8 @@ export default function ItemsPage() {
 
       const payload: AddItemPayload = {
         Cate_Id: String(categoryId),
-        Item_Name: itemName,
-        Description: description,
+        Item_Name: itemName.replace(/'/g, "''"),
+        Description: description.replace(/'/g, "''"),
         Is_Veg: String(isVeg),
         unit: "",
         price: hasVariants ? itemSizes?.[0]?.Price ?? "0" : String(price),
