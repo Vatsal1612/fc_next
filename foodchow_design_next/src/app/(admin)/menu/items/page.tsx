@@ -216,18 +216,48 @@ export default function ItemsPage() {
             (priceRow) => String(priceRow.item_id ?? "").trim() === itemId.trim()
           );
 
-          if (itemPrices.length === 0 && existingSizes.length === 0) return item;
+          // Only genuine variant rows with a valid size_name or shop_size_id
+          const validItemPrices = itemPrices.filter(
+            (p) => (p.size_name && String(p.size_name).trim() !== "") || (p.shop_size_id && Number(p.shop_size_id) > 0)
+          );
 
-          // Merge authoritative prices with existing sizes without wiping non-zero variant prices
-          const baseSizes = itemPrices.length > 0 ? itemPrices : existingSizes;
+          // An item has variants if marked so or if it has valid sizes
+          const hasVariants =
+            Number(item.is_size_available) === 1 ||
+            existingSizes.length > 0 ||
+            validItemPrices.length > 1 ||
+            (validItemPrices.length === 1 && validItemPrices[0].size_name);
+
+          if (!hasVariants) {
+            // For single-price items, keep single price from item or fallback price row
+            const singlePriceRow = itemPrices[0];
+            const singlePrice =
+              (item.price !== undefined && item.price !== null && !isNaN(Number(item.price)) && Number(item.price) > 0)
+                ? item.price
+                : (item.Price !== undefined && item.Price !== null && !isNaN(Number(item.Price)) && Number(item.Price) > 0)
+                ? item.Price
+                : (singlePriceRow?.price !== undefined && singlePriceRow?.price !== null && !isNaN(Number(singlePriceRow.price)))
+                ? singlePriceRow.price
+                : (item.price ?? item.Price ?? 0);
+
+            return {
+              ...item,
+              price: singlePrice,
+              Price: singlePrice,
+              FoodItemSizeList: [],
+            };
+          }
+
+          // For variant items: merge validItemPrices with existingSizes
+          const baseSizes = validItemPrices.length > 0 ? validItemPrices : existingSizes;
           const mergedSizes = baseSizes.map((row: any) => {
-            const rowSizeId = row.item_size_id ?? row.size_id ?? row.Size_Id ?? row.id;
-            const rowSizeName = String(row.size_name ?? row.Size_Name ?? "").trim().toLowerCase();
+            const rowSizeId = row.item_size_id ?? row.size_id ?? row.Size_Id ?? row.shop_size_id ?? row.id;
+            const rowSizeName = String(row.size_name ?? row.Size_Name ?? "").trim();
 
             const matchingExisting = existingSizes.find((es: any) => {
-              const esId = es.item_size_id ?? es.size_id ?? es.Size_Id ?? es.id;
+              const esId = es.item_size_id ?? es.size_id ?? es.Size_Id ?? es.shop_size_id ?? es.id;
               const esName = String(es.size_name ?? es.Size_Name ?? "").trim().toLowerCase();
-              return (rowSizeId && String(esId) === String(rowSizeId)) || (rowSizeName && esName === rowSizeName);
+              return (rowSizeId && String(esId) === String(rowSizeId)) || (rowSizeName && esName === rowSizeName.toLowerCase());
             });
 
             // Calculate existing non-zero price if present
@@ -251,24 +281,27 @@ export default function ItemsPage() {
                 ? row.price
                 : (matchingExisting && getItemSizePrice(matchingExisting) !== undefined)
                 ? getItemSizePrice(matchingExisting)
-                : (item.price ?? item.Price ?? 0);
+                : 0;
 
             return {
               ...(matchingExisting ?? {}),
               ...row,
-              size_name: row.size_name ?? matchingExisting?.size_name ?? matchingExisting?.Size_Name ?? "Size",
+              size_name: rowSizeName || matchingExisting?.size_name || matchingExisting?.Size_Name || "Size",
               item_size_id: rowSizeId,
               Size_Id: rowSizeId,
               size_id: rowSizeId,
+              shop_size_id: rowSizeId,
               item_price: candidatePrice,
               price: candidatePrice,
               Price: candidatePrice,
+              net_price: candidatePrice,
               Net_Price: candidatePrice,
             };
           });
 
           return {
             ...item,
+            is_size_available: 1,
             FoodItemSizeList: mergedSizes,
           };
         }),
@@ -321,7 +354,15 @@ export default function ItemsPage() {
       }
 
       seenSizeIds.add(sizeId);
-      sizes.push({ Size_Id: sizeId, Price: priceValue });
+      sizes.push({
+        Size_Id: sizeId,
+        size_id: sizeId,
+        Price: priceValue,
+        price: priceValue,
+        Net_Price: Number(priceValue) || 0,
+        net_price: Number(priceValue) || 0,
+        sold_out_flag: 0,
+      } as any);
     }
 
     if (sizes.length === 0) {
@@ -553,6 +594,23 @@ export default function ItemsPage() {
 
       console.log("Item Added:", response);
 
+      const newItemId = Number(response?.data ?? response?.Data ?? 0);
+      if (hasVariants && newItemId > 0 && Array.isArray(itemSizes) && itemSizes.length > 0) {
+        try {
+          await Promise.all(
+            itemSizes.map((size) =>
+              menuService.assignVariantToItem({
+                Item_Id: newItemId,
+                Size_ID: Number(size.Size_Id),
+                price: Number(size.Price) || 0,
+              })
+            )
+          );
+        } catch (assignErr) {
+          console.error("Failed to assign variants to new item:", assignErr);
+        }
+      }
+
       Swal.fire({
         icon: "success",
         title: "Added!",
@@ -751,11 +809,15 @@ export default function ItemsPage() {
         .map((cb) => ({ custom_cat_id: Number(cb.dataset.customCatId) }))
         .filter((e) => e.custom_cat_id > 0);
 
+      // Sanitize single quotes to prevent MySQL syntax error in backend string interpolation
+      const sanitizedName = newName.replace(/'/g, "''");
+      const sanitizedDesc = newDesc.replace(/'/g, "''");
+
       const response = await menuService.editStoreItem({
         Item_Id: editItemId,
         Cate_Id: editCateId,
-        Item_Name: newName,
-        Description: newDesc,
+        Item_Name: sanitizedName,
+        Description: sanitizedDesc,
         Is_Veg: isVegActive ? 1 : 0,
         barcode: "",
         base64Image: editBase64Image,

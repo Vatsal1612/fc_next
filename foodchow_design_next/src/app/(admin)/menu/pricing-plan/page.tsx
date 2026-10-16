@@ -13,19 +13,25 @@ const Check = () => (
 );
 
 export default function PricingPlanPage() {
+    // 4 Main Tabs: Growth Plan, POS, Online Ordering, Add-ons
     const [activeTab, setActiveTab] = useState<"growth" | "pos" | "online" | "addons">("growth");
     const [onlineSubTab, setOnlineSubTab] = useState<"fixed" | "commission">("fixed");
-    const [isYearly, setIsYearly] = useState(false);
+    const [isPosYearly, setIsPosYearly] = useState(false);
     const [kdsYearly, setKdsYearly] = useState(true);
 
-    const [plan, setPlan] = useState<any>(null);
-    const [litePlan, setLitePlan] = useState<any>(null);
-    const [premiumPlan, setPremiumPlan] = useState<any>(null);
-    const [onlineMonthlyPlan, setOnlineMonthlyPlan] = useState<any>(null);
-    const [onlineGrowthPlan, setOnlineGrowthPlan] = useState<any>(null);
-    const [onlineYearlyPlan, setOnlineYearlyPlan] = useState<any>(null);
-    const [commissionPlan, setCommissionPlan] = useState<any>(null);
+    // Plans data (Only 4 and 5 are removed; all others 1, 2, 3, 7, 1006-1011, 999 are used)
+    const [growthPlan, setGrowthPlan] = useState<any>(null); // Id: 1
+    const [posLitePlan, setPosLitePlan] = useState<any>(null); // Id: 2
+    const [posPremiumPlan, setPosPremiumPlan] = useState<any>(null); // Id: 3
+    const [fixedFreePlan, setFixedFreePlan] = useState<any>(null); // Id: 1006
+    const [fixedMonthlyPlan, setFixedMonthlyPlan] = useState<any>(null); // Id: 1007
+    const [fixedYearlyPlan, setFixedYearlyPlan] = useState<any>(null); // Id: 1008
+    const [commFreePlan, setCommFreePlan] = useState<any>(null); // Id: 1009
+    const [commLitePlan, setCommLitePlan] = useState<any>(null); // Id: 1010
+    const [commPremiumPlan, setCommPremiumPlan] = useState<any>(null); // Id: 1011
+    const [onlineCommissionPlan, setOnlineCommissionPlan] = useState<any>(null); // Id: 7
 
+    const [marketplaceBundle, setMarketplaceBundle] = useState<any>(null); // Id: 999
     const [addOns, setAddOns] = useState<any[]>([]);
     const [cartItems, setCartItems] = useState<Array<{ id: number; name: string; price: number; billingCycle: string }>>([]);
     const [activeSubscriptions, setActiveSubscriptions] = useState<any[]>([]);
@@ -113,113 +119,48 @@ export default function PricingPlanPage() {
         });
     };
 
-    const toggleBilling = (): void => {
-        setIsYearly((prev) => !prev);
-    };
+    /**
+     * Resolves the correct display price:
+     * - In INR: Checks BillingText for formatted currency (e.g. ₹25,000, ₹350, ₹999, etc.)
+     * - In USD: Uses the Pricing array Price
+     */
+    const getPlanDisplayPrice = (planData: any, requestedCycle: "YEAR" | "MONTH" = "YEAR", fallbackPrice: number = 0): number => {
+        if (!planData) return fallbackPrice;
 
-    // Official Pricing Logic matching SQL and live MVC
-    const getPricing = (planData: any) => {
-        if (!planData) return undefined;
+        if (isIndian) {
+            // For POS, check cycle
+            if (planData.Id === 2) {
+                return requestedCycle === "YEAR" ? 2500 : 350;
+            }
+            if (planData.Id === 3) {
+                return requestedCycle === "YEAR" ? 5475 : 590;
+            }
 
-        // Growth Plan (Ids 1, 5)
-        if (planData.Id === 1 || planData.Id === 5 || planData.Name === "Growth Plan" || planData.Name === "Restaurant Growth Package") {
-            if (isIndian) {
-                return {
-                    Price: 25000,
-                    OriginalPrice: 47925,
-                    BillingCycle: "YEAR",
-                };
-            } else {
-                return {
-                    Price: 600,
-                    OriginalPrice: 1200,
-                    BillingCycle: "YEAR",
-                };
+            // Extract directly from API BillingText (e.g. "₹25,000 / Year", "₹350 / Month", "₹999 / month")
+            if (typeof planData.BillingText === "string") {
+                const match = planData.BillingText.match(/(?:₹|Rs\.?)\s*([\d,]+)/i);
+                if (match && match[1]) {
+                    const parsed = Number(match[1].replace(/,/g, ""));
+                    if (!Number.isNaN(parsed)) {
+                        return parsed;
+                    }
+                }
             }
         }
 
-        // POS Lite (Id 2)
-        if (planData.Id === 2 || planData.Name === "Lite" || planData.Name === "POS Lite") {
-            const cycle = isYearly ? "YEAR" : "MONTH";
-            if (isIndian) {
-                return {
-                    Price: isYearly ? 2500 : 350,
-                    OriginalPrice: isYearly ? 4200 : 350,
-                    BillingCycle: cycle,
-                };
-            } else {
-                return {
-                    Price: isYearly ? 99 : 10,
-                    OriginalPrice: isYearly ? 120 : 10,
-                    BillingCycle: cycle,
-                };
-            }
-        }
-
-        // POS Premium (Id 3)
-        if (planData.Id === 3 || planData.Name === "Premium" || planData.Name === "POS Premium") {
-            const cycle = isYearly ? "YEAR" : "MONTH";
-            if (isIndian) {
-                return {
-                    Price: isYearly ? 5475 : 590,
-                    OriginalPrice: isYearly ? 7080 : 590,
-                    BillingCycle: cycle,
-                };
-            } else {
-                return {
-                    Price: isYearly ? 300 : 30,
-                    OriginalPrice: isYearly ? 360 : 30,
-                    BillingCycle: cycle,
-                };
-            }
-        }
-
-        // Online Monthly (Id 4)
-        if (planData.Id === 4) {
-            return {
-                Price: isIndian ? 1100 : 30,
-                OriginalPrice: isIndian ? 1100 : 30,
-                BillingCycle: "MONTH",
-            };
-        }
-
-        // Online Yearly (Id 6)
-        if (planData.Id === 6) {
-            return {
-                Price: isIndian ? 9999 : 300,
-                OriginalPrice: isIndian ? 13200 : 360,
-                BillingCycle: "YEAR",
-            };
-        }
-
-        // Commission Plan (Id 7)
-        if (planData.Id === 7) {
-            return {
-                Price: isIndian ? 5475 : 75,
-                OriginalPrice: isIndian ? 5475 : 75,
-                BillingCycle: "ONETIME",
-            };
-        }
-
-        // Fallback to API array if available
+        // For USD / foreign currencies, resolve directly from API Pricing array
         if (Array.isArray(planData.Pricing) && planData.Pricing.length > 0) {
-            const requiredCycle = isYearly ? "YEAR" : "MONTH";
-            return (
-                planData.Pricing.find((pricing: any) => pricing.BillingCycle === requiredCycle) ||
-                planData.Pricing[0]
+            const matched = planData.Pricing.find(
+                (p: any) => String(p.BillingCycle).toUpperCase() === requestedCycle.toUpperCase()
             );
+            if (matched && matched.Price != null) return Number(matched.Price);
+            if (planData.Pricing[0]?.Price != null) return Number(planData.Pricing[0].Price);
         }
 
-        return undefined;
+        return fallbackPrice;
     };
 
     // Subscriptions check
-    const isGrowthActive = activeSubscriptions.some((sub: any) => {
-        const sName = String(sub.PlanName || sub.plan_name || "").toLowerCase();
-        const status = String(sub.Status || sub.status || "").toUpperCase();
-        return status === "ACTIVE" && (sName.includes("growth") || sub.Id === 1 || sub.plan_id === 1 || sub.Id === 5 || sub.plan_id === 5);
-    });
-
     const isPlanActive = (planId: number, planName?: string) => {
         return activeSubscriptions.some((sub: any) => {
             const status = String(sub.Status || sub.status || "").toUpperCase();
@@ -230,7 +171,9 @@ export default function PricingPlanPage() {
         });
     };
 
-    const handleCreateSubscription = async (selectedPlan: any) => {
+    const isGrowthActive = isPlanActive(1, "Growth Plan") || isPlanActive(1, "Restaurant Growth Package");
+
+    const handleCreateSubscription = async (selectedPlan: any, cycleOverride?: string) => {
         try {
             const shopId = Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id"));
 
@@ -240,15 +183,16 @@ export default function PricingPlanPage() {
                 return;
             }
 
-            const activePricing = getPricing(selectedPlan);
+            const cycle = (cycleOverride || (isPosYearly ? "YEAR" : "MONTH")) as "YEAR" | "MONTH";
+            const price = getPlanDisplayPrice(selectedPlan, cycle);
 
             const response = await menuService.createSubscription({
-                amount: activePricing?.Price || 0,
+                amount: price,
                 oneTimeAmount: 0,
                 addonIds: "",
                 planId: selectedPlan?.Id || 1,
-                billingCycle: activePricing?.BillingCycle || "YEAR",
-                planName: selectedPlan?.Name || "Growth Plan",
+                billingCycle: cycle,
+                planName: selectedPlan?.Name || "Plan",
                 currency: isIndian ? "INR" : currency,
                 shopId: shopId,
             });
@@ -261,42 +205,57 @@ export default function PricingPlanPage() {
         }
     };
 
-    // Load Plan Details and Addons from API
+    // Load All Plan Details (Except 4 and 5) and Addons from API
     useEffect(() => {
-        if (lastCurrency.current === currency && plan) return;
+        if (lastCurrency.current === currency && growthPlan) return;
         lastCurrency.current = currency;
 
-        const loadPlan = async () => {
+        const loadPlans = async () => {
             try {
                 setLoading(true);
 
+                // Fetch IDs: 1 (Growth), 2 (POS Lite), 3 (POS Premium), 7 (Commission), 999 (Bundle),
+                // 1006, 1007, 1008 (Fixed), 1009, 1010, 1011 (Comm).
+                // Strictly exclude 4 and 5.
                 const [
-                    growthPlan,
-                    litePlanResponse,
-                    premiumPlanResponse,
-                    onlineMonthlyResponse,
-                    onlineGrowthResponse,
-                    onlineYearlyResponse,
-                    commissionResponse,
+                    p1,
+                    p2,
+                    p3,
+                    p7,
+                    p999,
+                    p1006,
+                    p1007,
+                    p1008,
+                    p1009,
+                    p1010,
+                    p1011,
                     addonResponse,
                 ] = await Promise.all([
-                    menuService.getPlanDetails(1, currency),
-                    menuService.getPlanDetails(2, currency),
-                    menuService.getPlanDetails(3, currency),
-                    menuService.getPlanDetails(4, currency),
-                    menuService.getPlanDetails(5, currency),
-                    menuService.getPlanDetails(6, currency),
-                    menuService.getPlanDetails(7, currency),
-                    menuService.getAddOns(currency),
+                    menuService.getPlanDetails(1, currency).catch(() => null),
+                    menuService.getPlanDetails(2, currency).catch(() => null),
+                    menuService.getPlanDetails(3, currency).catch(() => null),
+                    menuService.getPlanDetails(7, currency).catch(() => null),
+                    menuService.getPlanDetails(999, currency).catch(() => null),
+                    menuService.getPlanDetails(1006, currency).catch(() => null),
+                    menuService.getPlanDetails(1007, currency).catch(() => null),
+                    menuService.getPlanDetails(1008, currency).catch(() => null),
+                    menuService.getPlanDetails(1009, currency).catch(() => null),
+                    menuService.getPlanDetails(1010, currency).catch(() => null),
+                    menuService.getPlanDetails(1011, currency).catch(() => null),
+                    menuService.getAddOns(currency).catch(() => []),
                 ]);
 
-                setPlan(growthPlan);
-                setLitePlan(litePlanResponse);
-                setPremiumPlan(premiumPlanResponse);
-                setOnlineMonthlyPlan(onlineMonthlyResponse);
-                setOnlineGrowthPlan(onlineGrowthResponse);
-                setOnlineYearlyPlan(onlineYearlyResponse);
-                setCommissionPlan(commissionResponse);
+                setGrowthPlan(p1);
+                setPosLitePlan(p2);
+                setPosPremiumPlan(p3);
+                setOnlineCommissionPlan(p7);
+                setMarketplaceBundle(p999);
+                setFixedFreePlan(p1006);
+                setFixedMonthlyPlan(p1007);
+                setFixedYearlyPlan(p1008);
+                setCommFreePlan(p1009);
+                setCommLitePlan(p1010);
+                setCommPremiumPlan(p1011);
 
                 const addonsData = Array.isArray(addonResponse)
                     ? addonResponse
@@ -316,7 +275,7 @@ export default function PricingPlanPage() {
             }
         };
 
-        loadPlan();
+        loadPlans();
     }, [currency]);
 
     // Addons Cart management
@@ -358,7 +317,7 @@ export default function PricingPlanPage() {
         }
     };
 
-    // Group Add-ons by Id (matching MVC groupedAddons logic) so multiple cycle options don't duplicate cards
+    // Group Add-ons by Id so multiple cycle options don't duplicate cards
     const groupedAddons: any[] = [];
     addOns.forEach((a: any) => {
         const id = a.Id ?? a.id;
@@ -377,33 +336,13 @@ export default function PricingPlanPage() {
     const normalizedAddons = groupedAddons.map((addon: any) => {
         const id = addon.Id;
         const name = addon.Name ?? addon.name ?? "";
-        const isKDS = name.toUpperCase().includes("KDS");
-        const selectedCycle = isKDS ? (kdsYearly ? "YEAR" : "MONTH") : (addon.BillingCycle || "YEAR");
+        const selectedCycle = addon.BillingCycle || "YEAR";
 
         let matchedPricing = addon.pricingOptions?.find(
             (opt: any) => String(opt.cycle).toUpperCase() === selectedCycle.toUpperCase()
         ) || addon.pricingOptions?.[0];
 
-        let price = matchedPricing?.price ?? (addon.Price != null ? Number(addon.Price) : 0);
-
-        // Fallback pricing if API didn't provide specific value
-        if (!price || price === 0) {
-            if (isKDS) {
-                price = isIndian ? (kdsYearly ? 5475 : 600) : (kdsYearly ? 150 : 20);
-            } else if (name.toUpperCase().includes("WHATSAPP")) {
-                price = isIndian ? 5475 : 300;
-            } else if (name.toUpperCase().includes("TABLE RESERVATION") || name.toUpperCase().includes("RESERVATION")) {
-                price = isIndian ? 4999 : 99;
-            } else if (name.toUpperCase().includes("HAPPY HOUR")) {
-                price = isIndian ? 12000 : 250;
-            } else if (name.toUpperCase().includes("BIO LINK") || name.toUpperCase().includes("BIOLINK")) {
-                price = isIndian ? 2500 : 49;
-            } else if (name.toUpperCase().includes("ADDITIONAL MENU")) {
-                price = isIndian ? 12000 : 100;
-            } else if (name.toUpperCase().includes("SNAP")) {
-                price = isIndian ? 5000 : 100;
-            }
-        }
+        const price = matchedPricing?.price ?? (addon.Price != null ? Number(addon.Price) : 0);
 
         return {
             ...addon,
@@ -414,20 +353,28 @@ export default function PricingPlanPage() {
         };
     });
 
-    const growthPricing = getPricing(plan);
-    const litePricing = getPricing(litePlan);
-    const premiumPricing = getPricing(premiumPlan);
-    const onlineMonthlyPricing = getPricing(onlineMonthlyPlan);
-    const onlineYearlyPricing = getPricing(onlineYearlyPlan);
-    const commissionPricing = getPricing(commissionPlan);
+    // POS Pricing resolution
+    const posCycleKey = isPosYearly ? "YEAR" : "MONTH";
+    const posLitePrice = getPlanDisplayPrice(posLitePlan, posCycleKey, isIndian ? (isPosYearly ? 2500 : 350) : (isPosYearly ? 99 : 10));
+    const posPremPrice = getPlanDisplayPrice(posPremiumPlan, posCycleKey, isIndian ? (isPosYearly ? 5475 : 590) : (isPosYearly ? 300 : 30));
 
-    const growthTotalValue = isIndian ? 47925 : 1200;
-    const growthTotalSavings = isIndian ? 22925 : 600;
+    // Online Ordering Pricing resolution
+    const fixedFreePrice = getPlanDisplayPrice(fixedFreePlan, "YEAR", 0);
+    const fixedMonthlyPrice = getPlanDisplayPrice(fixedMonthlyPlan, "MONTH", isIndian ? 999 : 30);
+    const fixedYearlyPrice = getPlanDisplayPrice(fixedYearlyPlan, "YEAR", isIndian ? 9999 : 300);
+    const commFreePrice = getPlanDisplayPrice(commFreePlan, "YEAR", 0);
+    const commLitePrice = getPlanDisplayPrice(commLitePlan, "YEAR", isIndian ? 5475 : 90);
+    const commPremiumPrice = getPlanDisplayPrice(commPremiumPlan, "YEAR", isIndian ? 10900 : 180);
+
+    // Growth Plan details
+    const growthPrice = getPlanDisplayPrice(growthPlan, "YEAR", isIndian ? 25000 : 600);
+    const growthTotalValue = isIndian ? (growthPlan?.TotalValue || 47925) : 1200;
+    const growthTotalSavings = isIndian ? (growthPlan?.TotalSavings || 22925) : 600;
 
     return (
         <div id="pg-menu-pricing-plan">
             <div className="page-content" style={{ padding: "20px 24px" }}>
-                {/* TABS */}
+                {/* ═══ 4 MAIN TABS (Growth Plan, POS, Online Ordering, Add-ons) ═══ */}
                 <div className="tab-bar">
                     <button
                         type="button"
@@ -459,7 +406,9 @@ export default function PricingPlanPage() {
                     </button>
                 </div>
 
-                {/* ═══ TAB 1: GROWTH PLAN PANEL ═══ */}
+                {/* ═════════════════════════════════════════════════════════
+                    TAB 1: GROWTH PLAN PANEL (Plan Id: 1)
+                   ═════════════════════════════════════════════════════════ */}
                 {activeTab === "growth" && (
                     <div id="panel-growth" className="plan-wrapper">
                         <div className="plan-heading">
@@ -468,64 +417,77 @@ export default function PricingPlanPage() {
                         </div>
 
                         <div className="outer-card">
-                            {/* Price Card */}
+                            {/* Dark Green Price Card */}
                             <div className="price-card">
-                                <div className="plan-name">{plan?.Name || "Growth Plan"}</div>
+                                <div className="plan-name">{growthPlan?.Name || "Restaurant Growth Package"}</div>
                                 <div className="price-row">
-                                    {growthPricing?.OriginalPrice && (
-                                        <span className="old-price">
-                                            {currencySymbol}
-                                            {formatPrice(growthPricing.OriginalPrice)}
-                                        </span>
-                                    )}
                                     <span className="new-price">
-                                        {currencySymbol}
-                                        {formatPrice(growthPricing?.Price)}
+                                        {currencySymbol}{formatPrice(growthPrice)}
                                     </span>
-                                    <span className="per-year">
-                                        / {growthPricing?.BillingCycle === "YEAR" ? "year" : "month"}
-                                    </span>
+                                    <span className="per-year">/ year</span>
                                 </div>
-                                <div className="all-features">All Features In One Plan</div>
+                                <div className="all-features">{growthPlan?.Subtitle || "All Features In One Plan"}</div>
                             </div>
 
-                            {/* Core Features */}
+                            {/* Core Features List */}
                             <div id="features-list">
-                                {plan?.Features?.filter((f: any) => f.IsIncluded !== false)?.map((feature: any) => (
-                                    <div className="feature-row" key={feature.Id || feature.Name}>
+                                {(growthPlan?.Features && growthPlan.Features.length > 0
+                                    ? growthPlan.Features.filter((f: any) => f.IsIncluded)
+                                    : [
+                                          { Id: 1, Name: "Take Away / Dine In / Delivery" },
+                                          { Id: 2, Name: "Razorpay / Stripe payment gateway" },
+                                          { Id: 3, Name: "Online Order + Billing Full app" },
+                                          { Id: 4, Name: `${currencySymbol}${isIndian ? "1,00,000" : "1,235"} Free Sales Credit` },
+                                          { Id: 5, Name: "Menu customization" },
+                                          { Id: 6, Name: "Tax Management" },
+                                          { Id: 7, Name: "Promo Code / Coupon" },
+                                          { Id: 8, Name: "Multiple Language" },
+                                          { Id: 9, Name: "Own Driver/Porter Delivery Integration" },
+                                          { Id: 10, Name: "Custom Domain" },
+                                          { Id: 11, Name: "Google Local Optimisation" },
+                                          { Id: 12, Name: "Google Analytics" },
+                                          { Id: 13, Name: "Coaching Session" },
+                                          { Id: 14, Name: "250 Orders Guaranteed in 90 Days" },
+                                          { Id: 15, Name: "SEO Optimization" },
+                                      ]
+                                ).map((feature: any) => (
+                                    <div className="feature-row" key={feature.Id}>
                                         <div className="feature-icon">
                                             <Check />
                                         </div>
-                                        {feature.Name}
+                                        <span>{feature.Name}</span>
                                     </div>
                                 ))}
                             </div>
 
-                            {/* FREE Add-ons Header */}
+                            {/* FREE Add-ons Included in Growth */}
                             <div className="addons-header">
                                 <span>Get FREE Powerful Add-ons</span>
                                 <span className="valued">Valued</span>
                             </div>
 
-                            {normalizedAddons.map((addon, index) => (
-                                <div className="addon-row" key={`${addon.Id}-${index}`}>
+                            {normalizedAddons.slice(0, 8).map((addon, index) => (
+                                <div className="addon-row" key={`${addon.Id}-${addon.Price}-${index}`}>
                                     <div className="addon-icon">
-                                        <svg viewBox="0 0 24 24">
-                                            <circle cx="12" cy="12" r="10" />
-                                            <line x1="12" y1="8" x2="12" y2="12" />
-                                            <line x1="12" y1="16" x2="12.01" y2="16" />
-                                        </svg>
+                                        <Check />
                                     </div>
                                     <span className="addon-name">{addon.Name}</span>
                                     <span className="addon-price">
-                                        {currencySymbol}
-                                        {formatPrice(addon.Price)}
-                                        {addon.BillingCycle ? ` / ${addon.BillingCycle.toLowerCase()}` : ""}
+                                        {currencySymbol}{formatPrice(addon.Price)} / year
                                     </span>
                                 </div>
                             ))}
 
-                            {/* Total + Buy */}
+                            {/* Guarantee Card */}
+                            <div className="guarantee-card">
+                                <h3>{growthPlan?.Guarantee?.Title || "Guaranteed 250 Orders in 90 Days"}</h3>
+                                <p>
+                                    {growthPlan?.Guarantee?.Description ||
+                                        `₹${isIndian ? "1,00,000" : "1,235"} in minimum Sales, Orders or walk-in customers within 90 days`}
+                                </p>
+                            </div>
+
+                            {/* Total Value & Savings Box */}
                             <div className="totals-card">
                                 <div className="total-bar red">
                                     Total Value: {currencySymbol}{formatPrice(growthTotalValue)}
@@ -537,7 +499,7 @@ export default function PricingPlanPage() {
                                     <button
                                         type="button"
                                         className="buy-btn"
-                                        style={{ background: "#f1f3f5", color: "#0ca678", border: "1px solid #c3fae8", cursor: "default" }}
+                                        style={{ background: "#27ae60", cursor: "default" }}
                                     >
                                         ✓ Currently Active Plan
                                     </button>
@@ -545,9 +507,9 @@ export default function PricingPlanPage() {
                                     <button
                                         type="button"
                                         className="buy-btn"
-                                        onClick={() => handleCreateSubscription(plan || { Id: 1, Name: "Growth Plan" })}
+                                        onClick={() => handleCreateSubscription(growthPlan || { Id: 1, Name: "Growth Plan" }, "YEAR")}
                                     >
-                                        Buy Growth Plan
+                                        {growthPlan?.CTAText || "Buy Growth Plan"}
                                     </button>
                                 )}
                             </div>
@@ -555,66 +517,55 @@ export default function PricingPlanPage() {
                     </div>
                 )}
 
-                {/* ═══ TAB 2: POS TAB PANEL ═══ */}
+                {/* ═════════════════════════════════════════════════════════
+                    TAB 2: POS (POINT OF SALE) PANEL (Plans Id: 2 and 3)
+                   ═════════════════════════════════════════════════════════ */}
                 {activeTab === "pos" && (
                     <div id="panel-pos" className="pos-wrapper">
                         <p className="pos-desc">
-                            Run your restaurant from a single screen — billing, KOT, tables, and reports — with the option to add online ordering and channels later.
+                            Run your restaurant from a single screen — billing, KOT, tables, and reports — with the option
+                            to add online ordering and channels later.
                         </p>
 
                         {/* Monthly / Yearly Toggle */}
                         <div className="billing-toggle-row">
-                            <span
-                                className={`toggle-label ${!isYearly ? "active" : ""}`}
-                                style={{ fontWeight: !isYearly ? 700 : 500, color: !isYearly ? "var(--primary)" : "#6b7280", cursor: "pointer" }}
-                                onClick={() => setIsYearly(false)}
-                            >
+                            <span className="toggle-label" style={{ fontWeight: !isPosYearly ? 800 : 500 }}>
                                 Monthly
                             </span>
-                            <div className={`toggle-track ${!isYearly ? "monthly" : ""}`} onClick={toggleBilling}>
+                            <div
+                                className={`toggle-track ${!isPosYearly ? "monthly" : ""}`}
+                                onClick={() => setIsPosYearly((prev) => !prev)}
+                                style={{ cursor: "pointer" }}
+                            >
                                 <div
                                     className="toggle-thumb"
-                                    style={{ left: isYearly ? "23px" : "3px", transition: "left .2s" }}
+                                    style={{ left: isPosYearly ? "23px" : "3px" }}
                                 ></div>
                             </div>
-                            <span
-                                className={`toggle-label ${isYearly ? "active" : ""}`}
-                                style={{ fontWeight: isYearly ? 700 : 500, color: isYearly ? "var(--primary)" : "#6b7280", cursor: "pointer" }}
-                                onClick={() => setIsYearly(true)}
-                            >
+                            <span className="toggle-label" style={{ fontWeight: isPosYearly ? 800 : 500 }}>
                                 Yearly
                             </span>
                             <span className="save-badge">Save 40%</span>
                         </div>
 
-                        {/* Two plan cards */}
+                        {/* Two plan cards: Lite (2) and Premium (3) */}
                         <div className="pos-cards">
-                            {/* LITE */}
-                            <div className={`pos-card ${isPlanActive(2, "Lite") ? "purchased" : ""}`}>
-                                <div className="pos-plan-name">{litePlan?.Name || "Lite"}</div>
+                            {/* LITE PLAN (Id: 2) */}
+                            <div className={`pos-card ${isPlanActive(2, posLitePlan?.Name) ? "purchased" : ""}`}>
+                                <div className="pos-plan-name">{posLitePlan?.Name || "Lite"}</div>
                                 <div className="pos-plan-desc">
-                                    {litePlan?.Subtitle || "Everything a single-outlet restaurant needs to start billing today."}
+                                    {posLitePlan?.Subtitle || "Everything a single-outlet restaurant needs to start billing today."}
                                 </div>
                                 <div className="pos-price">
-                                    {currencySymbol}
-                                    {formatPrice(litePricing?.Price)}
-                                    <span> / {isYearly ? "Year" : "Month"}</span>
+                                    {currencySymbol}{formatPrice(posLitePrice)}
+                                    <span> / {isPosYearly ? "Year" : "Month"}</span>
                                 </div>
 
-                                {isGrowthActive ? (
+                                {isPlanActive(2, posLitePlan?.Name) ? (
                                     <button
                                         type="button"
                                         className="pos-buy-btn"
-                                        style={{ background: "#f1f3f5", color: "#868e96", cursor: "not-allowed" }}
-                                        title="Included in Growth Plan"
-                                    >
-                                        INCLUDED IN GROWTH PLAN
-                                    </button>
-                                ) : isPlanActive(2, "Lite") ? (
-                                    <button
-                                        type="button"
-                                        className="pos-buy-btn"
-                                        style={{ background: "#e6fcf5", color: "#0ca678", borderColor: "#63e6be" }}
+                                        style={{ background: "#e6fcf5", color: "#0ca678", border: "1px solid #63e6be" }}
                                     >
                                         ✓ Currently Active
                                     </button>
@@ -622,62 +573,66 @@ export default function PricingPlanPage() {
                                     <button
                                         type="button"
                                         className="pos-buy-btn"
-                                        onClick={() => handleCreateSubscription(litePlan || { Id: 2, Name: "POS Lite" })}
+                                        onClick={() => handleCreateSubscription(posLitePlan || { Id: 2, Name: "POS Lite" }, posCycleKey)}
                                     >
-                                        {litePlan?.CTAText || "Buy Lite Plan"}
+                                        {posLitePlan?.CTAText || "Buy Lite Plan"}
                                     </button>
                                 )}
 
-                                {/* Features */}
-                                {litePlan?.Features?.reduce((sections: any[], feature: any) => {
-                                    const section = sections.find((s) => s.title === feature.ExtraInfo);
-                                    if (section) {
-                                        section.features.push(feature);
-                                    } else {
-                                        sections.push({
-                                            title: feature.ExtraInfo || "Features",
-                                            features: [feature],
-                                        });
-                                    }
-                                    return sections;
-                                }, []).map((section: any, idx: number) => (
-                                    <div key={idx}>
-                                        <div className="feat-section-title">{section.title}</div>
-                                        {section.features.map((feature: any) => (
-                                            <div className="feat-item" key={feature.Id || feature.Name}>
-                                                <div className="feat-check">
-                                                    <Check />
+                                {/* Features by section */}
+                                {(posLitePlan?.Features && posLitePlan.Features.length > 0
+                                    ? posLitePlan.Features
+                                    : [
+                                          { Id: 14, Name: "Includes everything in Free plan", ExtraInfo: "Billing & operations" },
+                                          { Id: 15, Name: "Custom payment methods (cash, UPI, card)", ExtraInfo: "Billing & operations" },
+                                          { Id: 16, Name: "Address customization for delivery", ExtraInfo: "Billing & operations" },
+                                          { Id: 17, Name: "Service charges & tax setup", ExtraInfo: "Billing & operations" },
+                                          { Id: 18, Name: "Multi-user with role permissions", ExtraInfo: "Billing & operations" },
+                                          { Id: 19, Name: "Item notes & item codes", ExtraInfo: "Billing & operations" },
+                                          { Id: 20, Name: "Expense tracking & daily reports", ExtraInfo: "Billing & operations" },
+                                          { Id: 21, Name: "Printer customization (KOT & receipt)", ExtraInfo: "Setup & customization" },
+                                          { Id: 22, Name: "Table reservation", ExtraInfo: "Setup & customization" },
+                                          { Id: 23, Name: "Cloud sync across devices", ExtraInfo: "Setup & customization" },
+                                      ]
+                                )
+                                    ?.reduce((sections: any[], feature: any) => {
+                                        const title = feature.ExtraInfo || "Features";
+                                        const section = sections.find((s) => s.title === title);
+                                        if (section) {
+                                            section.features.push(feature);
+                                        } else {
+                                            sections.push({ title, features: [feature] });
+                                        }
+                                        return sections;
+                                    }, [])
+                                    .map((section: any) => (
+                                        <div key={section.title}>
+                                            <div className="feat-section-title">{section.title}</div>
+                                            {section.features.map((feature: any) => (
+                                                <div className="feat-item" key={feature.Id}>
+                                                    <div className="feat-check">
+                                                        <Check />
+                                                    </div>
+                                                    <span>{feature.Name}</span>
                                                 </div>
-                                                {feature.Name}
-                                            </div>
-                                        ))}
-                                    </div>
-                                ))}
+                                            ))}
+                                        </div>
+                                    ))}
                             </div>
 
-                            {/* PREMIUM */}
-                            <div className={`pos-card premium ${isPlanActive(3, "Premium") ? "purchased" : ""}`}>
+                            {/* PREMIUM PLAN (Id: 3) */}
+                            <div className={`pos-card premium ${isPlanActive(3, posPremiumPlan?.Name) ? "purchased" : ""}`}>
                                 <div className="recommended-badge">Recommended</div>
-                                <div className="pos-plan-name">{premiumPlan?.Name || "Premium"}</div>
+                                <div className="pos-plan-name">{posPremiumPlan?.Name || "Premium"}</div>
                                 <div className="pos-plan-desc">
-                                    {premiumPlan?.Subtitle || "For growing restaurants ready to take dine-in, takeaway, and online — all in one place."}
+                                    {posPremiumPlan?.Subtitle || "For growing restaurants ready to take dine-in, takeaway, and online — all in one place."}
                                 </div>
                                 <div className="pos-price">
-                                    {currencySymbol}
-                                    {formatPrice(premiumPricing?.Price)}
-                                    <span> / {isYearly ? "Year" : "Month"}</span>
+                                    {currencySymbol}{formatPrice(posPremPrice)}
+                                    <span> / {isPosYearly ? "Year" : "Month"}</span>
                                 </div>
 
-                                {isGrowthActive ? (
-                                    <button
-                                        type="button"
-                                        className="pos-buy-btn"
-                                        style={{ background: "#f1f3f5", color: "#868e96", cursor: "not-allowed" }}
-                                        title="Included in Growth Plan"
-                                    >
-                                        INCLUDED IN GROWTH PLAN
-                                    </button>
-                                ) : isPlanActive(3, "Premium") ? (
+                                {isPlanActive(3, posPremiumPlan?.Name) ? (
                                     <button
                                         type="button"
                                         className="pos-buy-btn premium-btn"
@@ -689,20 +644,32 @@ export default function PricingPlanPage() {
                                     <button
                                         type="button"
                                         className="pos-buy-btn premium-btn"
-                                        onClick={() => handleCreateSubscription(premiumPlan || { Id: 3, Name: "POS Premium" })}
+                                        onClick={() => handleCreateSubscription(posPremiumPlan || { Id: 3, Name: "POS Premium" }, posCycleKey)}
                                     >
-                                        {premiumPlan?.CTAText || "Get Premium Plan"}
+                                        {posPremiumPlan?.CTAText || "Get Premium Plan"}
                                     </button>
                                 )}
 
                                 <div className="feat-section-title">Everything In Lite, plus</div>
 
-                                {premiumPlan?.Features?.filter((f: any) => f.IsIncluded !== false)?.map((feature: any) => (
-                                    <div className="feat-item" key={feature.Id || feature.Name}>
+                                {(posPremiumPlan?.Features && posPremiumPlan.Features.length > 0
+                                    ? posPremiumPlan.Features.filter((f: any) => f.IsIncluded)
+                                    : [
+                                          { Id: 27, Name: "Meal deals & combo builder" },
+                                          { Id: 28, Name: "Split bill & split payment" },
+                                          { Id: 29, Name: "Multiple menus (lunch, dinner, party)" },
+                                          { Id: 30, Name: "Item-level cost & profit estimates" },
+                                          { Id: 34, Name: "Auto-print online orders to KOT" },
+                                          { Id: 35, Name: "Online order auto-accept rules" },
+                                          { Id: 36, Name: "Coupons & promo codes" },
+                                          { Id: 37, Name: "Dine-in QR code (table-side ordering)" },
+                                      ]
+                                ).map((feature: any) => (
+                                    <div className="feat-item" key={feature.Id}>
                                         <div className="feat-check">
                                             <Check />
                                         </div>
-                                        {feature.Name}
+                                        <span>{feature.Name}</span>
                                     </div>
                                 ))}
                             </div>
@@ -710,7 +677,9 @@ export default function PricingPlanPage() {
                     </div>
                 )}
 
-                {/* ═══ TAB 3: ONLINE ORDERING TAB PANEL ═══ */}
+                {/* ═════════════════════════════════════════════════════════
+                    TAB 3: ONLINE ORDERING TAB PANEL (Plans 1006-1011 & 7)
+                   ═════════════════════════════════════════════════════════ */}
                 {activeTab === "online" && (
                     <div id="panel-online" className="oo-wrapper">
                         {/* Fixed / Commission sub-tabs */}
@@ -731,223 +700,370 @@ export default function PricingPlanPage() {
                             </button>
                         </div>
 
-                        {/* Fixed Plan content */}
+                        {/* Fixed Plan content (1006 Free, 1007 Monthly, 1008 Yearly) */}
                         {onlineSubTab === "fixed" && (
                             <div id="oo-fixed">
                                 <div className="oo-cards">
-                                    {/* COL 1: Online Monthly Plan */}
-                                    <div className="oo-col">
-                                        <div className="oo-plan-name">{onlineMonthlyPlan?.Name || "Monthly Plan"}</div>
-                                        <div className="oo-price-plain">
-                                            {currencySymbol}{formatPrice(onlineMonthlyPricing?.Price)} / month
-                                        </div>
-                                        <div className="oo-desc">{onlineMonthlyPlan?.Subtitle}</div>
-                                        {isGrowthActive ? (
-                                            <button
-                                                type="button"
-                                                className="oo-get-btn"
-                                                style={{ background: "#f1f3f5", color: "#868e96", cursor: "not-allowed" }}
-                                                title="Included in Growth Plan"
-                                            >
-                                                INCLUDED IN GROWTH PLAN
-                                            </button>
-                                        ) : (
-                                            <button
-                                                type="button"
-                                                className="oo-get-btn"
-                                                onClick={() => handleCreateSubscription(onlineMonthlyPlan || { Id: 4, Name: "Online Monthly Plan" })}
-                                            >
-                                                {onlineMonthlyPlan?.CTAText || "Get Started"}
-                                            </button>
-                                        )}
+                                    {/* 1006: Free Plan */}
+                                    {fixedFreePlan && (
+                                        <div className={`oo-col ${isPlanActive(1006, fixedFreePlan?.Name) ? "purchased" : ""}`}>
+                                            <div className="oo-badge teal">{fixedFreePlan.Title || "FREE"}</div>
+                                            <div className="oo-plan-name">{fixedFreePlan.Name || "Free Plan"}</div>
+                                            <div className="oo-price-plain">
+                                                {currencySymbol}{formatPrice(fixedFreePrice)} Lifetime
+                                            </div>
+                                            <div className="oo-desc">{fixedFreePlan.Subtitle || "Basic starter plan"}</div>
+                                            {isPlanActive(1006, fixedFreePlan?.Name) ? (
+                                                <button
+                                                    type="button"
+                                                    className="oo-get-btn"
+                                                    style={{ background: "#e6fcf5", color: "#0ca678", border: "1px solid #63e6be" }}
+                                                >
+                                                    ✓ Currently Active
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    className="oo-get-btn"
+                                                    onClick={() => handleCreateSubscription(fixedFreePlan || { Id: 1006, Name: "Free Plan" })}
+                                                >
+                                                    {fixedFreePlan.CTAText || "Choose Free"}
+                                                </button>
+                                            )}
 
-                                        {onlineMonthlyPlan?.Features?.map((feature: any) => (
-                                            <div className="oo-feat" key={feature.Id || feature.Name}>
-                                                <div className="oo-check green">
-                                                    <Check />
+                                            <div className="oo-features" style={{ marginTop: "14px" }}>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Orders per month: Up to 25
                                                 </div>
-                                                {feature.Name}
-                                            </div>
-                                        ))}
-
-                                        <div className="oo-addons-header">
-                                            <span>FREE Powerful Add-ons</span>
-                                            <span>Valued</span>
-                                        </div>
-                                        <OOAddons addOns={normalizedAddons} currencySymbol={currencySymbol} />
-                                    </div>
-
-                                    {/* COL 2: Growth Plan (featured) */}
-                                    <div className="oo-col featured">
-                                        <div className="oo-badge orange">{onlineGrowthPlan?.BadgeText || "MOST RECOMMENDED"}</div>
-                                        <button type="button" className="oo-growth-btn">
-                                            {onlineGrowthPlan?.Name || "Growth Plan"}
-                                        </button>
-                                        <div style={{ marginBottom: "4px" }}>
-                                            <span className="oo-new-price">
-                                                {currencySymbol}{formatPrice(growthPricing?.Price)}
-                                            </span>{" "}
-                                            <span className="oo-per">/ year</span>
-                                        </div>
-                                        <div className="oo-save">Save {currencySymbol}{formatPrice(growthTotalSavings)}</div>
-                                        <div className="oo-all-feat">{onlineGrowthPlan?.Subtitle || "All Features In One Plan"}</div>
-                                        {isGrowthActive ? (
-                                            <button
-                                                type="button"
-                                                className="oo-buy-btn"
-                                                style={{ background: "#e6fcf5", color: "#0ca678", border: "1px solid #63e6be" }}
-                                            >
-                                                ✓ Currently Active
-                                            </button>
-                                        ) : (
-                                            <button
-                                                type="button"
-                                                className="oo-buy-btn"
-                                                onClick={() => handleCreateSubscription(onlineGrowthPlan || { Id: 1, Name: "Growth Plan" })}
-                                            >
-                                                {onlineGrowthPlan?.CTAText || "Buy Growth Plan"}
-                                            </button>
-                                        )}
-
-                                        {onlineGrowthPlan?.Features?.filter((f: any) => f.IsIncluded !== false)?.map((feature: any) => (
-                                            <div className="oo-feat" key={feature.Id || feature.Name}>
-                                                <div className="oo-check green">
-                                                    <Check />
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Branded ordering page + Google visibility
                                                 </div>
-                                                {feature.Name}
-                                            </div>
-                                        ))}
-
-                                        <div
-                                            className="oo-addons-header"
-                                            style={{
-                                                background: "var(--primary)",
-                                                color: "#fff",
-                                                padding: "10px 12px",
-                                                borderRadius: "7px",
-                                                marginTop: "14px",
-                                            }}
-                                        >
-                                            <span>Get FREE Powerful Add-ons</span>
-                                            <span>Valued</span>
-                                        </div>
-                                        {normalizedAddons.map((addon, index) => (
-                                            <div className="oo-addon-row teal-row" key={`${addon.Id}-${index}`}>
-                                                <div className="oo-addon-icon">
-                                                    <span>+</span>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Menu management
                                                 </div>
-                                                <span className="oo-addon-name">{addon.Name}</span>
-                                                <span className="oo-addon-price">
-                                                    {currencySymbol}{formatPrice(addon.Price)}
-                                                    {addon.BillingCycle ? ` / ${addon.BillingCycle.toLowerCase()}` : ""}
-                                                </span>
-                                            </div>
-                                        ))}
-
-                                        <div className="oo-total-block">
-                                            <div className="oo-total-red">
-                                                <span>TOTAL VALUE:</span>
-                                                <span>{currencySymbol}{formatPrice(growthTotalValue)}</span>
-                                            </div>
-                                            <div className="oo-total-green">
-                                                <p>You save with Growth Plan</p>
-                                                <div className="big-save">{currencySymbol}{formatPrice(growthTotalSavings)}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* COL 3: Online Yearly Plan */}
-                                    <div className="oo-col">
-                                        <div className="oo-badge teal">{onlineYearlyPlan?.HighlightText || "BEST VALUE"}</div>
-                                        <div className="oo-plan-name">{onlineYearlyPlan?.Name || "Yearly Plan"}</div>
-                                        <div className="oo-price-plain">
-                                            {currencySymbol}{formatPrice(onlineYearlyPricing?.Price)} / year
-                                        </div>
-                                        <div className="oo-desc">{onlineYearlyPlan?.Subtitle}</div>
-                                        {isGrowthActive ? (
-                                            <button
-                                                type="button"
-                                                className="oo-get-btn"
-                                                style={{ background: "#f1f3f5", color: "#868e96", cursor: "not-allowed" }}
-                                                title="Included in Growth Plan"
-                                            >
-                                                INCLUDED IN GROWTH PLAN
-                                            </button>
-                                        ) : (
-                                            <button
-                                                type="button"
-                                                className="oo-get-btn"
-                                                onClick={() => handleCreateSubscription(onlineYearlyPlan || { Id: 6, Name: "Online Yearly Plan" })}
-                                            >
-                                                {onlineYearlyPlan?.CTAText || "Get Started"}
-                                            </button>
-                                        )}
-
-                                        {onlineYearlyPlan?.Features?.map((feature: any) => (
-                                            <div className="oo-feat" key={feature.Id || feature.Name}>
-                                                <div className="oo-check green">
-                                                    <Check />
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Table booking
                                                 </div>
-                                                {feature.Name}
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Call & directions button
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Basic reporting
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Contract: None
+                                                </div>
                                             </div>
-                                        ))}
-
-                                        <div className="oo-addons-header">
-                                            <span>FREE Powerful Add-ons</span>
-                                            <span>Valued</span>
                                         </div>
-                                        <OOAddons addOns={normalizedAddons} currencySymbol={currencySymbol} />
-                                    </div>
+                                    )}
+
+                                    {/* 1007: Monthly Plan */}
+                                    {fixedMonthlyPlan && (
+                                        <div className={`oo-col ${isPlanActive(1007, fixedMonthlyPlan?.Name) ? "purchased" : ""}`}>
+                                            <div className="oo-badge orange">{fixedMonthlyPlan.Title || "MONTHLY"}</div>
+                                            <div className="oo-plan-name">{fixedMonthlyPlan.Name || "Monthly Plan"}</div>
+                                            <div className="oo-price-plain">
+                                                {currencySymbol}{formatPrice(fixedMonthlyPrice)} / month
+                                            </div>
+                                            <div className="oo-desc">{fixedMonthlyPlan.Subtitle || "Cancel anytime"}</div>
+                                            {isPlanActive(1007, fixedMonthlyPlan?.Name) ? (
+                                                <button
+                                                    type="button"
+                                                    className="oo-get-btn"
+                                                    style={{ background: "#e6fcf5", color: "#0ca678", border: "1px solid #63e6be" }}
+                                                >
+                                                    ✓ Currently Active
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    className="oo-get-btn"
+                                                    onClick={() => handleCreateSubscription(fixedMonthlyPlan || { Id: 1007, Name: "Monthly Plan" })}
+                                                >
+                                                    {fixedMonthlyPlan.CTAText || "Buy Now"}
+                                                </button>
+                                            )}
+
+                                            <div className="oo-features" style={{ marginTop: "14px" }}>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Orders per month: No limit
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Online payment gateway
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Branded ordering page + Google visibility
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Menu management
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Table booking
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Basic reporting
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Contract: Cancel anytime
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* 1008: Yearly Plan */}
+                                    {fixedYearlyPlan && (
+                                        <div className={`oo-col featured ${isPlanActive(1008, fixedYearlyPlan?.Name) ? "purchased" : ""}`}>
+                                            <div className="oo-badge teal">{fixedYearlyPlan.BadgeText || fixedYearlyPlan.Title || "RECOMMENDED"}</div>
+                                            <div className="oo-plan-name">{fixedYearlyPlan.Name || "Yearly Plan"}</div>
+                                            <div className="oo-price-plain">
+                                                {currencySymbol}{formatPrice(fixedYearlyPrice)} / year
+                                            </div>
+                                            <div className="oo-desc">{fixedYearlyPlan.Subtitle || "Save up to 50%"}</div>
+                                            {isPlanActive(1008, fixedYearlyPlan?.Name) ? (
+                                                <button
+                                                    type="button"
+                                                    className="oo-buy-btn"
+                                                    style={{ background: "#e6fcf5", color: "#0ca678", border: "1px solid #63e6be" }}
+                                                >
+                                                    ✓ Currently Active
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    className="oo-buy-btn"
+                                                    onClick={() => handleCreateSubscription(fixedYearlyPlan || { Id: 1008, Name: "Yearly Plan" })}
+                                                >
+                                                    {fixedYearlyPlan.CTAText || "Buy Now"}
+                                                </button>
+                                            )}
+
+                                            <div className="oo-features" style={{ marginTop: "14px" }}>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Orders per month: No limit
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Online payment gateway
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Branded ordering page + Google visibility
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Menu management
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Table booking
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Basic reporting
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Contract: Billed once a year (Save 50%)
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
 
-                        {/* Commission Plan content */}
+                        {/* Commission Plan content (1009 Free, 1010 Lite, 1011 Premium, and 7 Commission) */}
                         {onlineSubTab === "commission" && (
                             <div id="oo-commission">
-                                <div style={{ maxWidth: "440px", margin: "0 auto", paddingTop: "20px" }}>
-                                    <div className="oo-col" style={{ borderRadius: "16px" }}>
-                                        <div className="oo-badge teal">{commissionPlan?.HighlightText || "ZERO RISK"}</div>
-                                        <div className="oo-plan-name">{commissionPlan?.Name || "Commission Plan"}</div>
-                                        <div className="oo-price-plain">
-                                            {currencySymbol}{formatPrice(commissionPricing?.Price)} One-time
-                                        </div>
-                                        <div className="oo-desc">{commissionPlan?.Subtitle}</div>
-                                        {isGrowthActive ? (
-                                            <button
-                                                type="button"
-                                                className="oo-get-btn"
-                                                style={{ background: "#f1f3f5", color: "#868e96", cursor: "not-allowed" }}
-                                                title="Included in Growth Plan"
-                                            >
-                                                INCLUDED IN GROWTH PLAN
-                                            </button>
-                                        ) : (
-                                            <button
-                                                type="button"
-                                                className="oo-get-btn"
-                                                onClick={() => handleCreateSubscription(commissionPlan || { Id: 7, Name: "Commission Plan" })}
-                                            >
-                                                {commissionPlan?.CTAText || "Get Started"}
-                                            </button>
-                                        )}
-
-                                        {commissionPlan?.Features?.map((feature: any) => (
-                                            <div className="oo-feat" key={feature.Id || feature.Name}>
-                                                <div className="oo-check green">
-                                                    <Check />
-                                                </div>
-                                                {feature.Name}
+                                <div className="oo-cards">
+                                    {/* 1009: Free Plan */}
+                                    {commFreePlan && (
+                                        <div className={`oo-col ${isPlanActive(1009, commFreePlan?.Name) ? "purchased" : ""}`}>
+                                            <div className="oo-badge teal">{commFreePlan.Title || "FREE"}</div>
+                                            <div className="oo-plan-name">{commFreePlan.Name || "Free Plan"}</div>
+                                            <div className="oo-price-plain">
+                                                {currencySymbol}{formatPrice(commFreePrice)} Lifetime
                                             </div>
-                                        ))}
-                                    </div>
+                                            <div className="oo-desc">{commFreePlan.Subtitle || "Pay as you go"}</div>
+                                            {isPlanActive(1009, commFreePlan?.Name) ? (
+                                                <button
+                                                    type="button"
+                                                    className="oo-get-btn"
+                                                    style={{ background: "#e6fcf5", color: "#0ca678", border: "1px solid #63e6be" }}
+                                                >
+                                                    ✓ Currently Active
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    className="oo-get-btn"
+                                                    onClick={() => handleCreateSubscription(commFreePlan || { Id: 1009, Name: "Free Plan" })}
+                                                >
+                                                    {commFreePlan.CTAText || "Choose Free"}
+                                                </button>
+                                            )}
+
+                                            <div className="oo-features" style={{ marginTop: "14px" }}>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Branded ordering page
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Menu management
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Basic reporting
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    No setup fee & no contract
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* 1010: Lite Plan */}
+                                    {commLitePlan && (
+                                        <div className={`oo-col ${isPlanActive(1010, commLitePlan?.Name) ? "purchased" : ""}`}>
+                                            <div className="oo-badge orange">{commLitePlan.Title || "LITE"}</div>
+                                            <div className="oo-plan-name">{commLitePlan.Name || "Lite Plan"}</div>
+                                            <div className="oo-price-plain">
+                                                {currencySymbol}{formatPrice(commLitePrice)} / year
+                                            </div>
+                                            <div className="oo-desc">{commLitePlan.Subtitle || "Growing business"}</div>
+                                            {isPlanActive(1010, commLitePlan?.Name) ? (
+                                                <button
+                                                    type="button"
+                                                    className="oo-get-btn"
+                                                    style={{ background: "#e6fcf5", color: "#0ca678", border: "1px solid #63e6be" }}
+                                                >
+                                                    ✓ Currently Active
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    className="oo-get-btn"
+                                                    onClick={() => handleCreateSubscription(commLitePlan || { Id: 1010, Name: "Lite Plan" })}
+                                                >
+                                                    {commLitePlan.CTAText || "Choose Lite"}
+                                                </button>
+                                            )}
+
+                                            <div className="oo-features" style={{ marginTop: "14px" }}>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Everything in Free
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Table reservation
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    WhatsApp order alerts
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Low commission per order
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* 1011: Premium Plan */}
+                                    {commPremiumPlan && (
+                                        <div className={`oo-col featured ${isPlanActive(1011, commPremiumPlan?.Name) ? "purchased" : ""}`}>
+                                            <div className="oo-badge teal">{commPremiumPlan.BadgeText || commPremiumPlan.Title || "MOST POPULAR"}</div>
+                                            <div className="oo-plan-name">{commPremiumPlan.Name || "Premium Plan"}</div>
+                                            <div className="oo-price-plain">
+                                                {currencySymbol}{formatPrice(commPremiumPrice)} / year
+                                            </div>
+                                            <div className="oo-desc">{commPremiumPlan.Subtitle || "Most Popular"}</div>
+                                            {isPlanActive(1011, commPremiumPlan?.Name) ? (
+                                                <button
+                                                    type="button"
+                                                    className="oo-buy-btn"
+                                                    style={{ background: "#e6fcf5", color: "#0ca678", border: "1px solid #63e6be" }}
+                                                >
+                                                    ✓ Currently Active
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    className="oo-buy-btn"
+                                                    onClick={() => handleCreateSubscription(commPremiumPlan || { Id: 1011, Name: "Premium Plan" })}
+                                                >
+                                                    {commPremiumPlan.CTAText || "Choose Premium"}
+                                                </button>
+                                            )}
+
+                                            <div className="oo-features" style={{ marginTop: "14px" }}>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Everything in Lite
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Advanced analytics & reports
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Priority support
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Custom offer module
+                                                </div>
+                                                <div className="oo-feat">
+                                                    <div className="oo-check green"><Check /></div>
+                                                    Lowest commission per order
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* 7: Lifetime Commission Plan (if present) */}
+                                    {onlineCommissionPlan && !commFreePlan && !commLitePlan && (
+                                        <div className={`oo-col ${isPlanActive(7, onlineCommissionPlan?.Name) ? "purchased" : ""}`}>
+                                            <div className="oo-badge orange">{onlineCommissionPlan.BadgeText || "ONE-TIME"}</div>
+                                            <div className="oo-plan-name">{onlineCommissionPlan.Name || "Commission Plan"}</div>
+                                            <div className="oo-price-plain">{onlineCommissionPlan.BillingText}</div>
+                                            <div className="oo-desc">{onlineCommissionPlan.Subtitle}</div>
+                                            <button
+                                                type="button"
+                                                className="oo-get-btn"
+                                                onClick={() => handleCreateSubscription(onlineCommissionPlan)}
+                                            >
+                                                {onlineCommissionPlan.CTAText || "Get Started"}
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
                     </div>
                 )}
 
-                {/* ═══ TAB 4: ADD-ONS TAB PANEL ═══ */}
+                {/* ═════════════════════════════════════════════════════════
+                    TAB 4: ADD-ONS TAB PANEL (with Cart Summary)
+                   ═════════════════════════════════════════════════════════ */}
                 {activeTab === "addons" && (
                     <div id="panel-addons">
                         <div className="ao-layout">
@@ -982,41 +1098,6 @@ export default function PricingPlanPage() {
                                                                 {addon.BillingCycle ? ` / ${addon.BillingCycle.toLowerCase()}` : ""}
                                                             </span>
                                                         </div>
-                                                        {/* KDS Monthly / Yearly toggle */}
-                                                        {isKDS && (
-                                                            <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "6px" }}>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setKdsYearly(false)}
-                                                                    style={{
-                                                                        padding: "2px 8px",
-                                                                        borderRadius: "4px",
-                                                                        border: "1px solid var(--primary)",
-                                                                        background: !kdsYearly ? "var(--primary)" : "#fff",
-                                                                        color: !kdsYearly ? "#fff" : "var(--primary)",
-                                                                        fontSize: "11px",
-                                                                        cursor: "pointer",
-                                                                    }}
-                                                                >
-                                                                    Monthly
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setKdsYearly(true)}
-                                                                    style={{
-                                                                        padding: "2px 8px",
-                                                                        borderRadius: "4px",
-                                                                        border: "1px solid var(--primary)",
-                                                                        background: kdsYearly ? "var(--primary)" : "#fff",
-                                                                        color: kdsYearly ? "#fff" : "var(--primary)",
-                                                                        fontSize: "11px",
-                                                                        cursor: "pointer",
-                                                                    }}
-                                                                >
-                                                                    Yearly
-                                                                </button>
-                                                            </div>
-                                                        )}
                                                     </div>
                                                 </div>
                                                 <div className="ao-features">
@@ -1123,43 +1204,5 @@ export default function PricingPlanPage() {
                 )}
             </div>
         </div>
-    );
-}
-
-function OOAddons({
-    teal = false,
-    addOns,
-    currencySymbol = "₹",
-}: {
-    teal?: boolean;
-    addOns: any[];
-    currencySymbol?: string;
-}) {
-    const cls = "oo-addon-row" + (teal ? " teal-row" : "");
-    const formatPrice = (addon: any) => {
-        if (!addon) return "";
-        if (addon.Price !== undefined && addon.Price !== null) {
-            return `${currencySymbol}${Number(addon.Price).toLocaleString()}`;
-        }
-        return "";
-    };
-    return (
-        <>
-            {addOns?.map((addon, index) => (
-                addon ? (
-                    <div className={cls} key={`oo-addon-${addon.Id ?? "item"}-${index}`}>
-                        <div className="oo-addon-icon">
-                            <svg viewBox="0 0 24 24">
-                                <line x1="19" y1="5" x2="5" y2="19" />
-                                <circle cx="6.5" cy="6.5" r="2.5" />
-                                <circle cx="17.5" cy="17.5" r="2.5" />
-                            </svg>
-                        </div>
-                        <span className="oo-addon-name">{addon.Name}</span>
-                        <span className="oo-addon-price">{formatPrice(addon)}</span>
-                    </div>
-                ) : null
-            ))}
-        </>
     );
 }

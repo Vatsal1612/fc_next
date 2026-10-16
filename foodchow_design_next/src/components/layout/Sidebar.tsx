@@ -179,7 +179,7 @@ export function Sidebar() {
           title="Change Languages / Supported Languages"
         >
           <LanguageIcon size={24} />
-          <span>Supported Language</span>
+          <span>Language</span>
         </button>
 
         {/* Logout Button pinned to bottom */}

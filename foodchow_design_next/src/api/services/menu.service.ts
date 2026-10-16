@@ -269,8 +269,13 @@ export interface AddItemPayload {
 }
 
 export interface ItemSizePricePayload {
-  Size_Id: number;
-  Price: string;
+  Size_Id?: number;
+  size_id?: number;
+  Price?: string | number;
+  price?: string | number;
+  Net_Price?: string | number;
+  net_price?: string | number;
+  sold_out_flag?: number;
 }
 
 export interface AddStoreCategoryPayload {
@@ -1411,6 +1416,14 @@ export const menuService = {
       payload
     );
 
+    return data;
+  },
+
+  async assignVariantToItem(payload: { Item_Id: number; Size_ID: number; price: number }) {
+    const { data } = await foodchowClient.post(
+      ENDPOINTS.menu.assignVariantToItem,
+      payload
+    );
     return data;
   },
 

@@ -83,6 +83,7 @@ export const ENDPOINTS = {
     addUpdateVariant: "/MenuMaster/AddUpdateVariant",
     deleteVariant: "/MenuMaster/DeleteVariant",
     addItem: "/MenuMaster/QuickAddStoreItemWithStock",
+    assignVariantToItem: "/MenuMaster/AssignVariantToItem",
     getItems: "/MenuMaster/GetItemDetailsByShopIdMasterWithSoldOUtNew",
     deleteItem: "/MenuMaster/DeleteStoreItem",
 
