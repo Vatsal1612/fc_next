@@ -17,7 +17,6 @@ export default function PricingPlanPage() {
     const [activeTab, setActiveTab] = useState<"growth" | "pos" | "online" | "addons">("growth");
     const [onlineSubTab, setOnlineSubTab] = useState<"fixed" | "commission">("fixed");
     const [isPosYearly, setIsPosYearly] = useState(false);
-    const [kdsYearly, setKdsYearly] = useState(true);
 
     // Plans data (Only 4 and 5 are removed; all others 1, 2, 3, 7, 1006-1011, 999 are used)
     const [growthPlan, setGrowthPlan] = useState<any>(null); // Id: 1
@@ -31,13 +30,13 @@ export default function PricingPlanPage() {
     const [commPremiumPlan, setCommPremiumPlan] = useState<any>(null); // Id: 1011
     const [onlineCommissionPlan, setOnlineCommissionPlan] = useState<any>(null); // Id: 7
 
-    const [marketplaceBundle, setMarketplaceBundle] = useState<any>(null); // Id: 999
+    const [, setMarketplaceBundle] = useState<any>(null); // Id: 999
     const [addOns, setAddOns] = useState<any[]>([]);
     const [cartItems, setCartItems] = useState<Array<{ id: number; name: string; price: number; billingCycle: string }>>([]);
     const [activeSubscriptions, setActiveSubscriptions] = useState<any[]>([]);
     const [, setLoading] = useState(true);
 
-    const [currency, setCurrency] = useState<string>("Rs.");
+    const [currency, setCurrency] = useState<string>("INR");
     const [currencySymbol, setCurrencySymbol] = useState<string>("₹");
     const lastCurrency = useRef<string | null>(null);
 
@@ -68,10 +67,16 @@ export default function PricingPlanPage() {
             if (sessionCurr) {
                 const trimmed = sessionCurr.trim();
                 let sym = trimmed;
+                let apiCurr = trimmed;
+                let currId = "2";
                 if (trimmed === "INR" || trimmed === "Rs." || trimmed === "Rs" || trimmed === "₹") {
                     sym = "₹";
+                    apiCurr = "INR";
+                    currId = "1";
                 } else if (trimmed === "USD" || trimmed === "$") {
                     sym = "$";
+                    apiCurr = "USD";
+                    currId = "2";
                 } else if (trimmed === "AUD") {
                     sym = "A$";
                 } else if (trimmed === "CAD") {
@@ -81,7 +86,9 @@ export default function PricingPlanPage() {
                 } else if (trimmed === "GBP" || trimmed === "£") {
                     sym = "£";
                 }
-                setCurrency(trimmed);
+                sessionStorage.setItem("currencyId", currId);
+                sessionStorage.setItem("currency_id", currId);
+                setCurrency(apiCurr);
                 setCurrencySymbol(sym);
             }
         };
@@ -127,34 +134,32 @@ export default function PricingPlanPage() {
     const getPlanDisplayPrice = (planData: any, requestedCycle: "YEAR" | "MONTH" = "YEAR", fallbackPrice: number = 0): number => {
         if (!planData) return fallbackPrice;
 
-        if (isIndian) {
-            // For POS, check cycle
-            if (planData.Id === 2) {
-                return requestedCycle === "YEAR" ? 2500 : 350;
-            }
-            if (planData.Id === 3) {
-                return requestedCycle === "YEAR" ? 5475 : 590;
-            }
-
-            // Extract directly from API BillingText (e.g. "₹25,000 / Year", "₹350 / Month", "₹999 / month")
-            if (typeof planData.BillingText === "string") {
-                const match = planData.BillingText.match(/(?:₹|Rs\.?)\s*([\d,]+)/i);
-                if (match && match[1]) {
-                    const parsed = Number(match[1].replace(/,/g, ""));
-                    if (!Number.isNaN(parsed)) {
-                        return parsed;
-                    }
-                }
-            }
-        }
-
-        // For USD / foreign currencies, resolve directly from API Pricing array
+        // 1. First, check if the plan has the requested cycle in its Pricing array
         if (Array.isArray(planData.Pricing) && planData.Pricing.length > 0) {
             const matched = planData.Pricing.find(
                 (p: any) => String(p.BillingCycle).toUpperCase() === requestedCycle.toUpperCase()
             );
-            if (matched && matched.Price != null) return Number(matched.Price);
-            if (planData.Pricing[0]?.Price != null) return Number(planData.Pricing[0].Price);
+            if (matched && matched.Price != null && Number(matched.Price) > 0) {
+                return Number(matched.Price);
+            }
+        }
+
+        // 2. Otherwise extract from BillingText (e.g. "₹25,000 / Year", "₹350 / Month", "₹999 / month")
+        if (typeof planData.BillingText === "string") {
+            const match = planData.BillingText.match(/(?:₹|Rs\.?|\$|£|€)\s*([\d,]+)/i);
+            if (match && match[1]) {
+                const parsed = Number(match[1].replace(/,/g, ""));
+                if (!Number.isNaN(parsed) && parsed > 0) {
+                    return parsed;
+                }
+            }
+        }
+
+        // 3. Fallback to any available pricing in the Pricing array
+        if (Array.isArray(planData.Pricing) && planData.Pricing.length > 0) {
+            if (planData.Pricing[0]?.Price != null && Number(planData.Pricing[0].Price) > 0) {
+                return Number(planData.Pricing[0].Price);
+            }
         }
 
         return fallbackPrice;
@@ -355,21 +360,21 @@ export default function PricingPlanPage() {
 
     // POS Pricing resolution
     const posCycleKey = isPosYearly ? "YEAR" : "MONTH";
-    const posLitePrice = getPlanDisplayPrice(posLitePlan, posCycleKey, isIndian ? (isPosYearly ? 2500 : 350) : (isPosYearly ? 99 : 10));
-    const posPremPrice = getPlanDisplayPrice(posPremiumPlan, posCycleKey, isIndian ? (isPosYearly ? 5475 : 590) : (isPosYearly ? 300 : 30));
+    const posLitePrice = getPlanDisplayPrice(posLitePlan, posCycleKey, 0);
+    const posPremPrice = getPlanDisplayPrice(posPremiumPlan, posCycleKey, 0);
 
     // Online Ordering Pricing resolution
     const fixedFreePrice = getPlanDisplayPrice(fixedFreePlan, "YEAR", 0);
-    const fixedMonthlyPrice = getPlanDisplayPrice(fixedMonthlyPlan, "MONTH", isIndian ? 999 : 30);
-    const fixedYearlyPrice = getPlanDisplayPrice(fixedYearlyPlan, "YEAR", isIndian ? 9999 : 300);
+    const fixedMonthlyPrice = getPlanDisplayPrice(fixedMonthlyPlan, "MONTH", 0);
+    const fixedYearlyPrice = getPlanDisplayPrice(fixedYearlyPlan, "YEAR", 0);
     const commFreePrice = getPlanDisplayPrice(commFreePlan, "YEAR", 0);
-    const commLitePrice = getPlanDisplayPrice(commLitePlan, "YEAR", isIndian ? 5475 : 90);
-    const commPremiumPrice = getPlanDisplayPrice(commPremiumPlan, "YEAR", isIndian ? 10900 : 180);
+    const commLitePrice = getPlanDisplayPrice(commLitePlan, "YEAR", 0);
+    const commPremiumPrice = getPlanDisplayPrice(commPremiumPlan, "YEAR", 0);
 
     // Growth Plan details
-    const growthPrice = getPlanDisplayPrice(growthPlan, "YEAR", isIndian ? 25000 : 600);
-    const growthTotalValue = isIndian ? (growthPlan?.TotalValue || 47925) : 1200;
-    const growthTotalSavings = isIndian ? (growthPlan?.TotalSavings || 22925) : 600;
+    const growthPrice = getPlanDisplayPrice(growthPlan, "YEAR", 0);
+    const growthTotalValue = growthPlan?.TotalValue || 0;
+    const growthTotalSavings = growthPlan?.TotalSavings || 0;
 
     return (
         <div id="pg-menu-pricing-plan">
@@ -437,7 +442,7 @@ export default function PricingPlanPage() {
                                           { Id: 1, Name: "Take Away / Dine In / Delivery" },
                                           { Id: 2, Name: "Razorpay / Stripe payment gateway" },
                                           { Id: 3, Name: "Online Order + Billing Full app" },
-                                          { Id: 4, Name: `${currencySymbol}${isIndian ? "1,00,000" : "1,235"} Free Sales Credit` },
+                                          { Id: 4, Name: "Free Sales Credit" },
                                           { Id: 5, Name: "Menu customization" },
                                           { Id: 6, Name: "Tax Management" },
                                           { Id: 7, Name: "Promo Code / Coupon" },
@@ -479,13 +484,14 @@ export default function PricingPlanPage() {
                             ))}
 
                             {/* Guarantee Card */}
-                            <div className="guarantee-card">
-                                <h3>{growthPlan?.Guarantee?.Title || "Guaranteed 250 Orders in 90 Days"}</h3>
-                                <p>
-                                    {growthPlan?.Guarantee?.Description ||
-                                        `₹${isIndian ? "1,00,000" : "1,235"} in minimum Sales, Orders or walk-in customers within 90 days`}
-                                </p>
-                            </div>
+                            {growthPlan?.Guarantee?.Title && (
+                                <div className="guarantee-card">
+                                    <h3>{growthPlan.Guarantee.Title}</h3>
+                                    {growthPlan.Guarantee.Description && (
+                                        <p>{growthPlan.Guarantee.Description}</p>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Total Value & Savings Box */}
                             <div className="totals-card">
@@ -1072,7 +1078,6 @@ export default function PricingPlanPage() {
                                 <div className="ao-grid">
                                     {normalizedAddons.map((addon, index) => {
                                         const isSelected = cartItems.some((item) => item.id === addon.Id);
-                                        const isKDS = addon.Name.toUpperCase().includes("KDS");
 
                                         return (
                                             <div className="ao-card" key={`ao-card-${addon.Id ?? "item"}-${index}`}>

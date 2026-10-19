@@ -216,9 +216,12 @@ export default function ItemsPage() {
             (priceRow) => String(priceRow.item_id ?? "").trim() === itemId.trim()
           );
 
-          // Only genuine variant rows with a valid size_name or shop_size_id
+          // Only genuine variant rows with a valid size_name or item_size_id / shop_size_id
           const validItemPrices = itemPrices.filter(
-            (p) => (p.size_name && String(p.size_name).trim() !== "") || (p.shop_size_id && Number(p.shop_size_id) > 0)
+            (p) =>
+              (p.size_name && String(p.size_name).trim() !== "") ||
+              (p.item_size_id && Number(p.item_size_id) > 0) ||
+              ((p as any).shop_size_id && Number((p as any).shop_size_id) > 0)
           );
 
           // An item has variants if marked so or if it has valid sizes
@@ -231,13 +234,14 @@ export default function ItemsPage() {
           if (!hasVariants) {
             // For single-price items, keep single price from item or fallback price row
             const singlePriceRow = itemPrices[0];
+            const rawSinglePrice = singlePriceRow?.item_price ?? (singlePriceRow as any)?.price ?? singlePriceRow?.final_amount;
             const singlePrice =
               (item.price !== undefined && item.price !== null && !isNaN(Number(item.price)) && Number(item.price) > 0)
                 ? item.price
                 : (item.Price !== undefined && item.Price !== null && !isNaN(Number(item.Price)) && Number(item.Price) > 0)
                 ? item.Price
-                : (singlePriceRow?.price !== undefined && singlePriceRow?.price !== null && !isNaN(Number(singlePriceRow.price)))
-                ? singlePriceRow.price
+                : (rawSinglePrice !== undefined && rawSinglePrice !== null && !isNaN(Number(rawSinglePrice)))
+                ? rawSinglePrice
                 : (item.price ?? item.Price ?? 0);
 
             return {

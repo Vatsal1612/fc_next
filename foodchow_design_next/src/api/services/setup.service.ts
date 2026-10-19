@@ -176,15 +176,8 @@ export const restaurantService = {
   },
 
   async getPointPlanDetails(shopId: string | number) {
-    try {
-      // Use Next.js API route proxy to avoid CORS blockage
-      const { data } = await axios.get(`/api/my-plan?shop_id=${shopId}`);
-      return data;
-    } catch {
-      // Fallback directly to live URL
-      const { data } = await axios.get(`https://www.foodchow.com/api/FoodChowWD/GetPointPlanDetailscurrent?shop_id=${shopId}`);
-      return data;
-    }
+    const { data } = await axios.get(`https://www.foodchow.com/api/FoodChowWD/GetPlanDetails?id=${shopId}`);
+    return data;
   }
 };
 

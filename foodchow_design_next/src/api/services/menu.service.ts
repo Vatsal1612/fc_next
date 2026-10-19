@@ -1677,12 +1677,18 @@ export const menuService = {
   },
 
   async getAddOns(currency: string) {
+    const currencyId =
+      typeof window !== "undefined"
+        ? sessionStorage.getItem("currencyId") || sessionStorage.getItem("currency_id") || undefined
+        : undefined;
+
     // Use the Next.js API proxy to avoid browser CORS restrictions
     const response = await axios.get(
       "/api/add-ons",
       {
         params: {
           currency,
+          currencyId,
         },
       }
     );

@@ -123,74 +123,45 @@ export default function MyPlanPage() {
 
     useEffect(() => {
         const fetchPlans = async () => {
-            if (!SHOP_ID) return;
+            const shopIdToUse = SHOP_ID || "7872";
             try {
-                // 1. Fetch live plan details for the specific shop from live API
-                try {
-                    const res = await restaurantService.getPointPlanDetails(SHOP_ID);
-                    const rawData = res?.planDetails?.data || res?.data || res?.pointPlan?.data;
-                    if (rawData) {
-                        const parsedData = typeof rawData === "string" ? JSON.parse(rawData) : rawData;
-                        if (Array.isArray(parsedData) && parsedData.length > 0) {
-                            const pointPlanRaw = res?.pointPlan?.data;
-                            const parsedPoint = pointPlanRaw ? (typeof pointPlanRaw === "string" ? JSON.parse(pointPlanRaw) : pointPlanRaw) : null;
-                            const pointObj = Array.isArray(parsedPoint) ? parsedPoint[0] : null;
+                // Fetch plan details exclusively using https://www.foodchow.com/api/FoodChowWD/GetPlanDetails?id=...
+                const res = await restaurantService.getPointPlanDetails(shopIdToUse);
+                const rawData = res?.data ?? res?.planDetails?.data ?? res;
+                if (rawData) {
+                    const parsedData = typeof rawData === "string" ? JSON.parse(rawData) : rawData;
+                    if (Array.isArray(parsedData) && parsedData.length > 0) {
+                        const formatted = parsedData.map((item: any) => ({
+                            plan_id: item.id || item.plan_id || "FreePlan",
+                            plan_name: item.plan_type || item.plan_name || "Subscription Plan",
+                            billing_cycle: item.billing_cycle || (item.plan_type === "month" ? "MONTH" : item.plan_type === "year" ? "YEAR" : ""),
+                            purchase_date: item.starting_date || item.created_date || item.creation_date || item.start_date,
+                            start_date: item.starting_date || item.created_date || item.creation_date || item.start_date,
+                            expiry_date: item.ending_date || item.end_date,
+                            end_date: item.ending_date || item.end_date,
+                            status: item.status || "ACTIVE",
+                            subscription_id: item.subscription_id || "",
+                            record_type: "Plan",
+                            amount: item.amount ?? 0,
+                            commision: item.commision ?? item.commission ?? "0%",
+                            coins: item.coins ?? 0,
+                            invoice_no: item.invoice_no,
+                            currencyORpercentage: item.currencyORpercentage,
+                        }));
 
-                            const formatted = parsedData.map((item: any) => ({
-                                plan_id: item.id || item.plan_id || pointObj?.plan_name || "FreePlan",
-                                plan_name: item.plan_type || item.plan_name || pointObj?.plan_name || "Subscription Plan",
-                                billing_cycle: item.billing_cycle || (item.plan_type === "month" ? "MONTH" : item.plan_type === "year" ? "YEAR" : ""),
-                                purchase_date: item.starting_date || item.created_date || item.creation_date || pointObj?.start_date,
-                                start_date: item.starting_date || item.created_date || item.creation_date || pointObj?.start_date,
-                                expiry_date: item.ending_date || item.end_date,
-                                end_date: item.ending_date || item.end_date,
-                                status: item.status || "ACTIVE",
-                                subscription_id: item.subscription_id || pointObj?.payment_id || "",
-                                record_type: "Plan",
-                                amount: item.amount ?? pointObj?.amount ?? 0,
-                                commision: item.commision ?? pointObj?.commision ?? "0%",
-                                coins: item.coins ?? pointObj?.coins ?? 0,
-                                invoice_no: item.invoice_no,
-                                currencyORpercentage: item.currencyORpercentage,
-                            }));
-
-                            if (formatted[0]?.currencyORpercentage) {
-                                setCurrency(formatted[0].currencyORpercentage);
-                                setCurrencySymbol(getSymbolForCurrency(formatted[0].currencyORpercentage));
-                            }
-
-                            setCurrentPlans(formatted);
-                            return;
+                        if (formatted[0]?.currencyORpercentage) {
+                            setCurrency(formatted[0].currencyORpercentage);
+                            setCurrencySymbol(getSymbolForCurrency(formatted[0].currencyORpercentage));
                         }
-                    }
-                } catch (e) {
-                    console.warn("Live plan details fetch failed, checking purchases:", e);
-                }
 
-                // 2. Fallback to pricing plan purchases
-                const purchasesRes = await setupService.getPricingPlanPurchases(SHOP_ID);
-                const purchaseData = purchasesRes?.data || purchasesRes?.Data || purchasesRes;
-                if (Array.isArray(purchaseData) && purchaseData.length > 0) {
-                    const formatted = purchaseData.map((item: any) => ({
-                        plan_id: item.Id || item.id || item.plan_id,
-                        plan_name: item.PlanName || item.plan_name || item.plan_type || "Subscription Plan",
-                        billing_cycle: item.BillingCycle || item.billing_cycle || item.plan_duration || "",
-                        purchase_date: item.PurchaseDate || item.purchase_date || item.created_date || item.start_date,
-                        start_date: item.PurchaseDate || item.purchase_date || item.created_date || item.start_date,
-                        expiry_date: item.ExpiryDate || item.expiry_date || item.end_date,
-                        end_date: item.ExpiryDate || item.expiry_date || item.end_date,
-                        status: item.Status || item.status || "ACTIVE",
-                        subscription_id: item.SubscriptionId || item.subscription_id || "",
-                        record_type: item.RecordType || item.record_type || "Plan",
-                        amount: item.total_amt ?? item.amount ?? 0,
-                        commision: item.commission ?? item.commision ?? "0%",
-                        coins: item.coins ?? 0,
-                        invoice_no: item.invoice_no,
-                    }));
-                    setCurrentPlans(formatted);
+                        setCurrentPlans(formatted);
+                        return;
+                    }
                 }
+                setCurrentPlans([]);
             } catch (err) {
-                console.error("Failed to fetch plans:", err);
+                console.error("Failed to fetch plan details from GetPlanDetails API:", err);
+                setCurrentPlans([]);
             }
         };
         fetchPlans();
