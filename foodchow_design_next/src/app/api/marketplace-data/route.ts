@@ -1,19 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getLiveSessionCookie } from "@/lib/session-cookie";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const currency = searchParams.get("currency") || "INR";
+    const currencyId = searchParams.get("currency_id") || searchParams.get("currencyId");
+
+    const isINR =
+      currencyId === "1" ||
+      currency === "1" ||
+      currency === "Rs." ||
+      currency === "INR" ||
+      currency === "₹";
+
+    const sessionCurrency = isINR ? "Rs." : "$";
+    const cookieHeader = await getLiveSessionCookie(sessionCurrency);
+
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+    };
+    if (cookieHeader) {
+      headers["Cookie"] = cookieHeader;
+    }
 
     const response = await fetch(
       `https://admin.foodchow.com/Marketplace/GetMarketplaceData?currency=${encodeURIComponent(
-        currency
+        sessionCurrency
       )}`,
       {
         method: "GET",
-        headers: {
-          Accept: "application/json",
-        },
+        headers,
         cache: "no-store",
       }
     );

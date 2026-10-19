@@ -1655,14 +1655,13 @@ export const menuService = {
     planId: number,
     currency: string
   ): Promise<PlanDetails> {
-    // Use the Next.js API proxy to avoid browser CORS restrictions
     const response = await axios.get<{
       Result: PlanDetails;
       Message: string | null;
       MessageType: number;
       Status: boolean;
     }>(
-      "/api/plan-details",
+      `/api/plan-details`,
       {
         params: {
           planId,
@@ -1677,18 +1676,11 @@ export const menuService = {
   },
 
   async getAddOns(currency: string) {
-    const currencyId =
-      typeof window !== "undefined"
-        ? sessionStorage.getItem("currencyId") || sessionStorage.getItem("currency_id") || undefined
-        : undefined;
-
-    // Use the Next.js API proxy to avoid browser CORS restrictions
     const response = await axios.get(
-      "/api/add-ons",
+      `/api/add-ons`,
       {
         params: {
           currency,
-          currencyId,
         },
       }
     );
@@ -1699,9 +1691,8 @@ export const menuService = {
   },
 
   async getMarketplaceData(currency: string = "INR") {
-    // Use the Next.js API proxy to avoid browser CORS restrictions
     const response = await axios.get(
-      "/api/marketplace-data",
+      `/api/marketplace-data`,
       {
         params: {
           currency,
@@ -1887,8 +1878,8 @@ export const menuService = {
       const price = String(row[priceKey] || "0").trim();
       const isVeg =
         row[vegKey] === 0 ||
-        String(row[vegKey]).toLowerCase() === "0" ||
-        String(row[vegKey]).toLowerCase().includes("non")
+          String(row[vegKey]).toLowerCase() === "0" ||
+          String(row[vegKey]).toLowerCase().includes("non")
           ? "0"
           : "1";
 

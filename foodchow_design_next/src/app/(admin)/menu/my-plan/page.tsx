@@ -70,7 +70,12 @@ export default function MyPlanPage() {
 
     useEffect(() => {
         const initCurrency = async () => {
-            let sessionCurr = sessionStorage.getItem("currency") || sessionStorage.getItem("shopcurrency") || localStorage.getItem("currency") || "";
+            let sessionCurr =
+                sessionStorage.getItem("shopcurrency") ||
+                sessionStorage.getItem("currency") ||
+                localStorage.getItem("shopcurrency") ||
+                localStorage.getItem("currency") ||
+                "";
             const shopId = SHOP_ID || sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id");
 
             if (!sessionCurr && shopId) {
@@ -79,6 +84,7 @@ export default function MyPlanPage() {
                     if (info?.currency) {
                         sessionCurr = info.currency;
                         sessionStorage.setItem("currency", sessionCurr);
+                        sessionStorage.setItem("shopcurrency", sessionCurr);
                     }
                 } catch (e) {
                     console.error("Error fetching restaurant currency:", e);

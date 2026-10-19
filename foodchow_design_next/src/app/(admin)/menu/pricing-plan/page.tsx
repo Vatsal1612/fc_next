@@ -36,28 +36,94 @@ export default function PricingPlanPage() {
     const [activeSubscriptions, setActiveSubscriptions] = useState<any[]>([]);
     const [, setLoading] = useState(true);
 
-    const [currency, setCurrency] = useState<string>("INR");
-    const [currencySymbol, setCurrencySymbol] = useState<string>("₹");
-    const lastCurrency = useRef<string | null>(null);
+    // Resolve initial currency synchronously if in browser
+    const getInitialCurrency = (): { curr: string; sym: string } => {
+        if (typeof window !== "undefined") {
+            const currencyId =
+                localStorage.getItem("currency_id") ||
+                localStorage.getItem("currencyId") ||
+                sessionStorage.getItem("currency_id") ||
+                sessionStorage.getItem("currencyId");
 
-    // Resolve currency from session / restaurant profile
-    useEffect(() => {
-        const initCurrency = async () => {
-            let sessionCurr =
-                sessionStorage.getItem("shopcurrency") ||
-                sessionStorage.getItem("currency") ||
+            if (currencyId) {
+                const idStr = String(currencyId).trim();
+                if (idStr === "2") return { curr: "USD", sym: "$" };
+                if (idStr === "1") return { curr: "INR", sym: "₹" };
+            }
+
+            const sessionCurr =
                 localStorage.getItem("shopcurrency") ||
                 localStorage.getItem("currency") ||
+                sessionStorage.getItem("shopcurrency") ||
+                sessionStorage.getItem("currency") ||
                 "";
-            const shopId = sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id");
+
+            if (sessionCurr) {
+                const trimmed = sessionCurr.trim();
+                if (trimmed === "2" || trimmed === "USD" || trimmed === "$") return { curr: "USD", sym: "$" };
+                if (trimmed === "1" || trimmed === "INR" || trimmed === "Rs." || trimmed === "Rs" || trimmed === "₹") return { curr: "INR", sym: "₹" };
+                if (trimmed === "AUD") return { curr: "AUD", sym: "A$" };
+                if (trimmed === "CAD") return { curr: "CAD", sym: "C$" };
+                if (trimmed === "EUR" || trimmed === "€") return { curr: "EUR", sym: "€" };
+                if (trimmed === "GBP" || trimmed === "£") return { curr: "GBP", sym: "£" };
+                return { curr: trimmed, sym: trimmed };
+            }
+        }
+        return { curr: "INR", sym: "₹" };
+    };
+
+    const initialCurrencyInfo = getInitialCurrency();
+    const [currency, setCurrency] = useState<string>(initialCurrencyInfo.curr);
+    const [currencySymbol, setCurrencySymbol] = useState<string>(initialCurrencyInfo.sym);
+    const lastCurrency = useRef<string | null>(null);
+
+    // Resolve currency from localStorage currency_id / session / restaurant profile and listen to storage events
+    useEffect(() => {
+        const initCurrency = async () => {
+            const currencyId =
+                localStorage.getItem("currency_id") ||
+                localStorage.getItem("currencyId") ||
+                sessionStorage.getItem("currency_id") ||
+                sessionStorage.getItem("currencyId");
+
+            if (currencyId) {
+                const idStr = String(currencyId).trim();
+                if (idStr === "1") {
+                    setCurrency("INR");
+                    setCurrencySymbol("₹");
+                    return;
+                } else if (idStr === "2") {
+                    setCurrency("USD");
+                    setCurrencySymbol("$");
+                    return;
+                }
+            }
+
+            let sessionCurr =
+                localStorage.getItem("shopcurrency") ||
+                localStorage.getItem("currency") ||
+                sessionStorage.getItem("shopcurrency") ||
+                sessionStorage.getItem("currency") ||
+                "";
+            const shopId = localStorage.getItem("shop_id") || sessionStorage.getItem("shop_id");
 
             if (!sessionCurr && shopId) {
                 try {
                     const info = await setupService.getRestaurantInformation(Number(shopId));
+                    if (info?.currency_id) {
+                        const cId = String(info.currency_id).trim();
+                        if (cId === "1") {
+                            setCurrency("INR");
+                            setCurrencySymbol("₹");
+                            return;
+                        } else if (cId === "2") {
+                            setCurrency("USD");
+                            setCurrencySymbol("$");
+                            return;
+                        }
+                    }
                     if (info?.currency) {
                         sessionCurr = info.currency;
-                        sessionStorage.setItem("currency", sessionCurr);
-                        sessionStorage.setItem("shopcurrency", sessionCurr);
                     }
                 } catch (e) {
                     console.error("Error fetching restaurant currency:", e);
@@ -68,15 +134,12 @@ export default function PricingPlanPage() {
                 const trimmed = sessionCurr.trim();
                 let sym = trimmed;
                 let apiCurr = trimmed;
-                let currId = "2";
-                if (trimmed === "INR" || trimmed === "Rs." || trimmed === "Rs" || trimmed === "₹") {
+                if (trimmed === "1" || trimmed === "INR" || trimmed === "Rs." || trimmed === "Rs" || trimmed === "₹") {
                     sym = "₹";
                     apiCurr = "INR";
-                    currId = "1";
-                } else if (trimmed === "USD" || trimmed === "$") {
+                } else if (trimmed === "2" || trimmed === "USD" || trimmed === "$") {
                     sym = "$";
                     apiCurr = "USD";
-                    currId = "2";
                 } else if (trimmed === "AUD") {
                     sym = "A$";
                 } else if (trimmed === "CAD") {
@@ -86,13 +149,21 @@ export default function PricingPlanPage() {
                 } else if (trimmed === "GBP" || trimmed === "£") {
                     sym = "£";
                 }
-                sessionStorage.setItem("currencyId", currId);
-                sessionStorage.setItem("currency_id", currId);
                 setCurrency(apiCurr);
                 setCurrencySymbol(sym);
             }
         };
+
         initCurrency();
+
+        const handleStorageChange = () => {
+            initCurrency();
+        };
+
+        window.addEventListener("storage", handleStorageChange);
+        return () => {
+            window.removeEventListener("storage", handleStorageChange);
+        };
     }, []);
 
     // Load active subscriptions for active plan badges and restrictions
@@ -127,42 +198,38 @@ export default function PricingPlanPage() {
     };
 
     /**
-     * Resolves the correct display price:
-     * - In INR: Checks BillingText for formatted currency (e.g. ₹25,000, ₹350, ₹999, etc.)
-     * - In USD: Uses the Pricing array Price
+     * Resolves the correct display price dynamically from the API:
+     * - Uses the `Pricing` array returned by GetPlanDetails (e.g. { Price: 350, BillingCycle: "MONTH" }, { Price: 4000, BillingCycle: "YEAR" })
+     * - Matches by requested BillingCycle (case-insensitively)
+     * - Returns the matched price or first available price from the API response
      */
-    const getPlanDisplayPrice = (planData: any, requestedCycle: "YEAR" | "MONTH" = "YEAR", fallbackPrice: number = 0): number => {
-        if (!planData) return fallbackPrice;
+    const getPlanDisplayPrice = (planData: any, requestedCycle: "YEAR" | "MONTH" = "YEAR"): number => {
+        if (!planData) return 0;
 
-        // 1. First, check if the plan has the requested cycle in its Pricing array
-        if (Array.isArray(planData.Pricing) && planData.Pricing.length > 0) {
-            const matched = planData.Pricing.find(
-                (p: any) => String(p.BillingCycle).toUpperCase() === requestedCycle.toUpperCase()
+        const pricingList = Array.isArray(planData.Pricing)
+            ? planData.Pricing
+            : Array.isArray(planData.pricing)
+                ? planData.pricing
+                : [];
+
+        if (pricingList.length > 0) {
+            const matched = pricingList.find(
+                (p: any) => String(p.BillingCycle || p.billingCycle || "").trim().toUpperCase() === requestedCycle.toUpperCase()
             );
-            if (matched && matched.Price != null && Number(matched.Price) > 0) {
+            if (matched && matched.Price != null) {
                 return Number(matched.Price);
             }
-        }
-
-        // 2. Otherwise extract from BillingText (e.g. "₹25,000 / Year", "₹350 / Month", "₹999 / month")
-        if (typeof planData.BillingText === "string") {
-            const match = planData.BillingText.match(/(?:₹|Rs\.?|\$|£|€)\s*([\d,]+)/i);
-            if (match && match[1]) {
-                const parsed = Number(match[1].replace(/,/g, ""));
-                if (!Number.isNaN(parsed) && parsed > 0) {
-                    return parsed;
-                }
+            if (matched && matched.price != null) {
+                return Number(matched.price);
+            }
+            const first = pricingList[0];
+            const firstPrice = first?.Price ?? first?.price;
+            if (firstPrice != null) {
+                return Number(firstPrice);
             }
         }
 
-        // 3. Fallback to any available pricing in the Pricing array
-        if (Array.isArray(planData.Pricing) && planData.Pricing.length > 0) {
-            if (planData.Pricing[0]?.Price != null && Number(planData.Pricing[0].Price) > 0) {
-                return Number(planData.Pricing[0].Price);
-            }
-        }
-
-        return fallbackPrice;
+        return 0;
     };
 
     // Subscriptions check
@@ -212,7 +279,7 @@ export default function PricingPlanPage() {
 
     // Load All Plan Details (Except 4 and 5) and Addons from API
     useEffect(() => {
-        if (lastCurrency.current === currency && growthPlan) return;
+        if (lastCurrency.current === currency) return;
         lastCurrency.current = currency;
 
         const loadPlans = async () => {
@@ -360,21 +427,40 @@ export default function PricingPlanPage() {
 
     // POS Pricing resolution
     const posCycleKey = isPosYearly ? "YEAR" : "MONTH";
-    const posLitePrice = getPlanDisplayPrice(posLitePlan, posCycleKey, 0);
-    const posPremPrice = getPlanDisplayPrice(posPremiumPlan, posCycleKey, 0);
+    const posLitePrice = getPlanDisplayPrice(posLitePlan, posCycleKey);
+    const posPremPrice = getPlanDisplayPrice(posPremiumPlan, posCycleKey);
 
     // Online Ordering Pricing resolution
-    const fixedFreePrice = getPlanDisplayPrice(fixedFreePlan, "YEAR", 0);
-    const fixedMonthlyPrice = getPlanDisplayPrice(fixedMonthlyPlan, "MONTH", 0);
-    const fixedYearlyPrice = getPlanDisplayPrice(fixedYearlyPlan, "YEAR", 0);
-    const commFreePrice = getPlanDisplayPrice(commFreePlan, "YEAR", 0);
-    const commLitePrice = getPlanDisplayPrice(commLitePlan, "YEAR", 0);
-    const commPremiumPrice = getPlanDisplayPrice(commPremiumPlan, "YEAR", 0);
+    const fixedFreePrice = getPlanDisplayPrice(fixedFreePlan, "YEAR");
+    const fixedMonthlyPrice = getPlanDisplayPrice(fixedMonthlyPlan, "MONTH");
+    const fixedYearlyPrice = getPlanDisplayPrice(fixedYearlyPlan, "YEAR");
+    const commFreePrice = getPlanDisplayPrice(commFreePlan, "YEAR");
+    const commLitePrice = getPlanDisplayPrice(commLitePlan, "YEAR");
+    const commPremiumPrice = getPlanDisplayPrice(commPremiumPlan, "YEAR");
 
     // Growth Plan details
-    const growthPrice = getPlanDisplayPrice(growthPlan, "YEAR", 0);
-    const growthTotalValue = growthPlan?.TotalValue || 0;
-    const growthTotalSavings = growthPlan?.TotalSavings || 0;
+    const growthPricing = Array.isArray(growthPlan?.Pricing) ? growthPlan.Pricing[0] : null;
+    const growthPrice = getPlanDisplayPrice(growthPlan, "YEAR");
+    const growthOriginalPrice = growthPricing?.OriginalPrice != null ? Number(growthPricing.OriginalPrice) : 0;
+    const growthTotalValue = isIndian
+        ? (growthPlan?.TotalValue || 0)
+        : (growthOriginalPrice > 0 ? growthOriginalPrice : growthPrice);
+    const growthTotalSavings = isIndian
+        ? (growthPlan?.TotalSavings || 0)
+        : (growthOriginalPrice > growthPrice ? growthOriginalPrice - growthPrice : 0);
+
+    // Format text for USD/INR currency differences
+    const formatFeatureOrGuaranteeText = (text: string | null | undefined): string => {
+        if (!text) return "";
+        if (isIndian) return text;
+        return text
+            .replace(/Rs\.?\s?1,00,000/gi, "$1,235")
+            .replace(/Rs\.?\s?100,000/gi, "$1,235")
+            .replace(/₹\s?1,00,000/gi, "$1,235")
+            .replace(/₹\s?100,000/gi, "$1,235")
+            .replace(/₹\s?10/gi, "$1")
+            .replace(/Rs\.?\s?10/gi, "$1");
+    };
 
     return (
         <div id="pg-menu-pricing-plan">
@@ -439,56 +525,40 @@ export default function PricingPlanPage() {
                                 {(growthPlan?.Features && growthPlan.Features.length > 0
                                     ? growthPlan.Features.filter((f: any) => f.IsIncluded)
                                     : [
-                                          { Id: 1, Name: "Take Away / Dine In / Delivery" },
-                                          { Id: 2, Name: "Razorpay / Stripe payment gateway" },
-                                          { Id: 3, Name: "Online Order + Billing Full app" },
-                                          { Id: 4, Name: "Free Sales Credit" },
-                                          { Id: 5, Name: "Menu customization" },
-                                          { Id: 6, Name: "Tax Management" },
-                                          { Id: 7, Name: "Promo Code / Coupon" },
-                                          { Id: 8, Name: "Multiple Language" },
-                                          { Id: 9, Name: "Own Driver/Porter Delivery Integration" },
-                                          { Id: 10, Name: "Custom Domain" },
-                                          { Id: 11, Name: "Google Local Optimisation" },
-                                          { Id: 12, Name: "Google Analytics" },
-                                          { Id: 13, Name: "Coaching Session" },
-                                          { Id: 14, Name: "250 Orders Guaranteed in 90 Days" },
-                                          { Id: 15, Name: "SEO Optimization" },
-                                      ]
+                                        { Id: 1, Name: "Take Away / Dine In / Delivery" },
+                                        { Id: 2, Name: "Razorpay / Stripe payment gateway" },
+                                        { Id: 3, Name: "Online Order + Billing Full app" },
+                                        { Id: 4, Name: "Free Sales Credit" },
+                                        { Id: 5, Name: "Menu customization" },
+                                        { Id: 6, Name: "Tax Management" },
+                                        { Id: 7, Name: "Promo Code / Coupon" },
+                                        { Id: 8, Name: "Multiple Language" },
+                                        { Id: 9, Name: "Own Driver/Porter Delivery Integration" },
+                                        { Id: 10, Name: "Custom Domain" },
+                                        { Id: 11, Name: "Google Local Optimisation" },
+                                        { Id: 12, Name: "Google Analytics" },
+                                        { Id: 13, Name: "Coaching Session" },
+                                        { Id: 14, Name: "250 Orders Guaranteed in 90 Days" },
+                                        { Id: 15, Name: "SEO Optimization" },
+                                    ]
                                 ).map((feature: any) => (
                                     <div className="feature-row" key={feature.Id}>
                                         <div className="feature-icon">
                                             <Check />
                                         </div>
-                                        <span>{feature.Name}</span>
+                                        <span>{formatFeatureOrGuaranteeText(feature.Name)}</span>
                                     </div>
                                 ))}
                             </div>
 
                             {/* FREE Add-ons Included in Growth */}
-                            <div className="addons-header">
-                                <span>Get FREE Powerful Add-ons</span>
-                                <span className="valued">Valued</span>
-                            </div>
-
-                            {normalizedAddons.slice(0, 8).map((addon, index) => (
-                                <div className="addon-row" key={`${addon.Id}-${addon.Price}-${index}`}>
-                                    <div className="addon-icon">
-                                        <Check />
-                                    </div>
-                                    <span className="addon-name">{addon.Name}</span>
-                                    <span className="addon-price">
-                                        {currencySymbol}{formatPrice(addon.Price)} / year
-                                    </span>
-                                </div>
-                            ))}
 
                             {/* Guarantee Card */}
                             {growthPlan?.Guarantee?.Title && (
                                 <div className="guarantee-card">
-                                    <h3>{growthPlan.Guarantee.Title}</h3>
+                                    <h3>{formatFeatureOrGuaranteeText(growthPlan.Guarantee.Title)}</h3>
                                     {growthPlan.Guarantee.Description && (
-                                        <p>{growthPlan.Guarantee.Description}</p>
+                                        <p>{formatFeatureOrGuaranteeText(growthPlan.Guarantee.Description)}</p>
                                     )}
                                 </div>
                             )}
@@ -498,9 +568,11 @@ export default function PricingPlanPage() {
                                 <div className="total-bar red">
                                     Total Value: {currencySymbol}{formatPrice(growthTotalValue)}
                                 </div>
-                                <div className="total-bar green">
-                                    Save {currencySymbol}{formatPrice(growthTotalSavings)}
-                                </div>
+                                {growthTotalSavings > 0 && (
+                                    <div className="total-bar green">
+                                        Save {currencySymbol}{formatPrice(growthTotalSavings)}
+                                    </div>
+                                )}
                                 {isGrowthActive ? (
                                     <button
                                         type="button"
@@ -589,17 +661,17 @@ export default function PricingPlanPage() {
                                 {(posLitePlan?.Features && posLitePlan.Features.length > 0
                                     ? posLitePlan.Features
                                     : [
-                                          { Id: 14, Name: "Includes everything in Free plan", ExtraInfo: "Billing & operations" },
-                                          { Id: 15, Name: "Custom payment methods (cash, UPI, card)", ExtraInfo: "Billing & operations" },
-                                          { Id: 16, Name: "Address customization for delivery", ExtraInfo: "Billing & operations" },
-                                          { Id: 17, Name: "Service charges & tax setup", ExtraInfo: "Billing & operations" },
-                                          { Id: 18, Name: "Multi-user with role permissions", ExtraInfo: "Billing & operations" },
-                                          { Id: 19, Name: "Item notes & item codes", ExtraInfo: "Billing & operations" },
-                                          { Id: 20, Name: "Expense tracking & daily reports", ExtraInfo: "Billing & operations" },
-                                          { Id: 21, Name: "Printer customization (KOT & receipt)", ExtraInfo: "Setup & customization" },
-                                          { Id: 22, Name: "Table reservation", ExtraInfo: "Setup & customization" },
-                                          { Id: 23, Name: "Cloud sync across devices", ExtraInfo: "Setup & customization" },
-                                      ]
+                                        { Id: 14, Name: "Includes everything in Free plan", ExtraInfo: "Billing & operations" },
+                                        { Id: 15, Name: "Custom payment methods (cash, UPI, card)", ExtraInfo: "Billing & operations" },
+                                        { Id: 16, Name: "Address customization for delivery", ExtraInfo: "Billing & operations" },
+                                        { Id: 17, Name: "Service charges & tax setup", ExtraInfo: "Billing & operations" },
+                                        { Id: 18, Name: "Multi-user with role permissions", ExtraInfo: "Billing & operations" },
+                                        { Id: 19, Name: "Item notes & item codes", ExtraInfo: "Billing & operations" },
+                                        { Id: 20, Name: "Expense tracking & daily reports", ExtraInfo: "Billing & operations" },
+                                        { Id: 21, Name: "Printer customization (KOT & receipt)", ExtraInfo: "Setup & customization" },
+                                        { Id: 22, Name: "Table reservation", ExtraInfo: "Setup & customization" },
+                                        { Id: 23, Name: "Cloud sync across devices", ExtraInfo: "Setup & customization" },
+                                    ]
                                 )
                                     ?.reduce((sections: any[], feature: any) => {
                                         const title = feature.ExtraInfo || "Features";
@@ -661,15 +733,15 @@ export default function PricingPlanPage() {
                                 {(posPremiumPlan?.Features && posPremiumPlan.Features.length > 0
                                     ? posPremiumPlan.Features.filter((f: any) => f.IsIncluded)
                                     : [
-                                          { Id: 27, Name: "Meal deals & combo builder" },
-                                          { Id: 28, Name: "Split bill & split payment" },
-                                          { Id: 29, Name: "Multiple menus (lunch, dinner, party)" },
-                                          { Id: 30, Name: "Item-level cost & profit estimates" },
-                                          { Id: 34, Name: "Auto-print online orders to KOT" },
-                                          { Id: 35, Name: "Online order auto-accept rules" },
-                                          { Id: 36, Name: "Coupons & promo codes" },
-                                          { Id: 37, Name: "Dine-in QR code (table-side ordering)" },
-                                      ]
+                                        { Id: 27, Name: "Meal deals & combo builder" },
+                                        { Id: 28, Name: "Split bill & split payment" },
+                                        { Id: 29, Name: "Multiple menus (lunch, dinner, party)" },
+                                        { Id: 30, Name: "Item-level cost & profit estimates" },
+                                        { Id: 34, Name: "Auto-print online orders to KOT" },
+                                        { Id: 35, Name: "Online order auto-accept rules" },
+                                        { Id: 36, Name: "Coupons & promo codes" },
+                                        { Id: 37, Name: "Dine-in QR code (table-side ordering)" },
+                                    ]
                                 ).map((feature: any) => (
                                     <div className="feat-item" key={feature.Id}>
                                         <div className="feat-check">
@@ -1050,7 +1122,9 @@ export default function PricingPlanPage() {
                                         <div className={`oo-col ${isPlanActive(7, onlineCommissionPlan?.Name) ? "purchased" : ""}`}>
                                             <div className="oo-badge orange">{onlineCommissionPlan.BadgeText || "ONE-TIME"}</div>
                                             <div className="oo-plan-name">{onlineCommissionPlan.Name || "Commission Plan"}</div>
-                                            <div className="oo-price-plain">{onlineCommissionPlan.BillingText}</div>
+                                            <div className="oo-price-plain">
+                                                {currencySymbol}{formatPrice(getPlanDisplayPrice(onlineCommissionPlan, "YEAR"))}
+                                            </div>
                                             <div className="oo-desc">{onlineCommissionPlan.Subtitle}</div>
                                             <button
                                                 type="button"

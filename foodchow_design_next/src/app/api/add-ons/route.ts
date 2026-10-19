@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getLiveSessionCookie } from "@/lib/session-cookie";
 
 export async function GET(request: NextRequest) {
   try {
@@ -6,50 +7,37 @@ export async function GET(request: NextRequest) {
 
     const currencyIdParam = searchParams.get("currencyId") || searchParams.get("currency_id");
     const currency = searchParams.get("currency") || "INR";
-    const isINR = currencyIdParam === "1" || currency === "Rs." || currency === "INR" || currency === "₹";
+    const isINR =
+      currencyIdParam === "1" ||
+      currency === "1" ||
+      currency === "Rs." ||
+      currency === "INR" ||
+      currency === "₹";
+
+    const sessionCurrency = isINR ? "Rs." : "$";
+    const cookieHeader = await getLiveSessionCookie(sessionCurrency);
+
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+    };
+    if (cookieHeader) {
+      headers["Cookie"] = cookieHeader;
+    }
 
     const response = await fetch(
-      `https://admin.foodchow.com/Marketplace/GetAddOns?currency=${encodeURIComponent(
-        currency
-      )}`,
+      `https://admin.foodchow.com/Marketplace/GetAddOns?currency=${encodeURIComponent(sessionCurrency)}`,
       {
         method: "GET",
-        headers: {
-          Accept: "application/json",
-        },
+        headers,
         cache: "no-store",
       }
     );
 
-    const data = await response.json();
-
-    console.log("ADD-ONS API STATUS:", response.status);
-    console.log("ADD-ONS API RESPONSE:", data);
-
-    // When CurrencyId = 1 (INR), map add-ons to their INR pricing from FD_MP_AddOnPricing
-    if (isINR && Array.isArray(data?.Result)) {
-      const inrAddonPrices: Record<number, number> = {
-        1: 12000, // Real-Time Offers / Happy Hour
-        2: 5475,  // POS Software
-        3: 2500,  // Bio Link
-        4: 5475,  // WhatsApp Automation
-        5: 5475,  // KDS
-        6: 12000, // Additional Menu
-        7: 5000,  // Snap Dish
-        8: 5000,  // Customised Digital Audit
-        9: 4999,  // Table Reservation
-      };
-
-      data.Result = data.Result.map((item: any) => {
-        const id = item.Id ?? item.id;
-        const inrPrice = inrAddonPrices[id];
-        return {
-          ...item,
-          Price: inrPrice !== undefined ? inrPrice : item.Price,
-          BillingCycle: item.BillingCycle || "YEAR",
-        };
-      });
+    if (!response.ok) {
+      throw new Error(`AddOns API returned status ${response.status}`);
     }
+
+    const data = await response.json();
 
     return NextResponse.json(data, {
       status: response.status,
