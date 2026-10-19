@@ -80,6 +80,36 @@ export default function PricingPlanPage() {
     // Resolve currency from localStorage currency_id / session / restaurant profile and listen to storage events
     useEffect(() => {
         const initCurrency = async () => {
+            const shopId = localStorage.getItem("shop_id") || sessionStorage.getItem("shop_id");
+
+            // 1. Authoritative: Fetch currency configured for this shop from the database
+            if (shopId) {
+                try {
+                    const info = await setupService.getRestaurantInformation(Number(shopId));
+                    if (info?.currency_id || info?.currency) {
+                        const isUsd = String(info.currency_id).trim() === "2" || info.currency === "USD" || info.currency === "$";
+                        const currCode = isUsd ? "USD" : "INR";
+                        const currSym = isUsd ? "$" : "₹";
+                        const shopCurr = isUsd ? "$" : "Rs.";
+                        const cId = isUsd ? "2" : "1";
+
+                        setCurrency(currCode);
+                        setCurrencySymbol(currSym);
+
+                        localStorage.setItem("currency", currCode);
+                        localStorage.setItem("shopcurrency", shopCurr);
+                        localStorage.setItem("currency_id", cId);
+                        sessionStorage.setItem("currency", currCode);
+                        sessionStorage.setItem("shopcurrency", shopCurr);
+                        sessionStorage.setItem("currency_id", cId);
+                        return;
+                    }
+                } catch (e) {
+                    console.error("Error fetching restaurant currency from database:", e);
+                }
+            }
+
+            // 2. Fallback to existing session / local storage if shopId lookup failed
             const currencyId =
                 localStorage.getItem("currency_id") ||
                 localStorage.getItem("currencyId") ||
@@ -88,47 +118,23 @@ export default function PricingPlanPage() {
 
             if (currencyId) {
                 const idStr = String(currencyId).trim();
-                if (idStr === "1") {
-                    setCurrency("INR");
-                    setCurrencySymbol("₹");
-                    return;
-                } else if (idStr === "2") {
+                if (idStr === "2") {
                     setCurrency("USD");
                     setCurrencySymbol("$");
+                    return;
+                } else if (idStr === "1") {
+                    setCurrency("INR");
+                    setCurrencySymbol("₹");
                     return;
                 }
             }
 
-            let sessionCurr =
+            const sessionCurr =
                 localStorage.getItem("shopcurrency") ||
                 localStorage.getItem("currency") ||
                 sessionStorage.getItem("shopcurrency") ||
                 sessionStorage.getItem("currency") ||
                 "";
-            const shopId = localStorage.getItem("shop_id") || sessionStorage.getItem("shop_id");
-
-            if (!sessionCurr && shopId) {
-                try {
-                    const info = await setupService.getRestaurantInformation(Number(shopId));
-                    if (info?.currency_id) {
-                        const cId = String(info.currency_id).trim();
-                        if (cId === "1") {
-                            setCurrency("INR");
-                            setCurrencySymbol("₹");
-                            return;
-                        } else if (cId === "2") {
-                            setCurrency("USD");
-                            setCurrencySymbol("$");
-                            return;
-                        }
-                    }
-                    if (info?.currency) {
-                        sessionCurr = info.currency;
-                    }
-                } catch (e) {
-                    console.error("Error fetching restaurant currency:", e);
-                }
-            }
 
             if (sessionCurr) {
                 const trimmed = sessionCurr.trim();

@@ -213,6 +213,7 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { authService } from "@/api/services/auth.service";
+import { setupService } from "@/api/services/setup.service";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import "./page.css";
@@ -259,7 +260,28 @@ export default function LoginPage() {
         sessionStorage.removeItem("subdomain");
         sessionStorage.removeItem("subdomain_for");
         sessionStorage.setItem("shop_id", String(shopId));
+        localStorage.setItem("shop_id", String(shopId));
         sessionStorage.setItem("isLoggedIn", "true");
+
+        // Fetch restaurant currency from database for this shop
+        try {
+          const info = await setupService.getRestaurantInformation(Number(shopId));
+          if (info?.currency_id || info?.currency) {
+            const isUsd = String(info.currency_id).trim() === "2" || info.currency === "USD" || info.currency === "$";
+            const currCode = isUsd ? "USD" : "INR";
+            const shopCurr = isUsd ? "$" : "Rs.";
+            const cId = isUsd ? "2" : "1";
+
+            sessionStorage.setItem("currency", currCode);
+            sessionStorage.setItem("shopcurrency", shopCurr);
+            sessionStorage.setItem("currency_id", cId);
+            localStorage.setItem("currency", currCode);
+            localStorage.setItem("shopcurrency", shopCurr);
+            localStorage.setItem("currency_id", cId);
+          }
+        } catch (e) {
+          console.error("Failed to fetch shop currency on login:", e);
+        }
 
         router.replace("/setup/my-profile");
       } else {
