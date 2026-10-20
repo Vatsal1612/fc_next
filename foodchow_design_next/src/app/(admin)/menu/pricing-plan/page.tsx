@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { menuService } from "@/api/services/menu.service";
 import { setupService } from "@/api/services/setup.service";
+import { getCurrencySymbol } from "@/hooks/useSessionCurrency";
 // @ts-ignore
 import "./page.css";
 
@@ -36,72 +37,54 @@ export default function PricingPlanPage() {
     const [activeSubscriptions, setActiveSubscriptions] = useState<any[]>([]);
     const [, setLoading] = useState(true);
 
-    // Resolve initial currency synchronously if in browser
-    const getInitialCurrency = (): { curr: string; sym: string } => {
+    // Use database currency / symbol directly from session (replicating MVC's Session["shopcurrency"])
+    const [currency, setCurrency] = useState<string>(() => {
         if (typeof window !== "undefined") {
-            const currencyId =
-                localStorage.getItem("currency_id") ||
-                localStorage.getItem("currencyId") ||
-                sessionStorage.getItem("currency_id") ||
-                sessionStorage.getItem("currencyId");
-
-            if (currencyId) {
-                const idStr = String(currencyId).trim();
-                if (idStr === "2") return { curr: "USD", sym: "$" };
-                if (idStr === "1") return { curr: "INR", sym: "₹" };
-            }
-
-            const sessionCurr =
-                localStorage.getItem("shopcurrency") ||
+            return (
+                sessionStorage.getItem("currency") ||
                 localStorage.getItem("currency") ||
                 sessionStorage.getItem("shopcurrency") ||
-                sessionStorage.getItem("currency") ||
-                "";
-
-            if (sessionCurr) {
-                const trimmed = sessionCurr.trim();
-                if (trimmed === "2" || trimmed === "USD" || trimmed === "$") return { curr: "USD", sym: "$" };
-                if (trimmed === "1" || trimmed === "INR" || trimmed === "Rs." || trimmed === "Rs" || trimmed === "₹") return { curr: "INR", sym: "₹" };
-                if (trimmed === "AUD") return { curr: "AUD", sym: "A$" };
-                if (trimmed === "CAD") return { curr: "CAD", sym: "C$" };
-                if (trimmed === "EUR" || trimmed === "€") return { curr: "EUR", sym: "€" };
-                if (trimmed === "GBP" || trimmed === "£") return { curr: "GBP", sym: "£" };
-                return { curr: trimmed, sym: trimmed };
-            }
+                localStorage.getItem("shopcurrency") ||
+                "INR"
+            );
         }
-        return { curr: "INR", sym: "₹" };
-    };
+        return "INR";
+    });
 
-    const initialCurrencyInfo = getInitialCurrency();
-    const [currency, setCurrency] = useState<string>(initialCurrencyInfo.curr);
-    const [currencySymbol, setCurrencySymbol] = useState<string>(initialCurrencyInfo.sym);
+    const [currencySymbol, setCurrencySymbol] = useState<string>(() => {
+        if (typeof window !== "undefined") {
+            const raw =
+                sessionStorage.getItem("shopcurrency") ||
+                localStorage.getItem("shopcurrency") ||
+                sessionStorage.getItem("currency") ||
+                localStorage.getItem("currency") ||
+                "INR";
+            return getCurrencySymbol(raw);
+        }
+        return "₹";
+    });
+
     const lastCurrency = useRef<string | null>(null);
 
-    // Resolve currency from localStorage currency_id / session / restaurant profile and listen to storage events
+    // Resolve currency directly from database via setupService.getRestaurantInformation (USP_GetShopDetailsById)
     useEffect(() => {
         const initCurrency = async () => {
             const shopId = localStorage.getItem("shop_id") || sessionStorage.getItem("shop_id");
 
-            // 1. Authoritative: Fetch currency configured for this shop from the database
             if (shopId) {
                 try {
                     const info = await setupService.getRestaurantInformation(Number(shopId));
-                    if (info?.currency_id || info?.currency) {
-                        const isUsd = String(info.currency_id).trim() === "2" || info.currency === "USD" || info.currency === "$";
-                        const currCode = isUsd ? "USD" : "INR";
-                        const currSym = isUsd ? "$" : "₹";
-                        const shopCurr = isUsd ? "$" : "Rs.";
-                        const cId = isUsd ? "2" : "1";
+                    if (info?.currency) {
+                        const dbVal = String(info.currency).trim();
+                        // In MVC USP_GetShopDetailsByIdPassword / food_shop_settings:
+                        const sym = getCurrencySymbol(dbVal);
+                        setCurrency(dbVal);
+                        setCurrencySymbol(sym);
 
-                        setCurrency(currCode);
-                        setCurrencySymbol(currSym);
-
-                        localStorage.setItem("currency", currCode);
-                        localStorage.setItem("shopcurrency", shopCurr);
-                        localStorage.setItem("currency_id", cId);
-                        sessionStorage.setItem("currency", currCode);
-                        sessionStorage.setItem("shopcurrency", shopCurr);
-                        sessionStorage.setItem("currency_id", cId);
+                        localStorage.setItem("currency", dbVal);
+                        localStorage.setItem("shopcurrency", sym);
+                        sessionStorage.setItem("currency", dbVal);
+                        sessionStorage.setItem("shopcurrency", sym);
                         return;
                     }
                 } catch (e) {
@@ -109,54 +92,18 @@ export default function PricingPlanPage() {
                 }
             }
 
-            // 2. Fallback to existing session / local storage if shopId lookup failed
-            const currencyId =
-                localStorage.getItem("currency_id") ||
-                localStorage.getItem("currencyId") ||
-                sessionStorage.getItem("currency_id") ||
-                sessionStorage.getItem("currencyId");
-
-            if (currencyId) {
-                const idStr = String(currencyId).trim();
-                if (idStr === "2") {
-                    setCurrency("USD");
-                    setCurrencySymbol("$");
-                    return;
-                } else if (idStr === "1") {
-                    setCurrency("INR");
-                    setCurrencySymbol("₹");
-                    return;
-                }
-            }
-
-            const sessionCurr =
-                localStorage.getItem("shopcurrency") ||
-                localStorage.getItem("currency") ||
+            // Fallback to whatever was stored in session
+            const stored =
                 sessionStorage.getItem("shopcurrency") ||
+                localStorage.getItem("shopcurrency") ||
                 sessionStorage.getItem("currency") ||
+                localStorage.getItem("currency") ||
                 "";
 
-            if (sessionCurr) {
-                const trimmed = sessionCurr.trim();
-                let sym = trimmed;
-                let apiCurr = trimmed;
-                if (trimmed === "1" || trimmed === "INR" || trimmed === "Rs." || trimmed === "Rs" || trimmed === "₹") {
-                    sym = "₹";
-                    apiCurr = "INR";
-                } else if (trimmed === "2" || trimmed === "USD" || trimmed === "$") {
-                    sym = "$";
-                    apiCurr = "USD";
-                } else if (trimmed === "AUD") {
-                    sym = "A$";
-                } else if (trimmed === "CAD") {
-                    sym = "C$";
-                } else if (trimmed === "EUR" || trimmed === "€") {
-                    sym = "€";
-                } else if (trimmed === "GBP" || trimmed === "£") {
-                    sym = "£";
-                }
-                setCurrency(apiCurr);
-                setCurrencySymbol(sym);
+            if (stored) {
+                const trimmed = stored.trim();
+                setCurrency(trimmed);
+                setCurrencySymbol(getCurrencySymbol(trimmed));
             }
         };
 
@@ -468,6 +415,76 @@ export default function PricingPlanPage() {
             .replace(/Rs\.?\s?10/gi, "$1");
     };
 
+    // Helper to render addon icons matching MVC Index.cshtml
+    const getAddonIcon = (name: string = "") => {
+        const lower = name.toLowerCase();
+        if (lower.includes("happy hour")) {
+            return (
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="19" y1="5" x2="5" y2="19"></line>
+                    <circle cx="6.5" cy="6.5" r="2.5"></circle>
+                    <circle cx="17.5" cy="17.5" r="2.5"></circle>
+                </svg>
+            );
+        }
+        if (lower.includes("pos")) {
+            return (
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="4" y="2" width="16" height="20" rx="2"></rect>
+                    <line x1="8" y1="6" x2="16" y2="6"></line>
+                    <line x1="8" y1="10" x2="16" y2="10"></line>
+                    <line x1="8" y1="14" x2="12" y2="14"></line>
+                </svg>
+            );
+        }
+        if (lower.includes("bio link")) {
+            return (
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                </svg>
+            );
+        }
+        if (lower.includes("whatsapp")) {
+            return (
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                </svg>
+            );
+        }
+        if (lower.includes("kds") || lower.includes("kitchen")) {
+            return (
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+            );
+        }
+        if (lower.includes("menu")) {
+            return (
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            );
+        }
+        if (lower.includes("snap")) {
+            return (
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="16"></line>
+                    <line x1="8" y1="12" x2="16" y2="12"></line>
+                </svg>
+            );
+        }
+        return (
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
+        );
+    };
+
     return (
         <div id="pg-menu-pricing-plan">
             <div className="page-content" style={{ padding: "20px 24px" }}>
@@ -557,25 +574,103 @@ export default function PricingPlanPage() {
                                 ))}
                             </div>
 
-                            {/* FREE Add-ons Included in Growth */}
+                            {/* FREE Add-ons Included in Growth (From Database / MVC layout) */}
+                            {normalizedAddons && normalizedAddons.length > 0 && (
+                                <div className="growth-addons-section" style={{ marginTop: "20px" }}>
+                                    <div className="growth-addons-header" style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, fontSize: "13px", color: "#111", padding: "10px 4px 12px" }}>
+                                        <span>Get FREE Powerful Add-ons</span>
+                                        <span>Valued</span>
+                                    </div>
+                                    <div className="growth-addons-list" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                        {normalizedAddons.map((addon: any, idx: number) => {
+                                            const addonPrice = addon.Price != null ? Number(addon.Price) : 0;
+                                            return (
+                                                <div
+                                                    key={`growth-addon-${addon.Id ?? idx}`}
+                                                    style={{
+                                                        background: "#3EA696",
+                                                        color: "#ffffff",
+                                                        padding: "10px 16px",
+                                                        borderRadius: "8px",
+                                                        display: "flex",
+                                                        justifyContent: "space-between",
+                                                        alignItems: "center",
+                                                        fontSize: "12px",
+                                                        fontWeight: 600,
+                                                        boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
+                                                    }}
+                                                >
+                                                    <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                                        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                                                            {getAddonIcon(addon.Name)}
+                                                        </span>
+                                                        <span>{addon.Name}</span>
+                                                    </span>
+                                                    <span style={{ fontWeight: 800, color: "#ffffff", whiteSpace: "nowrap" }}>
+                                                        {currencySymbol}{formatPrice(addonPrice)} / {addon.BillingCycle ? addon.BillingCycle.toLowerCase() : "year"}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
 
-                            {/* Guarantee Card */}
+                            {/* Guarantee Card (Matches MVC .growth-guarantee) */}
                             {growthPlan?.Guarantee?.Title && (
-                                <div className="guarantee-card">
-                                    <h3>{formatFeatureOrGuaranteeText(growthPlan.Guarantee.Title)}</h3>
+                                <div
+                                    className="guarantee-card"
+                                    style={{
+                                        background: "#3BA99C",
+                                        color: "#ffffff",
+                                        textAlign: "center",
+                                        padding: "20px",
+                                        borderRadius: "10px",
+                                        border: "2px solid #ffffff",
+                                        margin: "16px 0",
+                                        boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
+                                    }}
+                                >
+                                    <h3 style={{ fontSize: "16px", fontWeight: 800, margin: "0 0 6px 0", color: "#ffffff" }}>
+                                        {formatFeatureOrGuaranteeText(growthPlan.Guarantee.Title)}
+                                    </h3>
                                     {growthPlan.Guarantee.Description && (
-                                        <p>{formatFeatureOrGuaranteeText(growthPlan.Guarantee.Description)}</p>
+                                        <p style={{ fontSize: "12px", margin: 0, fontWeight: 500, color: "rgba(255,255,255,0.9)" }}>
+                                            {formatFeatureOrGuaranteeText(growthPlan.Guarantee.Description)}
+                                        </p>
                                     )}
                                 </div>
                             )}
 
-                            {/* Total Value & Savings Box */}
-                            <div className="totals-card">
-                                <div className="total-bar red">
+                            {/* Total Value & Savings Box (Matches MVC .growth-totals-box) */}
+                            <div className="totals-card" style={{ background: "#ffffff", borderRadius: "10px", textAlign: "center", padding: "16px", marginTop: "16px" }}>
+                                <div
+                                    className="total-bar red"
+                                    style={{
+                                        background: "#E60012",
+                                        color: "#ffffff",
+                                        borderRadius: "6px",
+                                        padding: "12px",
+                                        fontWeight: 800,
+                                        fontSize: "14px",
+                                        marginBottom: growthTotalSavings > 0 ? "8px" : "12px"
+                                    }}
+                                >
                                     Total Value: {currencySymbol}{formatPrice(growthTotalValue)}
                                 </div>
                                 {growthTotalSavings > 0 && (
-                                    <div className="total-bar green">
+                                    <div
+                                        className="total-bar green"
+                                        style={{
+                                            background: "#28A745",
+                                            color: "#ffffff",
+                                            borderRadius: "6px",
+                                            padding: "12px",
+                                            fontWeight: 800,
+                                            fontSize: "14px",
+                                            marginBottom: "12px"
+                                        }}
+                                    >
                                         Save {currencySymbol}{formatPrice(growthTotalSavings)}
                                     </div>
                                 )}

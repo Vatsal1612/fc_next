@@ -266,11 +266,16 @@ export default function LoginPage() {
         // Fetch restaurant currency from database for this shop
         try {
           const info = await setupService.getRestaurantInformation(Number(shopId));
-          if (info?.currency_id || info?.currency) {
-            const isUsd = String(info.currency_id).trim() === "2" || info.currency === "USD" || info.currency === "$";
-            const currCode = isUsd ? "USD" : "INR";
-            const shopCurr = isUsd ? "$" : "Rs.";
-            const cId = isUsd ? "2" : "1";
+          if (info?.currency || info?.currency_id || info?.food_currency_id) {
+            const dbCurrency = String(info.currency || "").trim();
+            const dbCurrencyId = String(info.currency_id || info.food_currency_id || "").trim();
+
+            const isUsd = dbCurrencyId === "2" || dbCurrency === "USD" || dbCurrency === "$";
+            const isIndian = dbCurrencyId === "1" || dbCurrency === "INR" || dbCurrency === "Rs." || dbCurrency === "Rs" || dbCurrency === "₹";
+
+            const currCode = isUsd ? "USD" : isIndian ? "INR" : (dbCurrency || "INR");
+            const shopCurr = isUsd ? "$" : isIndian ? "Rs." : (dbCurrency || "Rs.");
+            const cId = isUsd ? "2" : isIndian ? "1" : (dbCurrencyId || "1");
 
             sessionStorage.setItem("currency", currCode);
             sessionStorage.setItem("shopcurrency", shopCurr);

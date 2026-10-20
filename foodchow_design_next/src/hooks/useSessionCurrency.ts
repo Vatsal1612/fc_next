@@ -9,21 +9,17 @@ export interface CurrencyInfo {
 }
 
 export function getCurrencySymbol(curr: string): string {
-  const trimmed = (curr || "").trim();
-  if (trimmed === "INR" || trimmed === "Rs." || trimmed === "Rs" || trimmed === "₹") {
+  if (!curr) return "₹";
+  const trimmed = curr.trim();
+  // In the MVC database (food_currency), symbols are: "Rs." or "₹", "$", "C$", "€", "£", "A$", "ZAR", etc.
+  if (trimmed === "1" || trimmed === "INR" || trimmed === "Rs." || trimmed === "Rs" || trimmed === "₹") {
     return "₹";
-  } else if (trimmed === "USD" || trimmed === "$") {
-    return "$";
-  } else if (trimmed === "AUD") {
-    return "A$";
-  } else if (trimmed === "CAD") {
-    return "C$";
-  } else if (trimmed === "EUR" || trimmed === "€") {
-    return "€";
-  } else if (trimmed === "GBP" || trimmed === "£") {
-    return "£";
   }
-  return trimmed || "₹";
+  if (trimmed === "2" || trimmed === "USD" || trimmed === "$") {
+    return "$";
+  }
+  // If curr is already the symbol stored in food_currency or shopcurrency (e.g., "$", "Rs.", "€", "£", "A$", "C$")
+  return trimmed;
 }
 
 export function formatMoney(
