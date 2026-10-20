@@ -155,7 +155,14 @@ export default function MyPlanPage() {
                             currencyORpercentage: item.currencyORpercentage,
                         }));
 
-                        if (formatted[0]?.currencyORpercentage) {
+                        // Only fallback to currencyORpercentage if no shopcurrency is set yet
+                        const existingShopCurrency =
+                            sessionStorage.getItem("shopcurrency") ||
+                            localStorage.getItem("shopcurrency") ||
+                            sessionStorage.getItem("currency") ||
+                            localStorage.getItem("currency");
+
+                        if (!existingShopCurrency && formatted[0]?.currencyORpercentage) {
                             setCurrency(formatted[0].currencyORpercentage);
                             setCurrencySymbol(getSymbolForCurrency(formatted[0].currencyORpercentage));
                         }

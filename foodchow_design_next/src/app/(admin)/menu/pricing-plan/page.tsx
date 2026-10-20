@@ -13,6 +13,13 @@ const Check = () => (
     </svg>
 );
 
+const Cross = () => (
+    <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+    </svg>
+);
+
 export default function PricingPlanPage() {
     // 4 Main Tabs: Growth Plan, POS, Online Ordering, Add-ons
     const [activeTab, setActiveTab] = useState<"growth" | "pos" | "online" | "addons">("growth");
@@ -183,6 +190,45 @@ export default function PricingPlanPage() {
         }
 
         return 0;
+    };
+
+    /**
+     * Resolves setup fee from fd_mp_planpricing (plan.Pricing array or top-level properties)
+     */
+    const getPlanSetupFee = (plan: any, defaultFee: number = 0): number => {
+        if (!plan) return defaultFee;
+        const pricing = Array.isArray(plan.Pricing) ? plan.Pricing[0] : (Array.isArray(plan.pricing) ? plan.pricing[0] : null);
+        if (pricing?.SetupFee != null && !Number.isNaN(Number(pricing.SetupFee))) {
+            return Number(pricing.SetupFee);
+        }
+        if (pricing?.setupFee != null && !Number.isNaN(Number(pricing.setupFee))) {
+            return Number(pricing.setupFee);
+        }
+        if (plan.SetupFee != null && !Number.isNaN(Number(plan.SetupFee))) {
+            return Number(plan.SetupFee);
+        }
+        return defaultFee;
+    };
+
+    /**
+     * Resolves commission percentage, payment gateway fee, and total transaction fee
+     * directly from fd_mp_planpricing (plan.Pricing[0] or plan properties)
+     */
+    const getCommissionInfo = (plan: any, fallbackComm: number) => {
+        if (!plan) return null;
+        const pricing = Array.isArray(plan.Pricing) ? plan.Pricing[0] : (Array.isArray(plan.pricing) ? plan.pricing[0] : null);
+
+        const rawComm = pricing?.CommissionPercent ?? pricing?.commissionPercent ?? plan.CommissionPercent ?? plan.commissionPercent;
+        const rawPgFee = pricing?.PGFeePercent ?? pricing?.pgFeePercent ?? plan.PGFeePercent ?? plan.pgFeePercent;
+
+        const comm = rawComm != null && !Number.isNaN(parseFloat(rawComm)) ? parseFloat(rawComm) : fallbackComm;
+        const pgFee = rawPgFee != null && !Number.isNaN(parseFloat(rawPgFee)) ? parseFloat(rawPgFee) : 2.36;
+        const total = (comm + pgFee).toFixed(2);
+        return {
+            comm,
+            pgFee,
+            total,
+        };
     };
 
     // Subscriptions check
@@ -485,6 +531,71 @@ export default function PricingPlanPage() {
         );
     };
 
+    // Helper to render features for Online Ordering cards exactly matching MVC Index.cshtml (lines 1241-1275)
+    const renderOnlineFeatures = (plan: any) => {
+        let features = plan?.Features || plan?.features;
+        const px = String(plan?.Code || plan?.code || plan?.Name || "").toLowerCase();
+
+        // Exact MVC handling: if the database returns plan.Features, use them.
+        // If not populated in the DB yet, MVC Index.cshtml supplies the canonical feature set based on plan code:
+        if (!features || !Array.isArray(features) || features.length === 0) {
+            if (px.includes("fixed")) {
+                features = [
+                    { Name: px.includes("free") ? "Orders per month: Up to 25" : "Orders per month: No limit", IsIncluded: true },
+                    { Name: "Online payment gateway", IsIncluded: !px.includes("free") },
+                    { Name: "Branded ordering page + Google visibility", IsIncluded: true },
+                    { Name: "Menu management", IsIncluded: true },
+                    { Name: "Table booking", IsIncluded: true },
+                    { Name: "Call & directions button", IsIncluded: true },
+                    { Name: "Basic reporting", IsIncluded: true },
+                    {
+                        Name: px.includes("free")
+                            ? "Contract: None"
+                            : px.includes("yearly")
+                            ? "Contract: Billed once a year"
+                            : "Contract: Cancel anytime",
+                        IsIncluded: true,
+                    },
+                ];
+            } else if (px.includes("comm")) {
+                features = [
+                    { Name: "Branded ordering page", IsIncluded: true },
+                    { Name: "Menu management", IsIncluded: true },
+                    { Name: "Basic reporting", IsIncluded: true },
+                    { Name: "No setup fee", IsIncluded: true },
+                    { Name: "No contract", IsIncluded: true },
+                    { Name: "Table reservation", IsIncluded: !px.includes("free") },
+                    { Name: "WhatsApp order alerts", IsIncluded: !px.includes("free") },
+                    { Name: "Advanced analytics", IsIncluded: px.includes("premium") },
+                    { Name: "Priority support", IsIncluded: px.includes("premium") },
+                    { Name: "Custom offer module", IsIncluded: px.includes("premium") },
+                ];
+            }
+        }
+
+        if (!features || !Array.isArray(features) || features.length === 0) return null;
+
+        return (
+            <div className="oo-features" style={{ marginTop: "14px" }}>
+                {features.map((f: any, idx: number) => {
+                    const isIncluded = f.IsIncluded !== false && f.is_included !== false;
+                    return (
+                        <div
+                            className="oo-feat"
+                            key={`oo-feat-${plan?.Id || px || "plan"}-${f.Id || f.id || idx}`}
+                            style={{ color: isIncluded ? undefined : "#aaa" }}
+                        >
+                            <div className={`oo-check ${isIncluded ? "green" : "red"}`}>
+                                {isIncluded ? <Check /> : <Cross />}
+                            </div>
+                            <span>{formatFeatureOrGuaranteeText(f.Name || f.name)}</span>
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
+
     return (
         <div id="pg-menu-pricing-plan">
             <div className="page-content" style={{ padding: "20px 24px" }}>
@@ -543,35 +654,18 @@ export default function PricingPlanPage() {
                                 <div className="all-features">{growthPlan?.Subtitle || "All Features In One Plan"}</div>
                             </div>
 
-                            {/* Core Features List */}
+                            {/* Core Features List (Dynamically from API) */}
                             <div id="features-list">
-                                {(growthPlan?.Features && growthPlan.Features.length > 0
-                                    ? growthPlan.Features.filter((f: any) => f.IsIncluded)
-                                    : [
-                                        { Id: 1, Name: "Take Away / Dine In / Delivery" },
-                                        { Id: 2, Name: "Razorpay / Stripe payment gateway" },
-                                        { Id: 3, Name: "Online Order + Billing Full app" },
-                                        { Id: 4, Name: "Free Sales Credit" },
-                                        { Id: 5, Name: "Menu customization" },
-                                        { Id: 6, Name: "Tax Management" },
-                                        { Id: 7, Name: "Promo Code / Coupon" },
-                                        { Id: 8, Name: "Multiple Language" },
-                                        { Id: 9, Name: "Own Driver/Porter Delivery Integration" },
-                                        { Id: 10, Name: "Custom Domain" },
-                                        { Id: 11, Name: "Google Local Optimisation" },
-                                        { Id: 12, Name: "Google Analytics" },
-                                        { Id: 13, Name: "Coaching Session" },
-                                        { Id: 14, Name: "250 Orders Guaranteed in 90 Days" },
-                                        { Id: 15, Name: "SEO Optimization" },
-                                    ]
-                                ).map((feature: any) => (
-                                    <div className="feature-row" key={feature.Id}>
-                                        <div className="feature-icon">
-                                            <Check />
+                                {(growthPlan?.Features || [])
+                                    .filter((f: any) => f.IsIncluded !== false && f.is_included !== false)
+                                    .map((feature: any) => (
+                                        <div className="feature-row" key={feature.Id || feature.FeatureId}>
+                                            <div className="feature-icon">
+                                                <Check />
+                                            </div>
+                                            <span>{formatFeatureOrGuaranteeText(feature.Name || feature.name)}</span>
                                         </div>
-                                        <span>{formatFeatureOrGuaranteeText(feature.Name)}</span>
-                                    </div>
-                                ))}
+                                    ))}
                             </div>
 
                             {/* FREE Add-ons Included in Growth (From Database / MVC layout) */}
@@ -758,24 +852,10 @@ export default function PricingPlanPage() {
                                     </button>
                                 )}
 
-                                {/* Features by section */}
-                                {(posLitePlan?.Features && posLitePlan.Features.length > 0
-                                    ? posLitePlan.Features
-                                    : [
-                                        { Id: 14, Name: "Includes everything in Free plan", ExtraInfo: "Billing & operations" },
-                                        { Id: 15, Name: "Custom payment methods (cash, UPI, card)", ExtraInfo: "Billing & operations" },
-                                        { Id: 16, Name: "Address customization for delivery", ExtraInfo: "Billing & operations" },
-                                        { Id: 17, Name: "Service charges & tax setup", ExtraInfo: "Billing & operations" },
-                                        { Id: 18, Name: "Multi-user with role permissions", ExtraInfo: "Billing & operations" },
-                                        { Id: 19, Name: "Item notes & item codes", ExtraInfo: "Billing & operations" },
-                                        { Id: 20, Name: "Expense tracking & daily reports", ExtraInfo: "Billing & operations" },
-                                        { Id: 21, Name: "Printer customization (KOT & receipt)", ExtraInfo: "Setup & customization" },
-                                        { Id: 22, Name: "Table reservation", ExtraInfo: "Setup & customization" },
-                                        { Id: 23, Name: "Cloud sync across devices", ExtraInfo: "Setup & customization" },
-                                    ]
-                                )
+                                {/* Features by section (Dynamically from API grouped by ExtraInfo) */}
+                                {(posLitePlan?.Features || [])
                                     ?.reduce((sections: any[], feature: any) => {
-                                        const title = feature.ExtraInfo || "Features";
+                                        const title = feature.ExtraInfo || feature.extra_info || "Features";
                                         const section = sections.find((s) => s.title === title);
                                         if (section) {
                                             section.features.push(feature);
@@ -788,11 +868,11 @@ export default function PricingPlanPage() {
                                         <div key={section.title}>
                                             <div className="feat-section-title">{section.title}</div>
                                             {section.features.map((feature: any) => (
-                                                <div className="feat-item" key={feature.Id}>
+                                                <div className="feat-item" key={feature.Id || feature.FeatureId}>
                                                     <div className="feat-check">
                                                         <Check />
                                                     </div>
-                                                    <span>{feature.Name}</span>
+                                                    <span>{feature.Name || feature.name}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -829,28 +909,32 @@ export default function PricingPlanPage() {
                                     </button>
                                 )}
 
-                                <div className="feat-section-title">Everything In Lite, plus</div>
-
-                                {(posPremiumPlan?.Features && posPremiumPlan.Features.length > 0
-                                    ? posPremiumPlan.Features.filter((f: any) => f.IsIncluded)
-                                    : [
-                                        { Id: 27, Name: "Meal deals & combo builder" },
-                                        { Id: 28, Name: "Split bill & split payment" },
-                                        { Id: 29, Name: "Multiple menus (lunch, dinner, party)" },
-                                        { Id: 30, Name: "Item-level cost & profit estimates" },
-                                        { Id: 34, Name: "Auto-print online orders to KOT" },
-                                        { Id: 35, Name: "Online order auto-accept rules" },
-                                        { Id: 36, Name: "Coupons & promo codes" },
-                                        { Id: 37, Name: "Dine-in QR code (table-side ordering)" },
-                                    ]
-                                ).map((feature: any) => (
-                                    <div className="feat-item" key={feature.Id}>
-                                        <div className="feat-check">
-                                            <Check />
+                                {/* Features by section (Dynamically from API grouped by ExtraInfo) */}
+                                {(posPremiumPlan?.Features || [])
+                                    ?.filter((f: any) => f.IsIncluded !== false && f.is_included !== false)
+                                    ?.reduce((sections: any[], feature: any) => {
+                                        const title = feature.ExtraInfo || feature.extra_info || "Features";
+                                        const section = sections.find((s) => s.title === title);
+                                        if (section) {
+                                            section.features.push(feature);
+                                        } else {
+                                            sections.push({ title, features: [feature] });
+                                        }
+                                        return sections;
+                                    }, [])
+                                    .map((section: any) => (
+                                        <div key={section.title}>
+                                            <div className="feat-section-title">{section.title}</div>
+                                            {section.features.map((feature: any) => (
+                                                <div className="feat-item" key={feature.Id || feature.FeatureId}>
+                                                    <div className="feat-check">
+                                                        <Check />
+                                                    </div>
+                                                    <span>{feature.Name || feature.name}</span>
+                                                </div>
+                                            ))}
                                         </div>
-                                        <span>{feature.Name}</span>
-                                    </div>
-                                ))}
+                                    ))}
                             </div>
                         </div>
                     </div>
@@ -910,36 +994,7 @@ export default function PricingPlanPage() {
                                                 </button>
                                             )}
 
-                                            <div className="oo-features" style={{ marginTop: "14px" }}>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Orders per month: Up to 25
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Branded ordering page + Google visibility
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Menu management
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Table booking
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Call & directions button
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Basic reporting
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Contract: None
-                                                </div>
-                                            </div>
+                                            {renderOnlineFeatures(fixedFreePlan)}
                                         </div>
                                     )}
 
@@ -951,6 +1006,14 @@ export default function PricingPlanPage() {
                                             <div className="oo-price-plain">
                                                 {currencySymbol}{formatPrice(fixedMonthlyPrice)} / month
                                             </div>
+                                            {(() => {
+                                                const setupFee = getPlanSetupFee(fixedMonthlyPlan, 2999);
+                                                return setupFee > 0 ? (
+                                                    <div style={{ fontSize: "13px", color: "#444", fontWeight: 700, margin: "6px 0 6px" }}>
+                                                        + {currencySymbol}{formatPrice(setupFee)} one-time setup fee
+                                                    </div>
+                                                ) : null;
+                                            })()}
                                             <div className="oo-desc">{fixedMonthlyPlan.Subtitle || "Cancel anytime"}</div>
                                             {isPlanActive(1007, fixedMonthlyPlan?.Name) ? (
                                                 <button
@@ -970,36 +1033,7 @@ export default function PricingPlanPage() {
                                                 </button>
                                             )}
 
-                                            <div className="oo-features" style={{ marginTop: "14px" }}>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Orders per month: No limit
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Online payment gateway
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Branded ordering page + Google visibility
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Menu management
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Table booking
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Basic reporting
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Contract: Cancel anytime
-                                                </div>
-                                            </div>
+                                            {renderOnlineFeatures(fixedMonthlyPlan)}
                                         </div>
                                     )}
 
@@ -1011,7 +1045,7 @@ export default function PricingPlanPage() {
                                             <div className="oo-price-plain">
                                                 {currencySymbol}{formatPrice(fixedYearlyPrice)} / year
                                             </div>
-                                            <div className="oo-desc">{fixedYearlyPlan.Subtitle || "Save up to 50%"}</div>
+                                            <div className="oo-desc" style={{ marginTop: "6px" }}>{fixedYearlyPlan.Subtitle || "Save up to 50%"}</div>
                                             {isPlanActive(1008, fixedYearlyPlan?.Name) ? (
                                                 <button
                                                     type="button"
@@ -1030,36 +1064,7 @@ export default function PricingPlanPage() {
                                                 </button>
                                             )}
 
-                                            <div className="oo-features" style={{ marginTop: "14px" }}>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Orders per month: No limit
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Online payment gateway
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Branded ordering page + Google visibility
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Menu management
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Table booking
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Basic reporting
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Contract: Billed once a year (Save 50%)
-                                                </div>
-                                            </div>
+                                            {renderOnlineFeatures(fixedYearlyPlan)}
                                         </div>
                                     )}
                                 </div>
@@ -1078,6 +1083,17 @@ export default function PricingPlanPage() {
                                             <div className="oo-price-plain">
                                                 {currencySymbol}{formatPrice(commFreePrice)} Lifetime
                                             </div>
+                                            {(() => {
+                                                const commInfo = getCommissionInfo(commFreePlan, 8);
+                                                return commInfo ? (
+                                                    <div style={{ fontSize: "13px", color: "#444", fontWeight: 700, margin: "14px 0 14px", lineHeight: "1.6" }}>
+                                                        + {commInfo.comm}% + {commInfo.pgFee}% PG fee
+                                                        <div style={{ fontSize: "12px", fontWeight: 500, color: "#777", marginTop: "4px" }}>
+                                                            Total transaction fee: {commInfo.total}% per sale
+                                                        </div>
+                                                    </div>
+                                                ) : null;
+                                            })()}
                                             <div className="oo-desc">{commFreePlan.Subtitle || "Pay as you go"}</div>
                                             {isPlanActive(1009, commFreePlan?.Name) ? (
                                                 <button
@@ -1097,24 +1113,7 @@ export default function PricingPlanPage() {
                                                 </button>
                                             )}
 
-                                            <div className="oo-features" style={{ marginTop: "14px" }}>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Branded ordering page
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Menu management
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Basic reporting
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    No setup fee & no contract
-                                                </div>
-                                            </div>
+                                            {renderOnlineFeatures(commFreePlan)}
                                         </div>
                                     )}
 
@@ -1126,6 +1125,17 @@ export default function PricingPlanPage() {
                                             <div className="oo-price-plain">
                                                 {currencySymbol}{formatPrice(commLitePrice)} / year
                                             </div>
+                                            {(() => {
+                                                const commInfo = getCommissionInfo(commLitePlan, 5.5);
+                                                return commInfo ? (
+                                                    <div style={{ fontSize: "13px", color: "#444", fontWeight: 700, margin: "14px 0 14px", lineHeight: "1.6" }}>
+                                                        + {commInfo.comm}% + {commInfo.pgFee}% PG fee
+                                                        <div style={{ fontSize: "12px", fontWeight: 500, color: "#777", marginTop: "4px" }}>
+                                                            Total transaction fee: {commInfo.total}% per sale
+                                                        </div>
+                                                    </div>
+                                                ) : null;
+                                            })()}
                                             <div className="oo-desc">{commLitePlan.Subtitle || "Growing business"}</div>
                                             {isPlanActive(1010, commLitePlan?.Name) ? (
                                                 <button
@@ -1145,24 +1155,7 @@ export default function PricingPlanPage() {
                                                 </button>
                                             )}
 
-                                            <div className="oo-features" style={{ marginTop: "14px" }}>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Everything in Free
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Table reservation
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    WhatsApp order alerts
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Low commission per order
-                                                </div>
-                                            </div>
+                                            {renderOnlineFeatures(commLitePlan)}
                                         </div>
                                     )}
 
@@ -1174,6 +1167,17 @@ export default function PricingPlanPage() {
                                             <div className="oo-price-plain">
                                                 {currencySymbol}{formatPrice(commPremiumPrice)} / year
                                             </div>
+                                            {(() => {
+                                                const commInfo = getCommissionInfo(commPremiumPlan, 2);
+                                                return commInfo ? (
+                                                    <div style={{ fontSize: "13px", color: "#444", fontWeight: 700, margin: "14px 0 14px", lineHeight: "1.6" }}>
+                                                        + {commInfo.comm}% + {commInfo.pgFee}% PG fee
+                                                        <div style={{ fontSize: "12px", fontWeight: 500, color: "#777", marginTop: "4px" }}>
+                                                            Total transaction fee: {commInfo.total}% per sale
+                                                        </div>
+                                                    </div>
+                                                ) : null;
+                                            })()}
                                             <div className="oo-desc">{commPremiumPlan.Subtitle || "Most Popular"}</div>
                                             {isPlanActive(1011, commPremiumPlan?.Name) ? (
                                                 <button
@@ -1193,28 +1197,7 @@ export default function PricingPlanPage() {
                                                 </button>
                                             )}
 
-                                            <div className="oo-features" style={{ marginTop: "14px" }}>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Everything in Lite
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Advanced analytics & reports
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Priority support
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Custom offer module
-                                                </div>
-                                                <div className="oo-feat">
-                                                    <div className="oo-check green"><Check /></div>
-                                                    Lowest commission per order
-                                                </div>
-                                            </div>
+                                            {renderOnlineFeatures(commPremiumPlan)}
                                         </div>
                                     )}
 
@@ -1226,6 +1209,17 @@ export default function PricingPlanPage() {
                                             <div className="oo-price-plain">
                                                 {currencySymbol}{formatPrice(getPlanDisplayPrice(onlineCommissionPlan, "YEAR"))}
                                             </div>
+                                            {(() => {
+                                                const commInfo = getCommissionInfo(onlineCommissionPlan, 2);
+                                                return commInfo ? (
+                                                    <div style={{ fontSize: "13px", color: "#444", fontWeight: 700, margin: "14px 0 14px", lineHeight: "1.6" }}>
+                                                        + {commInfo.comm}% + {commInfo.pgFee}% PG fee
+                                                        <div style={{ fontSize: "12px", fontWeight: 500, color: "#777", marginTop: "4px" }}>
+                                                            Total transaction fee: {commInfo.total}% per sale
+                                                        </div>
+                                                    </div>
+                                                ) : null;
+                                            })()}
                                             <div className="oo-desc">{onlineCommissionPlan.Subtitle}</div>
                                             <button
                                                 type="button"
@@ -1234,6 +1228,7 @@ export default function PricingPlanPage() {
                                             >
                                                 {onlineCommissionPlan.CTAText || "Get Started"}
                                             </button>
+                                            {renderOnlineFeatures(onlineCommissionPlan)}
                                         </div>
                                     )}
                                 </div>
@@ -1281,12 +1276,23 @@ export default function PricingPlanPage() {
                                                     </div>
                                                 </div>
                                                 <div className="ao-features">
-                                                    <div className="ao-feat-item">
-                                                        <div className="chk">
-                                                            <Check />
+                                                    {Array.isArray(addon.Features) && addon.Features.length > 0 ? (
+                                                        addon.Features.map((feat: string, fIdx: number) => (
+                                                            <div className="ao-feat-item" key={`ao-feat-${addon.Id}-${fIdx}`}>
+                                                                <div className="chk">
+                                                                    <Check />
+                                                                </div>
+                                                                <span>{feat}</span>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="ao-feat-item">
+                                                            <div className="chk">
+                                                                <Check />
+                                                            </div>
+                                                            <span>{addon.Description || "Unlock powerful capability for your restaurant"}</span>
                                                         </div>
-                                                        {addon.Description || "Unlock powerful capability for your restaurant"}
-                                                    </div>
+                                                    )}
                                                 </div>
 
                                                 {isGrowthActive ? (
