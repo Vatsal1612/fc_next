@@ -40,14 +40,6 @@ export interface SupportedLanguage {
   lang_code_short: string;
 }
 
-export interface SupportedLanguageForShop {
-  id: number;
-  lang_name: string;
-  lang_code: string;
-  entry_exists: string; // "true" | "false"
-  is_default_language: string; // "1" | "0"
-}
-
 /** Extras types */
 export interface ExtraSize {
   item_ingredient_size_id: number;
@@ -260,55 +252,6 @@ export interface AddItemPayload {
   sold_out_flag: number;
   barcode: string;
   open_price: number;
-  is_size_available?: number;
-  FoodItemSizeList?: ItemSizePricePayload[];
-  is_choice?: number;
-  ChoiceList?: any[];
-  is_extra?: number;
-  ExtraList?: any[];
-}
-
-export interface ItemSizePricePayload {
-  Size_Id?: number;
-  size_id?: number;
-  Price?: string | number;
-  price?: string | number;
-  Net_Price?: string | number;
-  net_price?: string | number;
-  sold_out_flag?: number;
-}
-
-export interface AddStoreCategoryPayload {
-  id: number;         // 0 = insert, >0 = update
-  shop_id: number;
-  cate_name: string;
-  cate_image: string; // image filename or empty string = no image
-  description: string;
-  parent_id: number;
-}
-
-export interface UploadCategoryImagePayload {
-  id: number | string;
-  shop_id: number | string;
-  base64Image: string; // base64 string without data:image/...;base64, prefix
-}
-
-export interface EditStoreItemPayload {
-  Item_Id: number;
-  Cate_Id: number;
-  Item_Name: string;
-  Description: string;
-  Is_Veg: number;
-  barcode: string;
-  base64Image: string; // base64 without data URI prefix, or empty string
-  Item_Image: string;  // existing image filename/path (used when base64Image is empty)
-  price?: string;
-  is_size_available?: number;
-  FoodItemSizeList?: ItemSizePricePayload[];
-  is_choice?: number;
-  ChoiceList?: any[];
-  is_extra?: number;
-  ExtraList?: any[];
 }
 
 export interface MenuItem {
@@ -452,7 +395,6 @@ export interface AddDealPayload {
   DealDesc: string;
   DealMinOrder: number;
   DealImage: string;
-  base64Image?: string;
   DealTypeId: string;
   ShopId: string;
   DealPrice: string;
@@ -624,67 +566,20 @@ export const menuService = {
     console.log("AddMenuLanguage POST Response:", data);
     return data;
   },
-  async getSupportedLanguageForShop(shopId: number): Promise<SupportedLanguageForShop[]> {
-    const { data } = await foodchowWDClient.get(
-      `${ENDPOINTS.menu.getSupportedLanguageForShop}?shop_id=${shopId}`
-    );
-    if (!data.data) {
-      return [];
-    }
-    try {
-      const parsed = typeof data.data === "string" ? JSON.parse(data.data) : data.data;
-      return parsed ?? [];
-    } catch (error) {
-      console.error("Failed to parse supported languages for shop:", error);
-      return [];
-    }
-  },
-  async saveLanguageForShop(shopId: number, supportedLangId: number): Promise<any> {
-    const { data } = await foodchowWDClient.get(
-      `${ENDPOINTS.menu.saveLanguageForShop}?shop_id=${shopId}&supported_lang_id=${supportedLangId}`
-    );
-    return data;
-  },
-  async deleteLanguageForShop(shopId: number, supportedLangId: number): Promise<any> {
-    const { data } = await foodchowWDClient.get(
-      `${ENDPOINTS.menu.deleteLanguageForShop}?shop_id=${shopId}&supported_lang_id=${supportedLangId}`
-    );
-    return data;
-  },
-  async setDefaultLanguageForShop(shopId: number, supportedLangId: number): Promise<any> {
-    const { data } = await foodchowWDClient.get(
-      `${ENDPOINTS.menu.setDefaultLanguageforShop}?shop_id=${shopId}&supported_lang_id=${supportedLangId}`
-    );
-    return data;
-  },
   /** Shop-wise categories (with subcategories) for the given shop. */
   async categoriesByShop(shopId: number): Promise<MenuCategory[]> {
-    const effectiveShopId =
-      shopId ||
-      (typeof window !== "undefined"
-        ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
-        : 0) ||
-      7895;
-
     const { data } = await foodchowClient.get<ApiResponse<MenuCategory[]>>(
       ENDPOINTS.menu.categoriesByShop,
-      { params: { ShopId: effectiveShopId, shop_id: effectiveShopId } }
+      { params: { ShopId: shopId } }
     );
     return data.data ?? [];
   },
 
   /** Shop-wise extras with options and sizes for the given shop. */
   async extrasByShop(shopId: number): Promise<ExtraCategory[]> {
-    const effectiveShopId =
-      shopId ||
-      (typeof window !== "undefined"
-        ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
-        : 0) ||
-      7895;
-
     const { data } = await foodchowClient.get<ExtrasApiResponse>(
       ENDPOINTS.menu.extrasByShop,
-      { params: { ShopId: effectiveShopId, shop_id: effectiveShopId } }
+      { params: { ShopId: shopId } }
     );
     return data.data[0]?.extraCategoryList ?? [];
   },
@@ -852,35 +747,7 @@ export const menuService = {
 
     console.log("ITEM API:", data);
 
-    let parsedList: any[] = [];
-    if (data) {
-      if (typeof data.data === "string") {
-        try {
-          parsedList = JSON.parse(data.data);
-        } catch {
-          parsedList = [];
-        }
-      } else if (Array.isArray(data.data)) {
-        parsedList = data.data;
-      } else if (Array.isArray(data)) {
-        parsedList = data;
-      }
-    }
-
-    return parsedList.map((row: any) => ({
-      item_id: Number(row.item_id ?? row.ItemId ?? row.id ?? 0),
-      item_name: String(row.item_name ?? row.ItemName ?? row.name ?? ""),
-      item_code:
-        row.item_code !== undefined && row.item_code !== null
-          ? String(row.item_code).trim()
-          : row.ItemCode !== undefined && row.ItemCode !== null
-            ? String(row.ItemCode).trim()
-            : row.itemcode !== undefined && row.itemcode !== null
-              ? String(row.itemcode).trim()
-              : row.code !== undefined && row.code !== null
-                ? String(row.code).trim()
-                : "",
-    }));
+    return data.data ? JSON.parse(data.data) : [];
   },
   /** Get Item Code Type Setting */
   async getItemCodeTypeSetting(
@@ -901,19 +768,6 @@ export const menuService = {
 
     return setting[0];
   },
-  /** Save Item Code Type Setting (0: numeric, 1: alphanumeric) */
-  async saveItemCodeTypeSetting(shopId: number, itemCodeType: number) {
-    const { data } = await foodchowWDClient.get(
-      ENDPOINTS.menu.saveItemCodeTypeSetting,
-      {
-        params: {
-          shop_id: shopId,
-          item_code: itemCodeType,
-        },
-      }
-    );
-    return data;
-  },
   /** Update Item Code */
   async updateItemCode(
     shopId: number,
@@ -933,33 +787,6 @@ export const menuService = {
 
     console.log("UPDATE ITEM CODE:", data);
 
-    return data;
-  },
-  /** Change Item Position */
-  async changeItemPosition(itemIds: (string | number)[], posIds: (string | number)[]) {
-    const { data } = await foodchowWDClient.get(
-      ENDPOINTS.menu.changeItemPosition,
-      {
-        params: {
-          item_id: itemIds.join(","),
-          pos_id: posIds.join(","),
-        },
-      }
-    );
-    return data;
-  },
-
-  /** Change Category Position */
-  async changeCategoryPosition(categoryIds: (string | number)[], posIds: (string | number)[]) {
-    const { data } = await foodchowWDClient.get(
-      ENDPOINTS.menu.changeCategoryPosition,
-      {
-        params: {
-          cate_id: categoryIds.join(","),
-          pos_id: posIds.join(","),
-        },
-      }
-    );
     return data;
   },
 
@@ -1042,16 +869,8 @@ export const menuService = {
   //apply tax
   /** Get Item List With Size from FoodChowWD API */
   async getItemListWithSize(shopId: number, taxId?: number, taxType?: number): Promise<ItemWithSize[]> {
-    const effectiveShopId =
-      shopId ||
-      (typeof window !== "undefined"
-        ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
-        : 0) ||
-      7895;
-
     const params: any = {
-      shop_id: effectiveShopId,
-      ShopId: effectiveShopId,
+      shop_id: shopId,
     };
     if (taxId !== undefined && taxId !== 0) {
       params.tax_id = taxId;
@@ -1060,75 +879,35 @@ export const menuService = {
       params.current_tax_type = taxType;
     }
 
-    const { data } = await foodchowWDClient.get<unknown>(
+    const { data } = await foodchowWDClient.get(
       ENDPOINTS.menu.getItemListWithSize,
       {
         params,
       }
     );
 
-    const asRecord = (value: unknown): Record<string, unknown> | null =>
-      typeof value === "object" && value !== null && !Array.isArray(value)
-        ? value as Record<string, unknown>
-        : null;
-    const root = asRecord(data);
-    let rows: unknown =
-      root?.data ??
-      root?.Data ??
-      root?.item_list ??
-      root?.ItemList ??
-      (Array.isArray(data) ? data : []);
+    console.log("GetItemListWithSize Response:", data);
 
-    if (typeof rows === "string") {
-      try {
-        rows = JSON.parse(rows) as unknown;
-      } catch (error) {
-        console.error("Failed to parse GetItemListWithSize response:", error);
-        throw new Error("The item-size price response was not valid JSON.");
+    let items: any[] = [];
+    if (data?.data) {
+      if (typeof data.data === "string") {
+        try {
+          items = JSON.parse(data.data);
+        } catch (e) {
+          console.error("Failed to parse getItemListWithSize data string:", e);
+        }
+      } else if (Array.isArray(data.data)) {
+        items = data.data;
+      } else if (typeof data.data === "object") {
+        items = data.data.item_list || data.data.ItemList || [];
       }
+    } else if (Array.isArray(data)) {
+      items = data;
+    } else if (data?.item_list) {
+      items = data.item_list;
     }
 
-    const rowContainer = asRecord(rows);
-    if (rowContainer) {
-      rows =
-        rowContainer.item_list ??
-        rowContainer.ItemList ??
-        rowContainer.data ??
-        rowContainer.Data ??
-        [];
-    }
-    if (!Array.isArray(rows)) {
-      console.error("GetItemListWithSize returned an unexpected response shape:", data);
-      throw new Error("The item-size price response had an unexpected format.");
-    }
-
-    return rows.flatMap((value): ItemWithSize[] => {
-      const row = asRecord(value);
-      if (!row) return [];
-      const readNumber = (...keys: string[]) => {
-        const value = keys.map((key) => row[key]).find((candidate) => candidate !== undefined && candidate !== null);
-        const number = Number(value);
-        return Number.isFinite(number) ? number : 0;
-      };
-      const readString = (...keys: string[]) => {
-        const value = keys.map((key) => row[key]).find((candidate) => candidate !== undefined && candidate !== null);
-        return value == null ? "" : String(value);
-      };
-
-      return [{
-        item_id: readNumber("item_id", "Item_Id", "ItemId", "itemId"),
-        item_name: readString("item_name", "Item_Name", "ItemName", "itemName"),
-        item_size_id: readNumber("item_size_id", "shop_size_id", "shopSizeId", "Item_Size_Id", "ItemSizeId", "size_id", "Size_Id"),
-        size_name: readString("size_name", "Size_Name", "SizeName", "sizeName"),
-        item_price: readNumber("item_price", "Item_Price", "ItemPrice", "price", "Price"),
-        final_amount: readNumber("final_amount", "Final_Amount", "finalAmount"),
-        net_price: readNumber("net_price", "Net_Price", "NetPrice"),
-        is_tax: Boolean(row.is_tax ?? row.Is_Tax ?? false),
-        is_diffrent_tax: Boolean(row.is_diffrent_tax ?? row.Is_Diffrent_Tax ?? false),
-        tax_type: readNumber("tax_type", "Tax_Type", "taxType"),
-        tax_list: row.tax_list ?? row.Tax_List ?? null,
-      }];
-    });
+    return items;
   },
   /** Apply tax to all items using existing USP_AddTaxAllItemWithTaxID API endpoint */
   async addTaxAllItemWithTaxID(shopId: number, taxId: number) {
@@ -1259,21 +1038,15 @@ export const menuService = {
   },
   // Choices
   async getChoices(shopId: number): Promise<MenuChoice[]> {
-    const effectiveShopId =
-      shopId ||
-      (typeof window !== "undefined"
-        ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
-        : 0) ||
-      7895;
-
     const { data } = await foodchowClient.get<
       ApiResponse<ChoiceResponse[]>
     >(
       ENDPOINTS.menu.getChoices,
       {
-        params: { ShopId: effectiveShopId, shop_id: effectiveShopId },
+        params: { ShopId: shopId },
       }
     );
+
 
     return data.data?.[0]?.choices_list ?? [];
   },
@@ -1359,19 +1132,11 @@ export const menuService = {
 
   /** Variants */
   async variantsByShop(shopId: number): Promise<MenuVariant[]> {
-    const effectiveShopId =
-      shopId ||
-      (typeof window !== "undefined"
-        ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
-        : 0) ||
-      7895;
-
     const { data } = await foodchowClient.get<ApiResponse<MenuVariant[]>>(
       ENDPOINTS.menu.variantsByShop,
       {
         params: {
-          ShopId: effectiveShopId,
-          shop_id: effectiveShopId,
+          ShopId: shopId,
         },
       }
     );
@@ -1419,28 +1184,12 @@ export const menuService = {
     return data;
   },
 
-  async assignVariantToItem(payload: { Item_Id: number; Size_ID: number; price: number }) {
-    const { data } = await foodchowClient.post(
-      ENDPOINTS.menu.assignVariantToItem,
-      payload
-    );
-    return data;
-  },
-
   async getItems(shopId: number): Promise<MenuCategory[]> {
-    const effectiveShopId =
-      shopId ||
-      (typeof window !== "undefined"
-        ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
-        : 0) ||
-      7895;
-
     const { data } = await foodchowClient.get<ApiResponse<MenuCategory[]>>(
       ENDPOINTS.menu.getItems,
       {
         params: {
-          ShopId: effectiveShopId,
-          shop_id: effectiveShopId,
+          ShopId: shopId,
         },
       }
     );
@@ -1450,111 +1199,33 @@ export const menuService = {
 
 
   async deleteItem(itemId: number, shopId: number): Promise<any> {
-    const effectiveShopId =
-      shopId ||
-      (typeof window !== "undefined"
-        ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
-        : 0) ||
-      7895;
-
     const { data } = await foodchowClient.get(
       ENDPOINTS.menu.deleteItem,
       {
         params: {
           ItemId: itemId,
-          item_id: itemId,
-          Item_Id: itemId,
-          shop_id: effectiveShopId,
-          ShopId: effectiveShopId,
+          shop_id: shopId,
         },
       }
     );
 
-    return data;
-  },
-
-  /** Add a new store category (id=0) or update an existing one (id>0) */
-  async addStoreCategory(payload: AddStoreCategoryPayload): Promise<any> {
-    const { data } = await foodchowClient.post(
-      ENDPOINTS.menu.addStoreCategory,
-      payload
-    );
-    return data;
-  },
-
-  /** Upload a category image using base64 string */
-  async uploadCategoryImage(payload: UploadCategoryImagePayload): Promise<any> {
-    const { data } = await foodchowClient.post(
-      ENDPOINTS.menu.categoryImageUpload,
-      {
-        id: String(payload.id),
-        shop_id: String(payload.shop_id),
-        base64Image: payload.base64Image,
-      }
-    );
-    return data;
-  },
-
-  /** Delete a store category by id */
-  async deleteCategory(cateId: number): Promise<any> {
-    const { data } = await foodchowClient.get(
-      ENDPOINTS.menu.deleteCategory,
-      { params: { CateID: cateId } }
-    );
-    return data;
-  },
-
-  /** Activate (status=1) or deactivate (status=0) a store category */
-  async changeStoreCategoryStatus(cateId: number, status: number): Promise<any> {
-    const { data } = await foodchowClient.get(
-      ENDPOINTS.menu.changeStoreCategoryStatus,
-      { params: { cate_id: cateId, status } }
-    );
-    return data;
-  },
-
-  /** Edit an existing store item */
-  async editStoreItem(payload: EditStoreItemPayload): Promise<any> {
-    const { data } = await foodchowClient.post(
-      ENDPOINTS.menu.editStoreItem,
-      payload
-    );
-    return data;
-  },
-
-  /** Activate (status=1) or deactivate (status=0) a store item */
-  async changeStoreItemStatus(itemId: number, status: number): Promise<any> {
-    const { data } = await foodchowClient.get(
-      ENDPOINTS.menu.changeStoreItemStatus,
-      { params: { ItemId: itemId, status } }
-    );
     return data;
   },
 
   // Additional Menu
   async getAllShopMenuType(shopId: number): Promise<ShopMenuType[]> {
-    const effectiveShopId =
-      shopId ||
-      (typeof window !== "undefined"
-        ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
-        : 0) ||
-      7895;
-
     const response = await foodchowWDClient.get<ApiResponse<any>>(
       ENDPOINTS.menu.getAllShopMenuType,
       {
         params: {
-          ShopId: effectiveShopId,
-          shop_id: effectiveShopId,
+          ShopId: shopId,
         },
       }
     );
 
-    const raw = response.data?.data;
-    if (typeof raw === "string") {
-      try { return JSON.parse(raw); } catch (e) { return []; }
-    }
-    return Array.isArray(raw) ? raw : [];
+    return response.data.data
+      ? JSON.parse(response.data.data)
+      : [];
   },
 
 
@@ -1655,13 +1326,14 @@ export const menuService = {
     planId: number,
     currency: string
   ): Promise<PlanDetails> {
+    // Use the Next.js API proxy to avoid browser CORS restrictions
     const response = await axios.get<{
       Result: PlanDetails;
       Message: string | null;
       MessageType: number;
       Status: boolean;
     }>(
-      `/api/plan-details`,
+      "/api/plan-details",
       {
         params: {
           planId,
@@ -1676,8 +1348,9 @@ export const menuService = {
   },
 
   async getAddOns(currency: string) {
+    // Use the Next.js API proxy to avoid browser CORS restrictions
     const response = await axios.get(
-      `/api/add-ons`,
+      "/api/add-ons",
       {
         params: {
           currency,
@@ -1686,21 +1359,6 @@ export const menuService = {
     );
 
     console.log("ADD ONS RESPONSE:", response.data);
-
-    return response.data;
-  },
-
-  async getMarketplaceData(currency: string = "INR") {
-    const response = await axios.get(
-      `/api/marketplace-data`,
-      {
-        params: {
-          currency,
-        },
-      }
-    );
-
-    console.log("MARKETPLACE DATA RESPONSE:", response.data);
 
     return response.data;
   },
@@ -1806,17 +1464,16 @@ export const menuService = {
 
   async updateMenuStatus(
     menuId: number,
-    menuType: "online" | "pos" | "oo",
+    menuType: "online" | "pos",
     status: number,
     shopId: number
   ) {
-    const apiMenuType = menuType === "online" ? "oo" : menuType;
     const { data } = await foodchowWDClient.get(
       ENDPOINTS.menu.enableMenuForPosOrOnline,
       {
         params: {
           menu_id: menuId,
-          menu_type: apiMenuType,
+          menu_type: menuType,
           status,
           shop_id: shopId,
         },
@@ -1826,138 +1483,5 @@ export const menuService = {
     return data;
   },
 
-  async uploadMenuExcel(shopId: number | string, file: File) {
-    const XLSX = await import("xlsx");
-    const arrayBuffer = await file.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: "array" });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const rawData = XLSX.utils.sheet_to_json<any>(worksheet, { defval: "" });
-
-    if (!rawData || rawData.length === 0) {
-      throw new Error("The uploaded Excel file contains no data.");
-    }
-
-    // Verify expected columns
-    const firstRow = rawData[0];
-    const hasCategory = Object.keys(firstRow).some((k) => k.toLowerCase().includes("category"));
-    const hasItemName = Object.keys(firstRow).some((k) => k.toLowerCase().includes("item"));
-    const hasPrice = Object.keys(firstRow).some((k) => k.toLowerCase().includes("price"));
-
-    if (!hasCategory || !hasItemName || !hasPrice) {
-      throw new Error("Uploaded file is not properly formatted. Required columns: Category, Item_Name, Price.");
-    }
-
-    // Fetch existing categories to reuse their IDs if they match
-    let existingCategories: any[] = [];
-    try {
-      existingCategories = await this.categoriesByShop(Number(shopId));
-    } catch (e) {
-      console.warn("Could not load existing categories:", e);
-    }
-
-    const categoryMap = new Map<string, string>();
-    for (const cat of existingCategories) {
-      if (cat.name) {
-        categoryMap.set(cat.name.toLowerCase().trim(), String(cat.id));
-      }
-    }
-
-    let importedItemsCount = 0;
-
-    for (const row of rawData) {
-      const cateKey = Object.keys(row).find((k) => k.toLowerCase().includes("category")) || "Category";
-      const itemKey = Object.keys(row).find((k) => k.toLowerCase().includes("item")) || "Item_Name";
-      const descKey = Object.keys(row).find((k) => k.toLowerCase().includes("desc")) || "Description";
-      const priceKey = Object.keys(row).find((k) => k.toLowerCase().includes("price")) || "Price";
-      const vegKey = Object.keys(row).find((k) => k.toLowerCase().includes("veg")) || "Is_Veg";
-
-      const categoryName = String(row[cateKey] || "").trim();
-      let itemName = String(row[itemKey] || "").trim();
-      const description = String(row[descKey] || "").trim();
-      const price = String(row[priceKey] || "0").trim();
-      const isVeg =
-        row[vegKey] === 0 ||
-          String(row[vegKey]).toLowerCase() === "0" ||
-          String(row[vegKey]).toLowerCase().includes("non")
-          ? "0"
-          : "1";
-
-      if (!categoryName && !itemName) continue;
-      if (!itemName) itemName = categoryName;
-      if (Number(price) <= 0) continue;
-
-      // 1. Resolve or create category
-      const normCatName = categoryName.toLowerCase().trim();
-      let cateId = categoryMap.get(normCatName);
-
-      if (!cateId) {
-        try {
-          const catRes = await foodchowClient.post(ENDPOINTS.menu.addStoreCategory, {
-            id: 0,
-            shop_id: Number(shopId),
-            cate_name: categoryName,
-            cate_image: "",
-            description: "",
-            parent_id: 0,
-          });
-
-          // Handlers for { Data: 123 } or { Data: [ { id: 123 } ] }
-          const resData = catRes.data?.Data ?? catRes.data?.data;
-          if (typeof resData === "number" || typeof resData === "string") {
-            cateId = String(resData);
-          } else if (Array.isArray(resData) && resData.length > 0) {
-            cateId = String(resData[0].id || resData[0].cate_id || resData[0].LAST_INSERT_ID || 0);
-          }
-
-          if (cateId && cateId !== "0") {
-            categoryMap.set(normCatName, cateId);
-          }
-        } catch (catErr) {
-          console.error(`Failed to add category ${categoryName}:`, catErr);
-        }
-      }
-
-      if (!cateId || cateId === "0") {
-        // Fallback to first known category or skip
-        cateId = existingCategories[0] ? String(existingCategories[0].id) : "0";
-      }
-
-      // 2. Add item via QuickAddStoreItemWithStock
-      try {
-        await foodchowClient.post(ENDPOINTS.menu.addItem, {
-          Cate_Id: cateId,
-          Item_Name: itemName,
-          Description: description,
-          Is_Veg: isVeg,
-          unit: "",
-          price: price,
-          non_Veg_Type: "0",
-          Shop_Id: String(shopId),
-          is_manage_stock: 0,
-          sold_out_flag: 0,
-          barcode: "",
-          open_price: 0,
-          is_size_available: 0,
-        });
-        importedItemsCount++;
-      } catch (itemErr) {
-        console.error(`Failed to add item ${itemName}:`, itemErr);
-      }
-    }
-
-    return {
-      success: true,
-      count: importedItemsCount,
-      message: `Menus have been Uploaded Successfully (${importedItemsCount} items imported)!`,
-    };
-  },
-
-  async downloadSampleMenuExcel() {
-    const response = await fetch("/SampleMenu.xlsx");
-    if (!response.ok) {
-      throw new Error("Sample file not found");
-    }
-    return await response.blob();
-  },
 };
+

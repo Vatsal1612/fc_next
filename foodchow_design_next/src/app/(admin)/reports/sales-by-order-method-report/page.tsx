@@ -359,7 +359,7 @@
 //                 </div>
 //               </div>
 //               <button className="btn-export">
-//                 <i className="fas fa-file-excel"></i> Export to Excel
+//                 <i className="fas fa-file-excel"></i> EXPORT TO EXCEL
 //               </button>
 //             </div>
 
@@ -448,22 +448,27 @@ import {
   reportsService,
   type OrderMethodRecord,
 } from "@/api/services/report.service";
-import ReportPagination from "@/components/shared/ReportPagination";
+import ReportTableFooter from "@/components/shared/ReportTableFooter";
+import ReportTableState from "@/components/shared/ReportTableState";
+import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
+
+type WorkBook = unknown;
+type WorkSheet = { [k: string]: unknown };
 
 declare global {
   interface Window {
     XLSX?: {
       utils: {
-        book_new(): unknown;
-        aoa_to_sheet(data: unknown[][]): { [k: string]: unknown };
+        book_new(): WorkBook;
+        aoa_to_sheet(data: unknown[][]): WorkSheet;
         book_append_sheet(
-          wb: unknown,
-          ws: { [k: string]: unknown },
+          wb: WorkBook,
+          ws: WorkSheet,
           name: string,
         ): void;
       };
-      writeFile(wb: unknown, name: string): void;
+      writeFile(wb: WorkBook, name: string): void;
     };
   }
 }
@@ -545,30 +550,30 @@ export default function SalesByOrderMethodReportPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [shopId]);
 
   useEffect(() => {
     fetchReport(month, year);
-  }, [month, year, fetchReport]);
+  }, [month, year, shopId, fetchReport]);
+
 
   const totDineIn = rows.reduce((sum, r) => sum + r.dineIn, 0);
   const totDelivery = rows.reduce((sum, r) => sum + r.delivery, 0);
   const totTakeAway = rows.reduce((sum, r) => sum + r.takeAway, 0);
   const grandTotal = totDineIn + totDelivery + totTakeAway;
 
-  const currentStepIndex = MONTHS.findIndex((m) => m.val === month);
 
-  const navigateMonth = (dir: number): void => {
-    const idx = Math.max(
-      0,
-      Math.min(MONTHS.length - 1, currentStepIndex + dir),
-    );
-    setMonth(MONTHS[idx].val);
-  };
 
   const exportToExcel = (): void => {
+    if (!rows || rows.length === 0) {
+      alert("No data available to export");
+      return;
+    }
+
     const XLSX = window.XLSX;
-    if (!XLSX) return;
+    if (!XLSX) {
+      return;
+    }
 
     const monthName = MONTHS.find((m) => m.val === month)?.label ?? "";
 
@@ -635,12 +640,12 @@ export default function SalesByOrderMethodReportPage() {
     XLSX.writeFile(
       wb,
       "Sales_By_Order_Method_" +
-        monthName +
-        "_" +
-        year +
-        "_" +
-        dateStr +
-        ".xlsx",
+      monthName +
+      "_" +
+      year +
+      "_" +
+      dateStr +
+      ".xlsx",
     );
   };
 
@@ -650,7 +655,7 @@ export default function SalesByOrderMethodReportPage() {
         src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
         strategy="afterInteractive"
       />
-      
+
 
       <div className="app-container">
         <div className="main-content">
@@ -702,8 +707,13 @@ export default function SalesByOrderMethodReportPage() {
                   </select>
                 </div>
               </div>
-              <button className="btn-export" onClick={exportToExcel}>
-                <i className="fas fa-file-excel"></i> Export to Excel
+              <button className="btn-action btn-export" onClick={exportToExcel}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                EXPORT TO EXCEL
               </button>
             </div>
 
@@ -740,114 +750,74 @@ export default function SalesByOrderMethodReportPage() {
 
             {/* Table */}
             <div className="table-wrapper">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Dine In (Rs.)</th>
-                    <th>Home Delivery (Rs.)</th>
-                    <th>Take Away (Rs.)</th>
-                    <th>Total (Rs.)</th>
-                  </tr>
-                </thead>
-                <tbody id="table-body">
-                  {loading ? (
+              <ReportTableState loading={loading} hasData={rows.length > 0} columns={5}>
+                <table>
+                  <thead>
                     <tr>
-                      <td colSpan={5} className="no-data">
-                        Loading...
-                      </td>
+                      <th>Date</th>
+                      <th>Dine In (Rs.)</th>
+                      <th>Home Delivery (Rs.)</th>
+                      <th>Take Away (Rs.)</th>
+                      <th>Total (Rs.)</th>
                     </tr>
-                  ) : error ? ( 
-                    <tr>
-                      <td colSpan={5} className="no-data">
-                        {error}
-                      </td>
-                    </tr>
-                  ) : rows.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        style={{ textAlign: "center", padding: "20px" }}
-                      >
-                        No Data Available
-                      </td>
-                    </tr>
-                  ) : (
-                    (() => {
-                      const startIndex = (pageNumber - 1) * pageSize;
-                      const paginatedRows = rows.slice(startIndex, startIndex + pageSize);
-                      return paginatedRows.map((r, i) => {
-                        const total = r.dineIn + r.delivery + r.takeAway;
-                        return (
-                          <tr key={i}>
-                            <td>{r.date}</td>
-                            <td>{fmt(r.dineIn)}</td>
-                            <td>{fmt(r.delivery)}</td>
-                            <td>{fmt(r.takeAway)}</td>
-                            <td>{fmt(total)}</td>
-                          </tr>
-                        );
-                      });
-                    })()
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody id="table-body">
+                    {error ? (
+                      <tr>
+                        <td colSpan={5} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
+                          {error}
+                        </td>
+                      </tr>
+                    ) : rows.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="report-no-records"
+                          style={{ textAlign: "center", padding: "40px" }}
+                        >
+                          No Records Found
+                        </td>
+                      </tr>
+                    ) : (
+                      (() => {
+                        const startIndex = (pageNumber - 1) * pageSize;
+                        const paginatedRows = rows.slice(startIndex, startIndex + pageSize);
+                        return paginatedRows.map((r, i) => {
+                          const total = r.dineIn + r.delivery + r.takeAway;
+                          return (
+                            <tr key={i}>
+                              <td>{r.date}</td>
+                              <td>{fmt(r.dineIn)}</td>
+                              <td>{fmt(r.delivery)}</td>
+                              <td>{fmt(r.takeAway)}</td>
+                              <td>{fmt(total)}</td>
+                            </tr>
+                          );
+                        });
+                      })()
+                    )}
+                  </tbody>
+                </table>
+              </ReportTableState>
               {rows.length > 0 && (
-                <div className="table-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '12px 16px', marginTop: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '13px', color: '#64748b' }}>Show</span>
-                    <select
-                      value={pageSize}
-                      onChange={(e) => {
-                        setPageSize(Number(e.target.value));
-                        setPageNumber(1);
-                      }}
-                      style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                    >
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={50}>50</option>
-                    </select>
-                    <span style={{ fontSize: '13px', color: '#64748b' }}>entries</span>
-                  </div>
-                  <div style={{ fontSize: '13px', color: '#64748b' }}>
-                    Showing {(pageNumber - 1) * pageSize + 1} to {Math.min(pageNumber * pageSize, rows.length)} of {rows.length} entries
-                  </div>
-                  <ReportPagination
-                    currentPage={pageNumber}
-                    totalPages={Math.ceil(rows.length / pageSize)}
-                    onPageChange={(page) => setPageNumber(page)}
-                  />
-                </div>
+                <ReportTableFooter
+                  currentPage={pageNumber}
+                  totalPages={Math.ceil(rows.length / pageSize)}
+                  totalRecords={rows.length}
+                  pageSize={pageSize}
+                  onPageChange={(page) => setPageNumber(page)}
+                  onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
+                  disabled={loading}
+                />
               )}
             </div>
           </div>
 
           {/* Step Navigation */}
-          <div className="step-nav">
-            <button
-              className="nav-btn"
-              id="prevBtn"
-              onClick={() => navigateMonth(-1)}
-            >
-              <i className="fas fa-chevron-left"></i> PREVIOUS
-            </button>
-            <div className="step-badge">
-              <span className="step-label">STEP</span>
-              <span className="step-value" id="stepValue">
-                {currentStepIndex + 1}/{MONTHS.length}
-              </span>
-            </div>
-            <button
-              className="nav-btn"
-              id="nextBtn"
-              onClick={() => navigateMonth(1)}
-            >
-              NEXT <i className="fas fa-chevron-right"></i>
-            </button>
-          </div>
+          <ReportStepFooter currentStepOverride={22} totalStepsOverride={25} />
         </div>
       </div>
     </div>
   );
 }
+

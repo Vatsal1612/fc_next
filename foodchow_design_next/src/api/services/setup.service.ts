@@ -1,5 +1,5 @@
 
-import { foodchowClient, foodchowWDClient, foodchowRMSClient } from "@/api/client";
+import { foodchowClient, foodchowWDClient } from "@/api/client";
 import { ENDPOINTS } from "@/api/endpoints";
 import type { ApiResponse } from "@/api/types";
 import axios from "axios";
@@ -21,22 +21,6 @@ export interface RestaurantInformation {
   cuisine_type: string;
   business_type_id: string;
   insta_url: string;
-}
-
-export interface ShopTypeItem {
-  id: number;
-  name: string;
-}
-
-export interface CuisineTypeItem {
-  id: number;
-  name: string;
-  cuisine_Image?: string;
-}
-
-export interface ShopTypesAndCuisine {
-  shopTypes: ShopTypeItem[];
-  cuisineTypes: CuisineTypeItem[];
 }
 export interface UpdateShopLogoPayload {
   shop_id: string;
@@ -164,20 +148,6 @@ export const restaurantService = {
 
       throw error;
     }
-  },
-  
-  async getPlanDetails(planId: string, currency: string = "INR") {
-    try {
-      const { data } = await axios.get(`/api/plan-details?planId=${planId}&currency=${currency}`);
-      return data;
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  async getPointPlanDetails(shopId: string | number) {
-    const { data } = await axios.get(`https://www.foodchow.com/api/FoodChowWD/GetPlanDetails?id=${shopId}`);
-    return data;
   }
 };
 
@@ -188,17 +158,6 @@ export const setupService = {
   /**
    * Restaurant Information
    */
-  async getShopTypesAndCuisine(): Promise<ShopTypesAndCuisine> {
-    const { data } = await foodchowClient.get<
-      ApiResponse<ShopTypesAndCuisine>
-    >(ENDPOINTS.setup.getShopTypesAndCuisine);
-
-    return {
-      shopTypes: data.data?.shopTypes ?? [],
-      cuisineTypes: data.data?.cuisineTypes ?? [],
-    };
-  },
-
   async getRestaurantInformation(shopId: number) {
     const { data } = await foodchowClient.get<
       ApiResponse<RestaurantInformation>
@@ -300,85 +259,16 @@ export const setupService = {
     return data;
   },
 
-  async getGalleryImages(shopId: number, imageFlag: number = 2) {
+  async getGalleryImages(shopId: number) {
     const { data } = await foodchowWDClient.get(
       ENDPOINTS.setup.getGalleryImages,
       {
         params: {
           ShopId: shopId,
-          ImageFlag: imageFlag,
+          ImageFlag: 2,
           LastId: 0,
-          t: Date.now(), // Prevent caching
         },
       }
-    );
-
-    return data;
-  },
-
-  async getFoodGallery(subdomain: string, flag: string = 'gallery') {
-    const { data } = await foodchowWDClient.get(
-      ENDPOINTS.setup.getFoodGallery,
-      { params: { subdomain, flag } }
-    );
-    return data;
-  },
-
-  async addToFoodGallery(payload: any[]) {
-    const { data } = await foodchowWDClient.post(
-      ENDPOINTS.setup.addToFoodGallery,
-      payload
-    );
-    return data;
-  },
-
-  async deleteGalleryPhoto(galleryId: number) {
-    const { data } = await foodchowWDClient.delete(
-      ENDPOINTS.setup.deleteGalleryPhoto,
-      { params: { galleryid: galleryId } }
-    );
-    return data;
-  },
-
-  async getShopOverview(shopId: number) {
-    const { data } = await foodchowWDClient.get(
-      `${ENDPOINTS.setup.getShopOverview}?ShopId=${shopId}&flag=1`
-    );
-    return data;
-  },
-
-  async deleteShopOverviewImage(shopId: number) {
-    const { data } = await foodchowWDClient.get(
-      `${ENDPOINTS.setup.deleteShopOverviewImage}?shop_id=${shopId}`
-    );
-    return data;
-  },
-
-  async saveShopOverviewImage(shopId: number, fileBlob: Blob, _filename: string = "restaurant_image.jpg") {
-    // 1. Convert Blob to Base64
-    const base64Data = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        resolve(reader.result as string);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(fileBlob);
-    });
-
-    // Strip the Data URL prefix (e.g. "data:image/png;base64,")
-    const cleanBase64 = base64Data.includes(",") ? base64Data.split(",")[1] : base64Data;
-
-    // 2. Call the real LIVE FoodChow.API endpoint (OfferMaster/UploadRestaurantImageRMS)
-    // This API expects shop_id and shop_image (base64). It automatically decodes the image,
-    // saves it to ShopDescriptionImage, and executes USP_UpdateFoodShopOverview.
-    const payload = {
-      shop_id: shopId,
-      shop_image: cleanBase64
-    };
-
-    const { data } = await foodchowRMSClient.post(
-      ENDPOINTS.setup.uploadRestaurantImageRMS,
-      payload
     );
 
     return data;
@@ -439,98 +329,6 @@ export const setupService = {
     );
 
     return response.data;
-  },
-  async deleteDeliveryZone(shopId: number, zoneId: number) {
-    const response = await foodchowClient.delete(
-      ENDPOINTS.setup.deleteDeliveryZone(zoneId),
-      {
-        params: { shopId, zone: zoneId }
-      }
-    );
-    return response.data;
-  },
-
-  // Area Wise Delivery
-  async getDeliverySettingsForShop(shopId: number) {
-    const { data } = await foodchowWDClient.get(
-      ENDPOINTS.setup.getDeliverySettingsForShop,
-      {
-        params: { shop_id: shopId },
-      }
-    );
-    return data;
-  },
-
-  async updateDeliverySettingsForShop(shopId: number, status: number) {
-    const { data } = await foodchowWDClient.get(
-      ENDPOINTS.setup.updateDeliverySettingsForShop,
-      {
-        params: { shop_id: shopId, status },
-      }
-    );
-    return data;
-  },
-
-  async getCustomDeliveryLocations(shopId: number) {
-    const { data } = await foodchowWDClient.get(
-      ENDPOINTS.setup.getCustomDeliveryLocation,
-      {
-        params: { shop_id: shopId },
-      }
-    );
-    return data;
-  },
-
-  async addCustomDeliveryLocation(params: {
-    shop_id: number;
-    location_name: string;
-    min_order: number;
-    delivery_fee: number;
-    min_order_freedelivery: number;
-    delivery_hours: string;
-    delivery_minute: string;
-  }) {
-    const { data } = await foodchowWDClient.get(
-      ENDPOINTS.setup.addCustomDeliveryLocation,
-      { params }
-    );
-    return data;
-  },
-
-  async updateCustomDeliveryLocation(params: {
-    id: number;
-    location_name: string;
-    min_order: number;
-    delivery_fee: number;
-    min_order_freedelivery: number;
-    delivery_hours: string;
-    delivery_minute: string;
-  }) {
-    const { data } = await foodchowWDClient.get(
-      ENDPOINTS.setup.updateCustomDeliveryLocation,
-      { params }
-    );
-    return data;
-  },
-
-  async deleteCustomDeliveryLocation(id: number) {
-    const { data } = await foodchowWDClient.get(
-      ENDPOINTS.setup.deleteCustomDeliveryLocation,
-      {
-        params: { id },
-      }
-    );
-    return data;
-  },
-
-  async changeCustomDeliveryLocationStatus(id: number, status: number) {
-    const { data } = await foodchowWDClient.get(
-      ENDPOINTS.setup.changeCustomDeliveryLocationStatus,
-      {
-        params: { id, status },
-      }
-    );
-    return data;
   },
 
   // Timings 
@@ -631,57 +429,7 @@ export const setupService = {
     return data;
   },
 
-  // Support
-  async addSupportTicket(payload: {
-    shop_id: string;
-    subject: string;
-    category: string;
-    priority_level: string;
-    message: string;
-  }) {
-    const { data } = await foodchowClient.post(
-      ENDPOINTS.setup.addSupportTicket,
-      payload
-    );
 
-    console.log("ADD SUPPORT TICKET RESPONSE:", data);
 
-    return data;
-  },
 
-  // Custom Domain
-  async saveCustomDomain(shopId: number | string, customDomain: string) {
-    const { data } = await foodchowClient.post(
-      ENDPOINTS.setup.saveCustomDomain,
-      {
-        shop_id: shopId,
-        custom_domain: customDomain,
-      }
-    );
-    console.log("SAVE CUSTOM DOMAIN RESPONSE:", data);
-    return data;
-  },
-
-  // Invoices
-  async getShopInvoices(shopId: number | string) {
-    const { data } = await foodchowClient.get(
-      ENDPOINTS.setup.getShopInvoices,
-      {
-        params: { shop_id: shopId },
-      }
-    );
-    console.log("GET SHOP INVOICES RESPONSE:", data);
-    return data;
-  },
-
-  // Plan Purchases
-  async getPricingPlanPurchases(shopId: number | string) {
-    const { data } = await foodchowClient.get(
-      ENDPOINTS.setup.getFoodchowPricingPlanPurchases,
-      {
-        params: { shop_id: shopId },
-      }
-    );
-    return data;
-  },
 };

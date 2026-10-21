@@ -257,38 +257,21 @@ export default function LoginPage() {
       if (response.success && response.data?.length) {
         const shopId = response.data[0].shop_id;
 
-        sessionStorage.removeItem("subdomain");
-        sessionStorage.removeItem("subdomain_for");
         sessionStorage.setItem("shop_id", String(shopId));
-        localStorage.setItem("shop_id", String(shopId));
         sessionStorage.setItem("isLoggedIn", "true");
 
-        // Fetch restaurant currency from database for this shop
+        let subdomain = "foodchowdemoindia";
         try {
           const info = await setupService.getRestaurantInformation(Number(shopId));
-          if (info?.currency || info?.currency_id || info?.food_currency_id) {
-            const dbCurrency = String(info.currency || "").trim();
-            const dbCurrencyId = String(info.currency_id || info.food_currency_id || "").trim();
-
-            const isUsd = dbCurrencyId === "2" || dbCurrency === "USD" || dbCurrency === "$";
-            const isIndian = dbCurrencyId === "1" || dbCurrency === "INR" || dbCurrency === "Rs." || dbCurrency === "Rs" || dbCurrency === "₹";
-
-            const currCode = isUsd ? "USD" : isIndian ? "INR" : (dbCurrency || "INR");
-            const shopCurr = isUsd ? "$" : isIndian ? "Rs." : (dbCurrency || "Rs.");
-            const cId = isUsd ? "2" : isIndian ? "1" : (dbCurrencyId || "1");
-
-            sessionStorage.setItem("currency", currCode);
-            sessionStorage.setItem("shopcurrency", shopCurr);
-            sessionStorage.setItem("currency_id", cId);
-            localStorage.setItem("currency", currCode);
-            localStorage.setItem("shopcurrency", shopCurr);
-            localStorage.setItem("currency_id", cId);
+          if (info && info.subdomain) {
+            subdomain = info.subdomain;
           }
-        } catch (e) {
-          console.error("Failed to fetch shop currency on login:", e);
+        } catch (fetchErr) {
+          console.warn("Could not fetch subdomain, using fallback:", fetchErr);
         }
 
-        router.replace("/setup/my-profile");
+        sessionStorage.setItem("subdomain", subdomain);
+        router.replace(`/${subdomain}/setup/my-profile`);
       } else {
         setIsLoading(false);
         Swal.fire({

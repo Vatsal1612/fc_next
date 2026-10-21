@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Script from "next/script";
 import {
   reportsService,
   type MonthComparisonItem,
 } from "@/api/services/report.service";
 import { useShopId } from "@/utils/shop";
+import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import "./page.css";
 
 export default function ComparisonbymonthPage() {
@@ -92,25 +94,38 @@ export default function ComparisonbymonthPage() {
   };
 
   const exportToExcel = (): void => {
-    if (!rows || rows.length === 0) return;
-    const csvRows: string[][] = [
+    if (!rows || rows.length === 0) {
+      alert("No data available to export");
+      return;
+    }
+    const XLSX = (window as any).XLSX;
+    if (!XLSX) {
+      alert("Excel export library is loading, please try again.");
+      return;
+    }
+
+    const wsData: any[][] = [
+      [`Item Report - Comparison of ${monthNames[mIdx]} ${year} with ${monthNames[prevMIdx]} ${prevYear}`],
+      [`Exported On: ${new Date().toLocaleString()}`],
+      [],
       ["Details", `Previous month (${monthNames[prevMIdx].slice(0, 3)})`, `Current month (${monthNames[mIdx].slice(0, 3)})`],
       ...rows.map((r) => [r.details, r.prev, r.curr]),
     ];
-    const csv = csvRows
-      .map((r) => r.map((c) => '"' + c + '"').join(","))
-      .join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `month_comparison_${formatDateParam(viewDate)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!cols"] = [{ wch: 25 }, { wch: 22 }, { wch: 22 }];
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }];
+    XLSX.utils.book_append_sheet(wb, ws, "Monthly Comparison");
+    XLSX.writeFile(wb, `item_report_monthly_comparison_${formatDateParam(viewDate)}.xlsx`);
   };
 
   return (
     <div id="pg-reports-comparisonbymonth">
+      <Script
+        src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+        strategy="afterInteractive"
+      />
       <div className="app-container">
         <div className="main-content">
           <div className="report-card">
@@ -121,21 +136,48 @@ export default function ComparisonbymonthPage() {
               Comparison of {monthNames[mIdx]} {year} with {monthNames[prevMIdx]} {prevYear}
             </p>
 
-            <button className="btn-export" onClick={exportToExcel}>
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              Export to Excel
-            </button>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", marginBottom: "1.4rem" }}>
+              <div className="month-nav" style={{ margin: 0, display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                <button
+                  type="button"
+                  className="nav-btn"
+                  onClick={() => changeMonth(-1)}
+                  title="Previous Month"
+                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "36px", height: "36px", borderRadius: "8px", border: "1.5px solid #d1d5db", background: "#fff", cursor: "pointer" }}
+                >
+                  <i className="fas fa-chevron-left" />
+                </button>
+                <span style={{ fontSize: "14px", fontWeight: "600", minWidth: "140px", textAlign: "center" }}>
+                  {monthNames[mIdx]} {year}
+                </span>
+                <button
+                  type="button"
+                  className="nav-btn"
+                  onClick={() => changeMonth(1)}
+                  title="Next Month"
+                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "36px", height: "36px", borderRadius: "8px", border: "1.5px solid #d1d5db", background: "#fff", cursor: "pointer" }}
+                >
+                  <i className="fas fa-chevron-right" />
+                </button>
+              </div>
+
+              <button className="btn-action btn-export" onClick={exportToExcel} style={{ margin: 0 }}>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#ffffff"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ width: "18px", height: "18px", marginRight: "6px" }}
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                EXPORT TO EXCEL
+              </button>
+            </div>
 
             <table id="reportTable">
               <thead>
@@ -154,8 +196,8 @@ export default function ComparisonbymonthPage() {
                   </tr>
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={3} style={{ textAlign: "center", padding: 24 }}>
-                      No Record Found
+                    <td colSpan={3} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
+                      No Records Found
                     </td>
                   </tr>
                 ) : (
@@ -170,14 +212,7 @@ export default function ComparisonbymonthPage() {
               </tbody>
             </table>
           </div>
-          <div className="footer-nav">
-            <button className="btn-nav" onClick={() => changeMonth(-1)}>
-              <i className="fas fa-arrow-left" /> Previous
-            </button>
-            <button className="btn-nav" onClick={() => changeMonth(1)}>
-              Next <i className="fas fa-arrow-right" />
-            </button>
-          </div>
+          <ReportStepFooter currentStepOverride={12} totalStepsOverride={25} />
         </div>
       </div>
     </div>

@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Script from "next/script";
 import "./page.css";
 import { reportsService } from "@/api/services/report.service";
 import { useShopId, getShopId } from "@/utils/shop";
-import ReportPagination from "@/components/shared/ReportPagination";
-
+import ReportTableFooter from "@/components/shared/ReportTableFooter";
+import ReportStepFooter from "@/components/shared/ReportStepFooter";
 
 // ── Actual API shape ──
 interface DailyClosingItem {
@@ -32,9 +33,6 @@ function ReportResultsView({
   onPageChange?: (page: number) => void;
 }) {
   const items = reportData?.items ?? [];
-  if (!reportData || items.length === 0) {
-    return <p className="no-record">No Record Found</p>;
-  }
 
   const grandTotal = items.reduce((sum, row) => sum + (row.total_amount ?? 0), 0);
   const grandOrders = items.reduce((sum, row) => sum + (row.total_orders ?? 0), 0);
@@ -42,25 +40,27 @@ function ReportResultsView({
   return (
     <div className="daily-reports-list">
       {/* Summary banner */}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "20px",
-          background: "#f0faf9",
-          padding: "12px 18px",
-          borderRadius: "8px",
-          border: "1px solid #B6E5E2",
-          marginBottom: "16px",
-          fontSize: "14px",
-          color: "#333333",
-        }}
-      >
-        <span><strong>Total Records:</strong> {reportData.totalRecords ?? items.length}</span>
-        <span><strong>Total Amount:</strong> {grandTotal.toFixed(2)}</span>
-        <span><strong>Total Orders:</strong> {grandOrders}</span>
-        {reportData.dateformat && <span><strong>Date Format:</strong> {reportData.dateformat}</span>}
-      </div>
+      {items.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "20px",
+            background: "#f0faf9",
+            padding: "12px 18px",
+            borderRadius: "8px",
+            border: "1px solid #B6E5E2",
+            marginBottom: "16px",
+            fontSize: "14px",
+            color: "#333333",
+          }}
+        >
+          <span><strong>Total Records:</strong> {reportData?.totalRecords ?? items.length}</span>
+          <span><strong>Total Amount:</strong> {grandTotal.toFixed(2)}</span>
+          <span><strong>Total Orders:</strong> {grandOrders}</span>
+          {reportData?.dateformat && <span><strong>Date Format:</strong> {reportData.dateformat}</span>}
+        </div>
+      )}
 
       {/* Data table */}
       <div className="table-wrap">
@@ -87,38 +87,50 @@ function ReportResultsView({
             </tr>
           </thead>
           <tbody>
-            {items.map((row, i) => (
-              <tr key={i}>
-                <td>{row.delivery_method_name || "-"}</td>
-                <td>{(row.total_amount ?? 0).toFixed(2)}</td>
-                <td>{row.total_orders ?? 0}</td>
+            {items.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
+                  No Records Found
+                </td>
               </tr>
-            ))}
+            ) : (
+              items.map((row, i) => (
+                <tr key={i}>
+                  <td>{row.delivery_method_name || "-"}</td>
+                  <td>{(row.total_amount ?? 0).toFixed(2)}</td>
+                  <td>{row.total_orders ?? 0}</td>
+                </tr>
+              ))
+            )}
           </tbody>
-          <tfoot>
-            <tr style={{ fontWeight: 700, background: "#f0faf9" }}>
-              <td style={{ fontWeight: 700, textAlign: "left", paddingLeft: "24px" }}>Grand Total</td>
-              <td style={{ fontWeight: 700 }}>{grandTotal.toFixed(2)}</td>
-              <td style={{ fontWeight: 700 }}>{grandOrders}</td>
-            </tr>
-          </tfoot>
+          {items.length > 0 && (
+            <tfoot>
+              <tr style={{ fontWeight: 700, background: "#f0faf9" }}>
+                <td style={{ fontWeight: 700, textAlign: "left", paddingLeft: "24px" }}>Grand Total</td>
+                <td style={{ fontWeight: 700 }}>{grandTotal.toFixed(2)}</td>
+                <td style={{ fontWeight: 700 }}>{grandOrders}</td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
 
       {/* Pagination with margin spacing */}
-      <div style={{ marginTop: "24px", paddingTop: "8px", display: "flex", justifyContent: "flex-end" }}>
-        <ReportPagination
-          currentPage={reportData.currentPage ?? 1}
-          totalPages={reportData.totalPages ?? 1}
-          totalRecords={reportData.totalRecords ?? items.length}
-          pageSize={reportData.pageSize ?? 10}
-          onPageChange={onPageChange || (() => { })}
-        />
-      </div>
+      {items.length > 0 && (
+        <div style={{ marginTop: "24px" }}>
+          <ReportTableFooter
+            currentPage={reportData?.currentPage ?? 1}
+            totalPages={reportData?.totalPages ?? 1}
+            totalRecords={reportData?.totalRecords ?? items.length}
+            pageSize={reportData?.pageSize ?? 10}
+            onPageChange={onPageChange || (() => { })}
+            onPageSizeChange={() => { }}
+          />
+        </div>
+      )}
     </div>
   );
 }
-
 
 function MonthlyReportView({
   reportData,
@@ -128,9 +140,6 @@ function MonthlyReportView({
   onPageChange?: (page: number) => void;
 }) {
   const items = reportData?.items ?? [];
-  if (!reportData || items.length === 0) {
-    return <p className="no-record">No Record Found</p>;
-  }
 
   const grandTotal = items.reduce((sum, row) => sum + (row.total_amount ?? 0), 0);
   const grandOrders = items.reduce((sum, row) => sum + (row.total_orders ?? 0), 0);
@@ -138,23 +147,25 @@ function MonthlyReportView({
   return (
     <div className="monthly-report-wrapper" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       {/* Summary banner */}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "20px",
-          background: "#f0faf9",
-          padding: "12px 18px",
-          borderRadius: "8px",
-          border: "1px solid #B6E5E2",
-          fontSize: "14px",
-          color: "#333333",
-        }}
-      >
-        <span><strong>Total Records:</strong> {reportData.totalRecords ?? items.length}</span>
-        <span><strong>Total Amount:</strong> {grandTotal.toFixed(2)}</span>
-        <span><strong>Total Orders:</strong> {grandOrders}</span>
-      </div>
+      {items.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "20px",
+            background: "#f0faf9",
+            padding: "12px 18px",
+            borderRadius: "8px",
+            border: "1px solid #B6E5E2",
+            fontSize: "14px",
+            color: "#333333",
+          }}
+        >
+          <span><strong>Total Records:</strong> {reportData?.totalRecords ?? items.length}</span>
+          <span><strong>Total Amount:</strong> {grandTotal.toFixed(2)}</span>
+          <span><strong>Total Orders:</strong> {grandOrders}</span>
+        </div>
+      )}
 
       {/* Data table */}
       <div className="table-wrap">
@@ -181,34 +192,47 @@ function MonthlyReportView({
             </tr>
           </thead>
           <tbody>
-            {items.map((row, i) => (
-              <tr key={i}>
-                <td>{row.delivery_method_name || "-"}</td>
-                <td>{(row.total_amount ?? 0).toFixed(2)}</td>
-                <td>{row.total_orders ?? 0}</td>
+            {items.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
+                  No Records Found
+                </td>
               </tr>
-            ))}
+            ) : (
+              items.map((row, i) => (
+                <tr key={i}>
+                  <td>{row.delivery_method_name || "-"}</td>
+                  <td>{(row.total_amount ?? 0).toFixed(2)}</td>
+                  <td>{row.total_orders ?? 0}</td>
+                </tr>
+              ))
+            )}
           </tbody>
-          <tfoot>
-            <tr style={{ fontWeight: 700, background: "#f0faf9" }}>
-              <td style={{ fontWeight: 700, textAlign: "left", paddingLeft: "24px" }}>Grand Total</td>
-              <td style={{ fontWeight: 700 }}>{grandTotal.toFixed(2)}</td>
-              <td style={{ fontWeight: 700 }}>{grandOrders}</td>
-            </tr>
-          </tfoot>
+          {items.length > 0 && (
+            <tfoot>
+              <tr style={{ fontWeight: 700, background: "#f0faf9" }}>
+                <td style={{ fontWeight: 700, textAlign: "left", paddingLeft: "24px" }}>Grand Total</td>
+                <td style={{ fontWeight: 700 }}>{grandTotal.toFixed(2)}</td>
+                <td style={{ fontWeight: 700 }}>{grandOrders}</td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
 
       {/* Pagination with margin spacing */}
-      <div style={{ marginTop: "24px", paddingTop: "8px", display: "flex", justifyContent: "flex-end" }}>
-        <ReportPagination
-          currentPage={reportData.currentPage ?? 1}
-          totalPages={reportData.totalPages ?? 1}
-          totalRecords={reportData.totalRecords ?? items.length}
-          pageSize={reportData.pageSize ?? 10}
-          onPageChange={onPageChange || (() => { })}
-        />
-      </div>
+      {items.length > 0 && (
+        <div style={{ marginTop: "24px" }}>
+          <ReportTableFooter
+            currentPage={reportData?.currentPage ?? 1}
+            totalPages={reportData?.totalPages ?? 1}
+            totalRecords={reportData?.totalRecords ?? items.length}
+            pageSize={reportData?.pageSize ?? 10}
+            onPageChange={onPageChange || (() => { })}
+            onPageSizeChange={() => { }}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -243,12 +267,20 @@ export default function DailyClosingReportPage() {
   // Extract the standard DailyClosingResponse shape from any API response wrapper
   const extractReportData = (res: any): DailyClosingResponse | null => {
     if (!res) return null;
-    // res is already data.data from service — could be the object directly
-    if (res && typeof res === "object" && Array.isArray(res.items)) return res as DailyClosingResponse;
-    // fallback: try nested data
-    if (res?.data && Array.isArray(res.data?.items)) return res.data as DailyClosingResponse;
-    if (Array.isArray(res)) return { items: res, totalRecords: res.length };
-    return null;
+    let dataObj: any = null;
+    if (res && typeof res === "object" && Array.isArray(res.items)) dataObj = { ...res };
+    else if (res?.data && Array.isArray(res.data?.items)) dataObj = { ...res.data };
+    else if (Array.isArray(res)) dataObj = { items: res, totalRecords: res.length };
+
+    if (!dataObj) return null;
+
+    // Filter out API dummy placeholder rows like { total_records: 0 } or rows with no delivery_method_name
+    if (Array.isArray(dataObj.items)) {
+      dataObj.items = dataObj.items.filter(
+        (it: any) => it && (it.delivery_method_name || it.payment_type || it.payment_method)
+      );
+    }
+    return dataObj as DailyClosingResponse;
   };
 
   const loadDailyReport = async (date: string) => {
@@ -323,17 +355,7 @@ export default function DailyClosingReportPage() {
   useEffect(() => {
     type Tab = "day" | "month" | "custom";
 
-    /* ── Toast ── */
-    const showToast = (msg: string, isErr = false): void => {
-      const t = document.getElementById("toast");
-      if (!t) return;
-      t.textContent = msg;
-      t.style.background = isErr ? "#ef4444" : "#00a896";
-      t.className = "toast show";
-      window.setTimeout(() => {
-        t.className = "toast";
-      }, 3000);
-    };
+
 
     /* ── Tab switch ── */
     const switchTab = (tab: Tab, btn: HTMLElement): void => {
@@ -343,6 +365,10 @@ export default function DailyClosingReportPage() {
       document
         .querySelectorAll<HTMLElement>(".tab-panel")
         .forEach((p) => p.classList.remove("active"));
+      // Hide all results sections until GET DATA is clicked on the new tab
+      document
+        .querySelectorAll<HTMLElement>(".results-section")
+        .forEach((r) => (r.style.display = "none"));
       btn.classList.add("active");
       document.getElementById("tab-" + tab)?.classList.add("active");
     };
@@ -355,7 +381,7 @@ export default function DailyClosingReportPage() {
             ?.value ?? "";
 
         if (!date) {
-          showToast("Please select a date", true);
+          alert("Please select a date.");
           return;
         }
 
@@ -369,7 +395,7 @@ export default function DailyClosingReportPage() {
         const y = yearEl?.value || selectedYearRef.current || "";
 
         if (!m || !y) {
-          showToast("Please select month and year", true);
+          alert("Please select month and year.");
           return;
         }
 
@@ -384,12 +410,12 @@ export default function DailyClosingReportPage() {
           (document.getElementById("customTo") as HTMLInputElement)?.value ?? "";
 
         if (!from || !to) {
-          showToast("Please select both dates", true);
+          alert("Please select both dates.");
           return;
         }
 
         if (from > to) {
-          showToast("From date must be before To date", true);
+          alert("From date must be before To date.");
           return;
         }
 
@@ -398,32 +424,41 @@ export default function DailyClosingReportPage() {
       }
     };
 
-    /* ── Export CSV ── */
+    /* ── Export Excel ── */
     const exportCSV = (tab: Tab): void => {
+      const XLSX = (window as any).XLSX;
+      if (!XLSX) {
+        alert("Excel library is loading, please try again.");
+        return;
+      }
+
       if (tab === "month") {
         const currentData = monthlyReportRef.current;
         if (!currentData || !currentData.items?.length) {
-          showToast("No data to export", true);
+          alert("No data available to export");
           return;
         }
         const rows: (string | number)[][] = [];
-        rows.push(["Delivery Method", "Total Amount", "Total Orders"]);
         (currentData.items || []).forEach((row) =>
-          rows.push([row.delivery_method_name || "-", row.total_amount ?? 0, row.total_orders ?? 0])
+          rows.push([row.delivery_method_name || "-", Number(row.total_amount ?? 0), Number(row.total_orders ?? 0)])
         );
         const grandTotal = (currentData.items || []).reduce((s, r) => s + (r.total_amount ?? 0), 0);
         const grandOrders = (currentData.items || []).reduce((s, r) => s + (r.total_orders ?? 0), 0);
-        rows.push(["Grand Total", grandTotal.toFixed(2), grandOrders]);
+        rows.push(["Grand Total", parseFloat(grandTotal.toFixed(2)), grandOrders]);
 
-        const csv = rows.map((r) => r.join(",")).join("\n");
-        const blob = new Blob([csv], { type: "text/csv" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `DailyClosingReport_Month.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-        showToast("Export downloaded successfully!");
+        const headers = ["Delivery Method", "Total Amount (Rs.)", "Total Orders"];
+        const wsData = [
+          ["Daily Closing Report — Month Wise"],
+          [`Exported On: ${new Date().toLocaleString()}`],
+          [],
+          headers,
+          ...rows,
+        ];
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        ws["!cols"] = [{ wch: 25 }, { wch: 20 }, { wch: 18 }];
+        XLSX.utils.book_append_sheet(wb, ws, "Daily Closing");
+        XLSX.writeFile(wb, `DailyClosingReport_Month_${new Date().toISOString().split("T")[0]}.xlsx`);
         return;
       }
 
@@ -433,27 +468,30 @@ export default function DailyClosingReportPage() {
         : dailyReportRef.current;
 
       if (!currentData || !currentData.items?.length) {
-        showToast("No data to export", true);
+        alert("No data available to export");
         return;
       }
       const rows: (string | number)[][] = [];
-      rows.push(["Delivery Method", "Total Amount", "Total Orders"]);
       (currentData.items || []).forEach((row: DailyClosingItem) =>
-        rows.push([row.delivery_method_name || "-", row.total_amount ?? 0, row.total_orders ?? 0])
+        rows.push([row.delivery_method_name || "-", Number(row.total_amount ?? 0), Number(row.total_orders ?? 0)])
       );
       const grandTotal = (currentData.items || []).reduce((s: number, r: DailyClosingItem) => s + (r.total_amount ?? 0), 0);
       const grandOrders = (currentData.items || []).reduce((s: number, r: DailyClosingItem) => s + (r.total_orders ?? 0), 0);
-      rows.push(["Grand Total", grandTotal.toFixed(2), grandOrders]);
+      rows.push(["Grand Total", parseFloat(grandTotal.toFixed(2)), grandOrders]);
 
-      const csv = rows.map((r) => r.join(",")).join("\n");
-      const blob = new Blob([csv], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `DailyClosingReport_${tab}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      showToast("Export downloaded successfully!");
+      const headers = ["Delivery Method", "Total Amount (Rs.)", "Total Orders"];
+      const wsData = [
+        [`Daily Closing Report — ${tab.toUpperCase()}`],
+        [`Exported On: ${new Date().toLocaleString()}`],
+        [],
+        headers,
+        ...rows,
+      ];
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws["!cols"] = [{ wch: 25 }, { wch: 20 }, { wch: 18 }];
+      XLSX.utils.book_append_sheet(wb, ws, "Daily Closing");
+      XLSX.writeFile(wb, `DailyClosingReport_${tab}_${new Date().toISOString().split("T")[0]}.xlsx`);
     };
 
     /* ── Header dropdowns ── */
@@ -511,40 +549,21 @@ export default function DailyClosingReportPage() {
     ) as HTMLInputElement | null;
     if (customTo && !customTo.value) customTo.value = today;
 
-    /* ── Step nav ── */
-    let currentStep = 6;
-    const totalSteps = 26;
-    const stepValue = document.getElementById("stepValue");
-    const prevBtn = document.getElementById("prevBtn");
-    const nextBtn = document.getElementById("nextBtn");
-    const onPrev = (): void => {
-      if (currentStep > 1) {
-        currentStep--;
-        if (stepValue) stepValue.textContent = currentStep + "/" + totalSteps;
-      }
-    };
-    const onNext = (): void => {
-      if (currentStep < totalSteps) {
-        currentStep++;
-        if (stepValue) stepValue.textContent = currentStep + "/" + totalSteps;
-      }
-    };
-    prevBtn?.addEventListener("click", onPrev);
-    nextBtn?.addEventListener("click", onNext);
-
     return () => {
       document.removeEventListener("click", closeAllDropdowns);
       tabButtons.forEach((btn, idx) =>
         btn.removeEventListener("click", tabHandlers[idx])
       );
       wired.forEach(([el, type, fn]) => el.removeEventListener(type, fn));
-      prevBtn?.removeEventListener("click", onPrev);
-      nextBtn?.removeEventListener("click", onNext);
     };
   }, []);
 
   return (
     <div id="pg-reports-daily-closing-report">
+      <Script
+        src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+        strategy="afterInteractive"
+      />
       <link
         rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
@@ -587,8 +606,8 @@ export default function DailyClosingReportPage() {
                   <input type="date" id="dayDate" className="filter-input" />
                 </div>
                 <button className="btn-getdata">GET DATA</button>
-                <button className="btn-export">
-                  <svg viewBox="0 0 24 24">
+                <button className="btn-action btn-export">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
@@ -644,8 +663,8 @@ export default function DailyClosingReportPage() {
                   </select>
                 </div>
                 <button className="btn-getdata">GET DATA</button>
-                <button className="btn-export">
-                  <svg viewBox="0 0 24 24">
+                <button className="btn-action btn-export">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
@@ -671,8 +690,8 @@ export default function DailyClosingReportPage() {
                   <input type="date" id="customTo" className="filter-input" />
                 </div>
                 <button className="btn-getdata">GET DATA</button>
-                <button className="btn-export">
-                  <svg viewBox="0 0 24 24">
+                <button className="btn-action btn-export">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
@@ -687,25 +706,10 @@ export default function DailyClosingReportPage() {
             </div>
           </div>
 
-          <div className="step-footer">
-            <button className="btn-prev" id="prevBtn">
-              <i className="fas fa-chevron-left" /> PREVIOUS
-            </button>
-            <div className="step-indicator">
-              <span className="step-label">STEP</span>
-              <span className="step-value" id="stepValue">
-                6/26
-              </span>
-            </div>
-            <button className="btn-next" id="nextBtn">
-              NEXT <i className="fas fa-chevron-right" />
-            </button>
-          </div>
+          <ReportStepFooter currentStepOverride={6} totalStepsOverride={25} />
         </div>
       </div>
 
-      {/* Toast */}
-      <div className="toast" id="toast"></div>
     </div>
   );
 }

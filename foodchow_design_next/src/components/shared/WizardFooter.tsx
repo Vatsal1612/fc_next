@@ -36,15 +36,24 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
   const isFirstStep = stepNumber <= 1 || prevDisabled || (!stepInfo.prevStep && !onPrev);
   const isLastStep = stepNumber >= totalSteps || nextDisabled || (!stepInfo.nextStep && !onNext);
 
+  const parts = pathname.split("/").filter(Boolean);
+  const adminModules = ["reports", "orders", "marketing", "menu", "setup"];
+  const subdomain = parts.length > 0 && !adminModules.includes(parts[0].toLowerCase()) ? parts[0] : "";
+
+  const resolvePath = React.useCallback(
+    (p: string) => (subdomain ? `/${subdomain}${p}` : p),
+    [subdomain]
+  );
+
   // Automatically prefetch previous and next step routes for fast instant navigation
   useEffect(() => {
     if (stepInfo.prevStep?.path) {
-      router.prefetch(stepInfo.prevStep.path);
+      router.prefetch(resolvePath(stepInfo.prevStep.path));
     }
     if (stepInfo.nextStep?.path) {
-      router.prefetch(stepInfo.nextStep.path);
+      router.prefetch(resolvePath(stepInfo.nextStep.path));
     }
-  }, [stepInfo.prevStep?.path, stepInfo.nextStep?.path, router]);
+  }, [stepInfo.prevStep?.path, stepInfo.nextStep?.path, router, resolvePath]);
 
   const handlePrev = () => {
     if (isFirstStep) return;
@@ -52,7 +61,7 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
       onPrev();
     } else if (stepInfo.prevStep) {
       startTransition(() => {
-        router.push(stepInfo.prevStep!.path);
+        router.push(resolvePath(stepInfo.prevStep!.path));
       });
     }
   };
@@ -63,7 +72,7 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
       onNext();
     } else if (stepInfo.nextStep) {
       startTransition(() => {
-        router.push(stepInfo.nextStep!.path);
+        router.push(resolvePath(stepInfo.nextStep!.path));
       });
     }
   };

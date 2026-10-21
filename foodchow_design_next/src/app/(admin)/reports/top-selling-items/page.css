@@ -80,8 +80,9 @@
     display: flex;
     align-items: center;
     padding: 0 15px;
-  font-weight: var(--weight-bold);
-  font-size: var(--text-subheading); line-height: var(--lh-subheading);
+    font-weight: var(--weight-bold);
+    font-size: var(--text-subheading);
+    line-height: var(--lh-subheading);
     letter-spacing: 1px;
     gap: 12px;
   }
@@ -90,7 +91,8 @@
     background: rgba(255, 255, 255, 0.2);
     border: none;
     color: #fff;
-  font-size: var(--text-subheading); line-height: var(--lh-subheading);
+    font-size: var(--text-subheading);
+    line-height: var(--lh-subheading);
     cursor: pointer;
     width: 36px;
     height: 36px;
@@ -114,8 +116,9 @@
     color: white;
     padding: 10px 18px;
     border-radius: 6px;
-  font-size: var(--text-button); line-height: var(--lh-button);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
+    font-weight: var(--weight-semibold);
     cursor: pointer;
     transition: all 0.2s;
     display: inline-flex;
@@ -135,8 +138,9 @@
     color: var(--teal);
     padding: 9px 18px;
     border-radius: 6px;
-  font-size: var(--text-button); line-height: var(--lh-button);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
+    font-weight: var(--weight-semibold);
     cursor: pointer;
     transition: all 0.2s;
     display: inline-flex;
@@ -188,8 +192,9 @@
     border: 1.5px solid var(--line);
     border-radius: 6px;
     color: var(--muted);
-  font-size: var(--text-button); line-height: var(--lh-button);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
+    font-weight: var(--weight-semibold);
     cursor: pointer;
     transition: all 0.2s ease;
     outline: none;
@@ -245,15 +250,17 @@
     color: #666;
     transition: all 0.2s;
     text-decoration: none;
-  font-size: var(--text-nav); line-height: var(--lh-nav);
-  font-weight: var(--weight-medium);
+    font-size: var(--text-nav);
+    line-height: var(--lh-nav);
+    font-weight: var(--weight-medium);
     gap: 5px;
     border: 1px solid transparent;
     border-radius: 6px;
   }
 
   .nav-item i {
-  font-size: var(--text-subheading); line-height: var(--lh-subheading);
+    font-size: var(--text-subheading);
+    line-height: var(--lh-subheading);
   }
 
   .nav-item:hover {
@@ -276,8 +283,9 @@
     align-items: center;
     cursor: pointer;
     color: #666;
-  font-size: var(--text-helper); line-height: var(--lh-helper);
-  font-weight: var(--weight-medium);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
+    font-weight: var(--weight-medium);
     gap: 5px;
     border: 1px solid transparent;
     border-radius: 6px;
@@ -289,7 +297,8 @@
   }
 
   .sidebar-logout-h i {
-  font-size: var(--text-subheading); line-height: var(--lh-subheading);
+    font-size: var(--text-subheading);
+    line-height: var(--lh-subheading);
   }
 
   /* ── INNER SIDEBAR ── */
@@ -325,9 +334,10 @@
     display: flex;
     align-items: center;
     gap: 10px;
-  font-weight: var(--weight-semibold);
+    font-weight: var(--weight-semibold);
     color: var(--ink);
-  font-size: var(--text-label); line-height: var(--lh-label);
+    font-size: var(--text-label);
+    line-height: var(--lh-label);
   }
 
   .shop-info i {
@@ -357,7 +367,8 @@
     margin: 2px 10px;
     color: #333;
     text-decoration: none;
-  font-size: var(--text-helper); line-height: var(--lh-helper);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
     gap: 12px;
     transition: background 0.15s;
     border: 1px solid transparent;
@@ -368,7 +379,8 @@
     color: #666;
     width: 18px;
     text-align: center;
-  font-size: var(--text-helper); line-height: var(--lh-helper);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
   }
 
   .submenu-item:hover {
@@ -383,7 +395,7 @@
   .submenu-item.active {
     background: #e6f7f5;
     color: var(--teal);
-  font-weight: var(--weight-semibold);
+    font-weight: var(--weight-semibold);
     border-color: var(--teal);
   }
 
@@ -411,8 +423,9 @@
     border: none;
     border-radius: 8px;
     padding: 10px 22px;
-  font-size: var(--text-button); line-height: var(--lh-button);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
+    font-weight: var(--weight-semibold);
     letter-spacing: 0.06em;
     text-transform: uppercase;
     cursor: pointer;
@@ -435,8 +448,9 @@
   }
 
   .step-label {
-  font-size: var(--text-helper); line-height: var(--lh-helper);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
+    font-weight: var(--weight-semibold);
     color: #aaa;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -444,7 +458,7 @@
 
   .step-value {
     font-size: 17px;
-  font-weight: var(--weight-bold);
+    font-weight: var(--weight-bold);
     color: var(--teal);
   }
 
@@ -472,7 +486,8 @@
   .topbar-notice {
     flex: 1;
     text-align: center;
-  font-size: var(--text-helper); line-height: var(--lh-helper);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
     color: var(--muted);
     white-space: nowrap;
     overflow: hidden;
@@ -481,12 +496,12 @@
 
   .topbar-notice strong {
     color: var(--ink);
-  font-weight: var(--weight-bold);
+    font-weight: var(--weight-bold);
   }
 
   .topbar-notice a {
     color: #ef4444;
-  font-weight: var(--weight-semibold);
+    font-weight: var(--weight-semibold);
     text-decoration: underline;
     margin-left: 4px;
   }
@@ -507,8 +522,9 @@
     border: none;
     border-radius: 7px;
     color: #fff;
-  font-size: var(--text-button); line-height: var(--lh-button);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
+    font-weight: var(--weight-semibold);
     cursor: pointer;
     transition: 0.15s;
     white-space: nowrap;
@@ -528,8 +544,9 @@
     border-radius: 7px;
     background: transparent;
     color: var(--teal);
-  font-size: var(--text-button); line-height: var(--lh-button);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
+    font-weight: var(--weight-semibold);
     cursor: pointer;
   }
 
@@ -546,8 +563,9 @@
     border: none;
     border-radius: 7px;
     color: #fff;
-  font-size: var(--text-button); line-height: var(--lh-button);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
+    font-weight: var(--weight-semibold);
     cursor: pointer;
   }
 
@@ -592,7 +610,8 @@
   .dropdown-menu a {
     display: block;
     padding: 10px 16px;
-  font-size: var(--text-helper); line-height: var(--lh-helper);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
     color: var(--ink);
     text-decoration: none;
     transition: all 0.15s;
@@ -626,7 +645,8 @@
   }
 
   .card-sub {
-  font-size: var(--text-helper); line-height: var(--lh-helper);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
     color: var(--muted);
     margin-bottom: 20px;
   }
@@ -643,7 +663,7 @@
   .btn {
     border: none;
     cursor: pointer;
-  font-weight: var(--weight-semibold);
+    font-weight: var(--weight-semibold);
     border-radius: 9px;
     transition: 0.15s;
     white-space: nowrap;
@@ -656,7 +676,8 @@
     background: var(--teal);
     color: #fff;
     padding: 10px 18px;
-  font-size: var(--text-button); line-height: var(--lh-button);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
     letter-spacing: 0.05em;
     text-transform: uppercase;
   }
@@ -674,8 +695,9 @@
   }
 
   .tab-btn {
-  font-size: var(--text-helper); line-height: var(--lh-helper);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
+    font-weight: var(--weight-semibold);
     padding: 8px 22px;
     border-radius: 8px;
     cursor: pointer;
@@ -719,14 +741,16 @@
   }
 
   .filter-label {
-  font-size: var(--text-helper); line-height: var(--lh-helper);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
+    font-weight: var(--weight-semibold);
     color: var(--ink);
   }
 
   .filter-input,
   .filter-select {
-  font-size: var(--text-input); line-height: var(--lh-input);
+    font-size: var(--text-input);
+    line-height: var(--lh-input);
     color: var(--ink);
     background: #fff;
     border: 1px solid #d1d5db;
@@ -756,8 +780,9 @@
     border: none;
     border-radius: 8px;
     padding: 9px 22px;
-  font-size: var(--text-button); line-height: var(--lh-button);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
+    font-weight: var(--weight-semibold);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -791,8 +816,9 @@
   }
 
   .results-title {
-  font-size: var(--text-section-heading); line-height: var(--lh-section-heading);
-  font-weight: var(--weight-bold);
+    font-size: var(--text-section-heading);
+    line-height: var(--lh-section-heading);
+    font-weight: var(--weight-bold);
     color: var(--teal);
   }
 
@@ -815,8 +841,9 @@
   }
 
   .table-card-header span {
-  font-size: var(--text-label); line-height: var(--lh-label);
-  font-weight: var(--weight-bold);
+    font-size: var(--text-label);
+    line-height: var(--lh-label);
+    font-weight: var(--weight-bold);
     color: var(--ink);
   }
 
@@ -827,7 +854,8 @@
   .data-table {
     width: 100%;
     border-collapse: collapse;
-  font-size: var(--text-helper); line-height: var(--lh-helper);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
   }
 
   .data-table thead tr {
@@ -838,8 +866,9 @@
   .data-table thead th {
     padding: 13px 16px;
     text-align: left;
-  font-size: var(--text-table);
-  font-weight: var(--weight-semibold); line-height: var(--lh-table);
+    font-size: var(--text-table);
+    font-weight: var(--weight-semibold);
+    line-height: var(--lh-table);
     color: var(--teal-dark);
     white-space: nowrap;
     letter-spacing: 0.04em;
@@ -861,20 +890,20 @@
 
   .data-table tbody td {
     padding: 14px 16px;
-  font-size: var(--text-table);
+    font-size: var(--text-table);
     color: var(--ink);
     vertical-align: middle;
   }
 
   .data-table tbody td:last-child {
-  font-weight: var(--weight-bold);
+    font-weight: var(--weight-bold);
     color: var(--teal-dark);
   }
 
   .no-record {
-  font-size: var(--text-label); line-height: var(--lh-label);
-  font-weight: var(--weight-semibold);
-    color: var(--muted);
+    font-size: 15px !important;
+    font-weight: 500 !important;
+    color: black !important;
     padding: 40px 0;
     text-align: center;
     background: var(--white);

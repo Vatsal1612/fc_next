@@ -13,10 +13,10 @@ export async function GET(request: NextRequest) {
     }
 
     let endpoint = "";
-    if (period === "today") endpoint = "/FoodChowRMS/ProductWiseComparisonByToday";
-    else if (period === "week") endpoint = "/FoodChowRMS/ProductWiseComparisonByWeek";
-    else if (period === "month") endpoint = "/FoodChowRMS/ProductWiseComparisonByMonth";
-    else if (period === "year") endpoint = "/FoodChowRMS/ProductWiseComparisonByYear";
+    if (period === "today") endpoint = "/SalesReports/ProductWiseComparisionByToday";
+    else if (period === "week") endpoint = "/SalesReports/ProductWiseComparisionByWeek";
+    else if (period === "month") endpoint = "/SalesReports/ProductWiseComparisionByMonth";
+    else if (period === "year") endpoint = "/SalesReports/ProductWiseComparisionByYear";
 
     const apiUrl = `https://api.foodchow.com/api${endpoint}?shop_id=${shopId}&pageNumber=${pageNumber || 1}&pageSize=${pageSize || 10}`;
 

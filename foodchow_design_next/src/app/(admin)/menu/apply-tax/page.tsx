@@ -931,12 +931,10 @@
 // ##############
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { menuService } from "@/api/services/menu.service";
 import { getShopId, useShopId, isApiSuccess } from "@/utils/shop";
-import { useSessionCurrency } from "@/hooks/useSessionCurrency";
-import ReportPagination from "@/components/shared/ReportPagination";
 import "./page.css";
 
 interface Product {
@@ -961,28 +959,11 @@ export default function ApplyTaxPage() {
   const router = useRouter();
   const taxId = searchParams.get("taxId");
   const shopId = useShopId();
-  const sessionCurrency = useSessionCurrency();
-  const currencySymbol = sessionCurrency.symbol || "₹";
   const [taxName, setTaxName] = useState<string>("");
   const [taxPercentage, setTaxPercentage] = useState<number>(0);
   const [taxType, setTaxType] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [, setProducts] = useState<Product[]>([]);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [totalFilteredCount, setTotalFilteredCount] = useState(0);
-
-  const renderProductListRef = useRef<(() => void) | null>(null);
-  const pageRef = useRef(page);
-  const pageSizeRef = useRef(pageSize);
-  pageRef.current = page;
-  pageSizeRef.current = pageSize;
-
-  useEffect(() => {
-    if (renderProductListRef.current) {
-      renderProductListRef.current();
-    }
-  }, [page, pageSize]);
 
   const fetchTaxDetails = useCallback(async (id: number) => {
     try {
@@ -1029,50 +1010,22 @@ export default function ApplyTaxPage() {
     async function loadProducts() {
       try {
         const activeShopId = getShopId();
-        const items = await menuService.getItemListWithSize(activeShopId, TAX_ID, taxType);
+        const response = await menuService.getItemListWithSize(activeShopId, TAX_ID, taxType);
 
-        const productsWithTax = await Promise.all(
-          items.map(async (item: any) => {
-            const itemId = item.item_id || 0;
-            const sizeId = item.item_size_id || 0;
-            let isTax = false;
-            let taxList: any[] = [];
-            try {
-              const taxRes: any = await menuService.getTaxDetailsWithSize(itemId, sizeId);
-              const taxes = Array.isArray(taxRes)
-                ? taxRes
-                : (taxRes?.data ? (typeof taxRes.data === "string" ? JSON.parse(taxRes.data) : taxRes.data) : []);
-              
-              taxList = (taxes || []).map((t: any) => ({
-                tax_id: t.tax_id ?? t.food_shop_tax_id ?? 0,
-                tax_name: t.tax_name ?? "",
-                tax_perc: t.tax_percentage ?? t.tax_perc ?? 0,
-                tax_type: t.tax_type ?? 0,
-                tax_amount: t.tax_percentage ? ((item.item_price || 0) * t.tax_percentage) / 100 : 0,
-              }));
+        const items = response;
+        sampleProducts = items.map((item: any) => ({
+          id: item.item_id || 0,
+          item_size_id: item.item_size_id || 0,
+          name: item.size_name && item.size_name.trim() !== ''
+            ? `${item.item_name} (${item.size_name})`
+            : item.item_name,
+          category: item.size_name && item.size_name.trim() !== '' ? item.size_name : "Default",
+          price: item.item_price || 0,
+          priceWithTax: item.item_price || 0,
+          taxApplied: item.is_tax || false,
+          taxList: item.tax_list
+        }));
 
-              isTax = taxList.some((t: any) => Number(t.tax_id) === Number(TAX_ID));
-            } catch (e) {
-              console.error("Error fetching tax details for item:", itemId, e);
-            }
-
-            const price = item.item_price || 0;
-            return {
-              id: itemId,
-              item_size_id: sizeId,
-              name: item.size_name && item.size_name.trim() !== ''
-                ? `${item.item_name} (${item.size_name})`
-                : item.item_name,
-              category: item.size_name && item.size_name.trim() !== '' ? item.size_name : "Default",
-              price: price,
-              priceWithTax: isTax ? calculatePriceWithTax(price, taxPercentage) : price,
-              taxApplied: isTax,
-              taxList: taxList
-            };
-          })
-        );
-
-        sampleProducts = productsWithTax;
         setProducts(sampleProducts);
         renderProductList();
         updateProductModalCounts();
@@ -1097,8 +1050,6 @@ export default function ApplyTaxPage() {
           p.category.toLowerCase().includes(query)
       );
 
-      setTotalFilteredCount(filtered.length);
-
       if (filtered.length === 0) {
         list.innerHTML = `<div class="product-empty-state" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 2rem;color:var(--text-muted);gap:8px;">
           <svg viewBox="0 0 24 24" style="width:40px;height:40px;opacity:0.4;" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -1107,12 +1058,7 @@ export default function ApplyTaxPage() {
         return;
       }
 
-      const currentPage = pageRef.current || 1;
-      const currentPageSize = pageSizeRef.current || 10;
-      const startIndex = (currentPage - 1) * currentPageSize;
-      const paginatedItems = filtered.slice(startIndex, startIndex + currentPageSize);
-
-      list.innerHTML = paginatedItems
+      list.innerHTML = filtered
         .map((product) => {
           const checked = product.taxApplied || false;
           const appliedTaxes = product.taxList || [];
@@ -1128,11 +1074,11 @@ export default function ApplyTaxPage() {
             <div style="display:flex;align-items:center;gap:16px;flex-shrink:0;">
               <div style="text-align:right;">
                 <div style="font-size:11px;color:var(--text-muted);font-weight:500;">Without Tax</div>
-                <span style="font-size:13px;font-weight:600;color:var(--text-secondary);font-family:var(--font-mono);">${escapeHtml(currencySymbol)}${priceWithoutTax.toFixed(2)}</span>
+                <span style="font-size:13px;font-weight:600;color:var(--text-secondary);font-family:var(--font-mono);">₹${priceWithoutTax.toFixed(2)}</span>
               </div>
               <div style="text-align:right;">
                 <div style="font-size:11px;color:var(--text-muted);font-weight:500;">With Tax</div>
-                <span style="font-size:14px;font-weight:700;color:${checked ? 'var(--teal-dark)' : 'var(--text-muted)'};font-family:var(--font-mono);">${escapeHtml(currencySymbol)}${priceWithTax.toFixed(2)}</span>
+                <span style="font-size:14px;font-weight:700;color:${checked ? 'var(--teal-dark)' : 'var(--text-muted)'};font-family:var(--font-mono);">₹${priceWithTax.toFixed(2)}</span>
               </div>
               ${appliedTaxes.length ? `
               <div style="
@@ -1159,7 +1105,7 @@ export default function ApplyTaxPage() {
                           font-weight:700;
                           color:var(--teal);
                       ">
-                          ${escapeHtml(currencySymbol)}${tax.tax_amount.toFixed(2)}
+                          ₹${tax.tax_amount.toFixed(2)}
                       </div>
                   </div>
               `
@@ -1248,8 +1194,6 @@ export default function ApplyTaxPage() {
         "productSearchInput"
       ) as HTMLInputElement | null;
       productSearchQuery = input ? input.value.trim() : "";
-      pageRef.current = 1;
-      setPage(1);
       renderProductList();
     }
 
@@ -1385,11 +1329,9 @@ export default function ApplyTaxPage() {
     };
     window.addEventListener("click", onWindowClick);
 
-    renderProductListRef.current = renderProductList;
     loadProducts();
 
     return () => {
-      renderProductListRef.current = null;
       clearTimeout(toastTimeout);
       searchInput?.removeEventListener("input", filterProducts);
       selectAllCb?.removeEventListener("change", onSelectAllChange);
@@ -1402,7 +1344,7 @@ export default function ApplyTaxPage() {
       productList?.removeEventListener("click", onListClick);
       window.removeEventListener("click", onWindowClick);
     };
-  }, [taxId, shopId, router, taxPercentage, taxType]);
+  }, [taxId, shopId, router]);
 
   // Loading state
   // if (loading) {
@@ -1674,28 +1616,6 @@ export default function ApplyTaxPage() {
               >
                 {/* Rendered by JS */}
               </div>
-
-              {totalFilteredCount > 0 && (
-                <div style={{ padding: "0.75rem 1.75rem", borderTop: "1px solid var(--border)", background: "#fff" }}>
-                  <ReportPagination
-                    currentPage={page}
-                    totalPages={Math.max(1, Math.ceil(totalFilteredCount / pageSize))}
-                    totalRecords={totalFilteredCount}
-                    pageSize={pageSize}
-                    onPageChange={(p) => {
-                      pageRef.current = p;
-                      setPage(p);
-                    }}
-                    onPageSizeChange={(newSize) => {
-                      pageSizeRef.current = newSize;
-                      pageRef.current = 1;
-                      setPageSize(newSize);
-                      setPage(1);
-                    }}
-                    pageSizeOptions={[10, 25, 50, 100]}
-                  />
-                </div>
-              )}
 
               <div
                 className="product-modal-footer"

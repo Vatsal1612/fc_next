@@ -52,14 +52,22 @@ export function useShopId(defaultShopId = 0): number {
     // Initial check
     updateShopId();
 
+    // Listen for cross-tab storage changes
     window.addEventListener("storage", updateShopId);
+    // Listen for same-tab programmatic changes via setShopId()
     window.addEventListener("shop_id_changed", updateShopId);
+    // Listen for window focus (e.g. switching from DevTools back to the app)
     window.addEventListener("focus", updateShopId);
+
+    // Polling fallback — catches DevTools Application-tab manual edits
+    // which fire no DOM events at all. Checks every 2 seconds.
+    const pollInterval = setInterval(updateShopId, 2000);
 
     return () => {
       window.removeEventListener("storage", updateShopId);
       window.removeEventListener("shop_id_changed", updateShopId);
       window.removeEventListener("focus", updateShopId);
+      clearInterval(pollInterval);
     };
   }, [defaultShopId]);
 

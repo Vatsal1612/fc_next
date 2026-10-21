@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef } from "react";
 import { setupService } from "@/api/services/setup.service";
 import { WizardFooter } from "@/components/shared/WizardFooter";
-import Swal from "sweetalert2";
 import "./page.css";
 
 /**
@@ -47,7 +46,7 @@ export default function GalleryPage() {
         user_type: "4",
         photo_count: "1",
         photo_0: base64img,
-        user_type_id: shopId,
+        user_type_id: "1234",
         caption: fileName,
       };
 
@@ -303,46 +302,9 @@ export default function GalleryPage() {
     fileInput?.addEventListener("change", onFileSelected);
 
     // Delegate delete buttons (existing + dynamically added).
-    const onGridClick = async (e: Event): Promise<void> => {
+    const onGridClick = (e: Event): void => {
       const btn = (e.target as HTMLElement).closest(".del-btn");
-      if (btn) {
-        const idStr = btn.getAttribute("data-id");
-        if (!idStr) return;
-        const galleryId = parseInt(idStr, 10);
-
-        const { default: Swal } = await import("sweetalert2");
-
-        const result = await Swal.fire({
-          title: "Remove Image?",
-          text: "Are you sure you want to remove this gallery image?",
-          icon: "warning",
-          showCancelButton: true,
-          confirmButtonColor: "#e63946",
-          cancelButtonColor: "#8e9ba8",
-          confirmButtonText: "Yes, remove it",
-        });
-
-        if (result.isConfirmed) {
-          Swal.fire({
-            title: "Removing...",
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading(),
-          });
-          try {
-            await setupService.deleteGalleryPhoto(galleryId);
-            await loadGalleryImages();
-            Swal.fire({
-              icon: "success",
-              title: "Removed!",
-              text: "Image has been removed successfully.",
-              confirmButtonColor: "#00a896",
-            });
-          } catch (err) {
-            console.error(err);
-            Swal.fire("Error", "Failed to remove image.", "error");
-          }
-        }
-      }
+      if (btn) btn.closest(".gallery-item")?.remove();
     };
     galleryGrid?.addEventListener("click", onGridClick);
 
@@ -409,48 +371,10 @@ export default function GalleryPage() {
               <div className="card-title-row">
                 <div className="typ-page-heading card-title">
                   Slider Images{" "}
-
+                  <span style={{ color: "#6b7280", fontWeight: 500, fontSize: "14px" }}>
+                    [For APP Only]
+                  </span>
                 </div>
-                <button
-                  type="button"
-                  className="btn-help"
-                  onClick={() =>
-                    Swal.fire({
-                      title: "How to set up Gallery",
-                      html: `
-                        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px;">
-                          <iframe 
-                            src="https://player.vimeo.com/video/1075943416?autoplay=1" 
-                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
-                            frameborder="0" 
-                            allow="autoplay; fullscreen; picture-in-picture" 
-                            allowfullscreen>
-                          </iframe>
-                        </div>
-                        <p style="margin-top: 15px; font-size: 14px; color: #475569;">
-                          Follow these steps to upload and organize slider images for your restaurant app.
-                        </p>
-                      `,
-                      width: 700,
-                      showCloseButton: true,
-                      showConfirmButton: false,
-                    })
-                  }
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="14"
-                    height="14"
-                    stroke="currentColor"
-                    fill="none"
-                    strokeWidth="2.5"
-                  >
-                    <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                    <line x1="12" y1="17" x2="12.01" y2="17" />
-                  </svg>
-                  HELP
-                </button>
               </div>
 
               <div className="gallery-grid" id="galleryGrid">
@@ -461,7 +385,7 @@ export default function GalleryPage() {
                       alt="gallery"
                       onError={(e) => console.log("Image failed:", e.currentTarget.src)}
                     />
-                    <button className="del-btn" data-id={item.gallery_id}>✕</button>
+                    <button className="del-btn">✕</button>
                   </div>
                 ))}
                 <div className="add-tile">

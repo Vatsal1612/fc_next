@@ -95,9 +95,8 @@
         display: flex;
         align-items: center;
         padding: 0 15px;
-        font-weight: var(--weight-bold);
-        font-size: var(--text-subheading);
-        line-height: var(--lh-subheading);
+  font-weight: var(--weight-bold);
+  font-size: var(--text-subheading); line-height: var(--lh-subheading);
         letter-spacing: 1px;
         gap: 12px;
     }
@@ -106,8 +105,7 @@
         background: rgba(255, 255, 255, .2);
         border: none;
         color: #fff;
-        font-size: var(--text-subheading);
-        line-height: var(--lh-subheading);
+  font-size: var(--text-subheading); line-height: var(--lh-subheading);
         cursor: pointer;
         width: 36px;
         height: 36px;
@@ -131,9 +129,8 @@
         color: white;
         padding: 10px 18px;
         border-radius: 6px;
-        font-size: var(--text-button);
-        line-height: var(--lh-button);
-        font-weight: var(--weight-semibold);
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
         cursor: pointer;
         transition: all 0.2s;
         display: inline-flex;
@@ -153,9 +150,8 @@
         color: var(--teal);
         padding: 9px 18px;
         border-radius: 6px;
-        font-size: var(--text-button);
-        line-height: var(--lh-button);
-        font-weight: var(--weight-semibold);
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
         cursor: pointer;
         transition: all 0.2s;
         display: inline-flex;
@@ -177,9 +173,8 @@
         border: 1.5px solid var(--line);
         border-radius: 8px;
         padding: 9px 16px;
-        font-size: var(--text-button);
-        line-height: var(--lh-button);
-        font-weight: var(--weight-semibold);
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
         cursor: pointer;
         transition: .15s;
     }
@@ -190,8 +185,7 @@
     }
 
     .btn-help-new i {
-        font-size: var(--text-button);
-        line-height: var(--lh-button);
+  font-size: var(--text-button); line-height: var(--lh-button);
         color: var(--muted);
     }
 
@@ -231,17 +225,15 @@
         color: #666;
         transition: all .2s;
         text-decoration: none;
-        font-size: var(--text-nav);
-        line-height: var(--lh-nav);
-        font-weight: var(--weight-medium);
+  font-size: var(--text-nav); line-height: var(--lh-nav);
+  font-weight: var(--weight-medium);
         gap: 5px;
         border: 1px solid transparent;
         border-radius: 6px;
     }
 
     .nav-item i {
-        font-size: var(--text-subheading);
-        line-height: var(--lh-subheading);
+  font-size: var(--text-subheading); line-height: var(--lh-subheading);
     }
 
     .nav-item:hover {
@@ -264,9 +256,8 @@
         align-items: center;
         cursor: pointer;
         color: #666;
-        font-size: var(--text-helper);
-        line-height: var(--lh-helper);
-        font-weight: var(--weight-medium);
+  font-size: var(--text-helper); line-height: var(--lh-helper);
+  font-weight: var(--weight-medium);
         gap: 5px;
         border: 1px solid transparent;
         border-radius: 6px;
@@ -278,8 +269,7 @@
     }
 
     .sidebar-logout-h i {
-        font-size: var(--text-subheading);
-        line-height: var(--lh-subheading);
+  font-size: var(--text-subheading); line-height: var(--lh-subheading);
     }
 
     /* ── INNER SIDEBAR (subnav, from category with my plan added) ── */
@@ -315,10 +305,9 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        font-weight: var(--weight-semibold);
+  font-weight: var(--weight-semibold);
         color: var(--ink);
-        font-size: var(--text-label);
-        line-height: var(--lh-label);
+  font-size: var(--text-label); line-height: var(--lh-label);
     }
 
     .shop-info i {
@@ -348,8 +337,7 @@
         margin: 2px 10px;
         color: #333;
         text-decoration: none;
-        font-size: var(--text-helper);
-        line-height: var(--lh-helper);
+  font-size: var(--text-helper); line-height: var(--lh-helper);
         gap: 12px;
         transition: background .15s;
         border: 1px solid transparent;
@@ -360,8 +348,7 @@
         color: #666;
         width: 18px;
         text-align: center;
-        font-size: var(--text-helper);
-        line-height: var(--lh-helper);
+  font-size: var(--text-helper); line-height: var(--lh-helper);
     }
 
     .submenu-item:hover {
@@ -376,7 +363,7 @@
     .submenu-item.active {
         background: #e6f7f5;
         color: var(--teal);
-        font-weight: var(--weight-semibold);
+  font-weight: var(--weight-semibold);
         border-color: var(--teal);
     }
 
@@ -408,8 +395,7 @@
     .topbar-notice {
         flex: 1;
         text-align: center;
-        font-size: var(--text-helper);
-        line-height: var(--lh-helper);
+  font-size: var(--text-helper); line-height: var(--lh-helper);
         color: var(--muted);
         white-space: nowrap;
         overflow: hidden;
@@ -418,12 +404,12 @@
 
     .topbar-notice strong {
         color: var(--ink);
-        font-weight: var(--weight-bold);
+  font-weight: var(--weight-bold);
     }
 
     .topbar-notice a {
         color: #ef4444;
-        font-weight: var(--weight-semibold);
+  font-weight: var(--weight-semibold);
         text-decoration: underline;
         margin-left: 4px;
     }
@@ -444,9 +430,8 @@
         border: none;
         border-radius: 7px;
         color: #fff;
-        font-size: var(--text-button);
-        line-height: var(--lh-button);
-        font-weight: var(--weight-semibold);
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
         cursor: pointer;
         transition: .15s;
         white-space: nowrap;
@@ -466,9 +451,8 @@
         border-radius: 7px;
         background: transparent;
         color: var(--teal);
-        font-size: var(--text-button);
-        line-height: var(--lh-button);
-        font-weight: var(--weight-semibold);
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
         cursor: pointer;
     }
 
@@ -485,9 +469,8 @@
         border: none;
         border-radius: 7px;
         color: #fff;
-        font-size: var(--text-button);
-        line-height: var(--lh-button);
-        font-weight: var(--weight-semibold);
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
         cursor: pointer;
     }
 
@@ -523,8 +506,7 @@
     .dropdown-menu a {
         display: block;
         padding: 10px 16px;
-        font-size: var(--text-helper);
-        line-height: var(--lh-helper);
+  font-size: var(--text-helper); line-height: var(--lh-helper);
         color: var(--ink);
         text-decoration: none;
         transition: all 0.15s;
@@ -559,8 +541,7 @@
     }
 
     .card-sub {
-        font-size: var(--text-helper);
-        line-height: var(--lh-helper);
+  font-size: var(--text-helper); line-height: var(--lh-helper);
         color: var(--muted);
         margin-bottom: 20px;
     }
@@ -600,15 +581,14 @@
     }
 
     .plan-name {
-        font-size: var(--text-body);
-        font-weight: var(--weight-bold);
+  font-size: var(--text-body);
+  font-weight: var(--weight-bold);
         color: var(--ink);
     }
 
     .plan-badge {
-        font-size: var(--text-helper);
-        line-height: var(--lh-helper);
-        font-weight: var(--weight-bold);
+  font-size: var(--text-helper); line-height: var(--lh-helper);
+  font-weight: var(--weight-bold);
         padding: 3px 10px;
         border-radius: 20px;
         letter-spacing: 0.04em;
@@ -621,15 +601,13 @@
     }
 
     .plan-meta {
-        font-size: var(--text-helper);
-        line-height: var(--lh-helper);
+  font-size: var(--text-helper); line-height: var(--lh-helper);
         color: var(--muted);
     }
 
     .plan-renewal {
-        font-size: var(--text-helper);
-        line-height: var(--lh-helper);
-        font-weight: var(--weight-semibold);
+  font-size: var(--text-helper); line-height: var(--lh-helper);
+  font-weight: var(--weight-semibold);
         color: var(--teal);
     }
 
@@ -643,21 +621,17 @@
     .btn-invoice {
         display: inline-flex;
         align-items: center;
-        justify-content: center;
         gap: 6px;
-        height: 38px;
-        padding: 0 16px;
+        padding: 8px 16px;
         border: 1.5px solid var(--line);
         border-radius: 8px;
         background: transparent;
         color: var(--muted);
-        font-size: var(--text-button);
-        line-height: 1;
-        font-weight: var(--weight-semibold);
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
         cursor: pointer;
         transition: all .15s;
         text-decoration: none;
-        box-sizing: border-box;
     }
 
     .btn-invoice:hover {
@@ -667,31 +641,26 @@
     }
 
     .btn-invoice svg {
-        width: 15px;
-        height: 15px;
+        width: 14px;
+        height: 14px;
         fill: none;
         stroke: currentColor;
         stroke-width: 2;
-        flex-shrink: 0;
     }
 
     .btn-cancel {
         display: inline-flex;
         align-items: center;
-        justify-content: center;
         gap: 6px;
-        height: 38px;
-        padding: 0 16px;
+        padding: 8px 16px;
         border: 1.5px solid #fca5a5;
         border-radius: 8px;
         background: transparent;
         color: #ef4444;
-        font-size: var(--text-button);
-        line-height: 1;
-        font-weight: var(--weight-semibold);
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
         cursor: pointer;
         transition: all .15s;
-        box-sizing: border-box;
     }
 
     .btn-cancel:hover {
@@ -702,20 +671,16 @@
     .btn-manage {
         display: inline-flex;
         align-items: center;
-        justify-content: center;
-        height: 38px;
-        padding: 0 18px;
+        padding: 8px 18px;
         background: var(--teal);
-        border: 1.5px solid transparent;
+        border: none;
         border-radius: 8px;
         color: #fff;
-        font-size: var(--text-button);
-        line-height: 1;
-        font-weight: var(--weight-semibold);
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
         cursor: pointer;
         transition: all .15s;
         text-decoration: none;
-        box-sizing: border-box;
     }
 
     .btn-manage:hover {
@@ -743,9 +708,8 @@
         border: none;
         border-radius: 8px;
         padding: 10px 22px;
-        font-size: var(--text-button);
-        line-height: var(--lh-button);
-        font-weight: var(--weight-semibold);
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
         letter-spacing: .06em;
         text-transform: uppercase;
         cursor: pointer;
@@ -768,9 +732,8 @@
     }
 
     .step-label {
-        font-size: var(--text-helper);
-        line-height: var(--lh-helper);
-        font-weight: var(--weight-semibold);
+  font-size: var(--text-helper); line-height: var(--lh-helper);
+  font-weight: var(--weight-semibold);
         color: #aaa;
         letter-spacing: .1em;
         text-transform: uppercase;
@@ -778,7 +741,7 @@
 
     .step-value {
         font-size: 17px;
-        font-weight: var(--weight-bold);
+  font-weight: var(--weight-bold);
         color: var(--teal);
     }
 
@@ -823,9 +786,8 @@
     }
 
     .invoice-brand-name {
-        font-size: var(--text-section-heading);
-        line-height: var(--lh-section-heading);
-        font-weight: var(--weight-bold);
+  font-size: var(--text-section-heading); line-height: var(--lh-section-heading);
+  font-weight: var(--weight-bold);
     }
 
     .invoice-number-block {
@@ -834,7 +796,7 @@
 
     .invoice-number {
         font-size: 17px;
-        font-weight: var(--weight-bold);
+  font-weight: var(--weight-bold);
         margin-top: 3px;
     }
 
@@ -852,8 +814,7 @@
         justify-content: center;
         cursor: pointer;
         color: #fff;
-        font-size: var(--text-section-heading);
-        line-height: var(--lh-section-heading);
+  font-size: var(--text-section-heading); line-height: var(--lh-section-heading);
     }
 
     .invoice-body {
@@ -871,16 +832,15 @@
 
     .invoice-meta-title {
         font-size: 10.5px;
-        font-weight: var(--weight-bold);
+  font-weight: var(--weight-bold);
         text-transform: uppercase;
         color: var(--faint);
         margin-bottom: 3px;
     }
 
     .invoice-meta-value {
-        font-size: var(--text-helper);
-        line-height: var(--lh-helper);
-        font-weight: var(--weight-semibold);
+  font-size: var(--text-helper); line-height: var(--lh-helper);
+  font-weight: var(--weight-semibold);
         color: var(--ink);
     }
 
@@ -892,9 +852,8 @@
         background: #dcfce7;
         color: #16a34a;
         border-radius: 20px;
-        font-size: var(--text-helper);
-        line-height: var(--lh-helper);
-        font-weight: var(--weight-bold);
+  font-size: var(--text-helper); line-height: var(--lh-helper);
+  font-weight: var(--weight-bold);
     }
 
     .invoice-table {
@@ -904,8 +863,7 @@
 
     .invoice-table th {
         font-size: var(--text-table);
-        font-weight: var(--weight-semibold);
-        line-height: var(--lh-table);
+  font-weight: var(--weight-semibold); line-height: var(--lh-table);
         text-transform: uppercase;
         color: var(--faint);
         padding: 0 0 10px;
@@ -915,7 +873,7 @@
 
     .invoice-table td {
         padding: 12px 0;
-        font-size: var(--text-table);
+  font-size: var(--text-table);
         color: var(--ink);
         border-bottom: 1px solid var(--line);
     }
@@ -930,8 +888,8 @@
     .invoice-grand-total {
         display: flex;
         gap: 48px;
-        font-size: var(--text-body);
-        font-weight: var(--weight-bold);
+  font-size: var(--text-body);
+  font-weight: var(--weight-bold);
         color: var(--ink);
         border-top: 2px solid var(--teal);
         padding-top: 10px;
@@ -952,21 +910,18 @@
 
     .btn-print,
     .btn-download {
-        background-color: #07bfb4;
         display: inline-flex;
         align-items: center;
         gap: 6px;
         padding: 9px 20px;
         border-radius: 8px;
-        font-size: var(--text-button);
-        line-height: var(--lh-button);
-        font-weight: var(--weight-semibold);
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
         cursor: pointer;
         transition: all .15s;
     }
 
     .btn-print {
-        /* background-color: #07bfb4; */
         border: 1.5px solid var(--line);
         background: transparent;
         color: var(--muted);
@@ -977,41 +932,16 @@
         color: var(--teal);
         background: var(--teal-tint);
     }
-}
 
-@media print {
-    body * {
-        visibility: hidden !important;
+    .btn-download {
+        background: var(--teal);
+        border: none;
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(10, 168, 158, 0.25);
     }
 
-    #invoiceModal,
-    #invoiceModal * {
-        visibility: visible !important;
-    }
-
-    #invoiceModal {
-        position: absolute !important;
-        left: 0 !important;
-        top: 0 !important;
-        width: 100% !important;
-        height: auto !important;
-        background: transparent !important;
-        display: block !important;
-        padding: 0 !important;
-        backdrop-filter: none !important;
-    }
-
-    #invoiceModalBox {
-        position: static !important;
-        box-shadow: none !important;
-        border-radius: 12px !important;
-        max-width: 100% !important;
-        width: 100% !important;
-        border: 1px solid #e2e8f0 !important;
-    }
-
-    .invoice-close-btn,
-    .invoice-actions {
-        display: none !important;
+    .btn-download:hover {
+        background: var(--teal-dark);
+        transform: translateY(-1px);
     }
 }

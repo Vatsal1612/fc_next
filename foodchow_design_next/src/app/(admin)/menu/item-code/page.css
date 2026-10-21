@@ -381,12 +381,6 @@
     box-shadow: 0 0 0 3px rgba(10, 168, 158, .15);
   }
 
-  .item-code-pagination-container {
-    padding: 1.25rem 2rem;
-    border-top: 1px solid #edf2f7;
-    background: #ffffff;
-  }
-
   .nav-row {
     display: flex;
     align-items: center;

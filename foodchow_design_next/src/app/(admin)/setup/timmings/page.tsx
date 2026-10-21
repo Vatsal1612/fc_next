@@ -3,8 +3,6 @@
 import { useEffect, useState, useRef } from "react";
 import { setupService } from "@/api/services/setup.service";
 import { WizardFooter } from "@/components/shared/WizardFooter";
-import Swal from "sweetalert2";
-import { useShopId } from "@/utils/shop";
 import "./page.css";
 
 /**
@@ -19,12 +17,12 @@ import "./page.css";
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
 export default function TimmingsPage() {
-  const shopIdRaw = useShopId();
-  const shopId = shopIdRaw ? Number(shopIdRaw) : 0;
   const [shopTimings, setShopTimings] = useState<any[]>([]);
   const shopTimingsRef = useRef<any[]>([]);
   const handleUpdate = async () => {
   try {
+    const shopId = sessionStorage.getItem("shop_id");
+
     if (!shopId) {
       console.error("Shop ID not found");
       return;
@@ -94,56 +92,15 @@ export default function TimmingsPage() {
   }
 };
   useEffect(() => {
-    const toggleInputs = (day: string, enabled: boolean): void => {
-      document
-        .querySelectorAll<HTMLInputElement>("#pg-setup-timmings ." + day + "-time")
-        .forEach((input) => {
-          input.disabled = !enabled;
-        });
-    };
-
     const fetchShopTimings = async () => {
-      if (!shopId) return;
       try {
+        const shopId = sessionStorage.getItem("shop_id");
         const response = await setupService.getShopTimings(Number(shopId));
 
         console.log("SHOP TIMINGS RESPONSE:", response);
 
         setShopTimings(response.data);
-        shopTimingsRef.current = response.data;
-
-        // Manually update DOM since inputs are uncontrolled
-        if (response.data && Array.isArray(response.data)) {
-          setTimeout(() => {
-            response.data.forEach((timing: any) => {
-              const row = document.getElementById("row_" + timing.days_name);
-              if (row) {
-                const inputs = row.querySelectorAll<HTMLInputElement>(".time-input");
-                if (inputs[0]) inputs[0].value = timing.open_time1 || "";
-                if (inputs[1]) inputs[1].value = timing.close_time1 || "";
-                if (inputs[2]) inputs[2].value = timing.open_time2 || "";
-                if (inputs[3]) inputs[3].value = timing.close_time2 || "";
-                if (inputs[4]) inputs[4].value = timing.open_time3 || "";
-                if (inputs[5]) inputs[5].value = timing.close_time3 || "";
-
-                const rClose = row.querySelector<HTMLInputElement>('input[value="close"]');
-                const r24 = row.querySelector<HTMLInputElement>('input[value="24hrs"]');
-                const rTimings = row.querySelector<HTMLInputElement>('input[value="timings"]');
-
-                if (timing.close_day === 1) {
-                  if (rClose) rClose.checked = true;
-                  toggleInputs(timing.days_name, false);
-                } else if (timing.hrs_Day === 1 || timing.Hrs_Day === 1) {
-                  if (r24) r24.checked = true;
-                  toggleInputs(timing.days_name, false);
-                } else {
-                  if (rTimings) rTimings.checked = true;
-                  toggleInputs(timing.days_name, true);
-                }
-              }
-            });
-          }, 0);
-        }
+shopTimingsRef.current = response.data;
       } catch (error) {
         console.error("ERROR FETCHING SHOP TIMINGS:", error);
       }
@@ -152,6 +109,14 @@ export default function TimmingsPage() {
     fetchShopTimings();
 
     const days = [...DAYS];
+
+    const toggleInputs = (day: string, enabled: boolean): void => {
+      document
+        .querySelectorAll<HTMLInputElement>("#pg-setup-timmings ." + day + "-time")
+        .forEach((input) => {
+          input.disabled = !enabled;
+        });
+    };
 
     // Wire each row's mode radios (replaces inline onchange).
     const radios = Array.from(
@@ -210,7 +175,7 @@ export default function TimmingsPage() {
       applyAlls.forEach((cb) => cb.removeEventListener("change", onApplyAll));
     
     };
-  }, [shopId]);
+  }, []);
 
   return (
     <div id="pg-setup-timmings">
@@ -222,32 +187,7 @@ export default function TimmingsPage() {
                 <h1 className="typ-page-heading" style={{ margin: 0 }}>Restaurant Timings</h1>
               </div>
               <div className="header-actions">
-                <button
-                  type="button"
-                  className="btn-help"
-                  onClick={() =>
-                    Swal.fire({
-                      title: "How to set up Restaurant Timings",
-                      html: `
-                        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px;">
-                          <iframe 
-                            src="https://player.vimeo.com/video/1075943517?autoplay=1" 
-                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
-                            frameborder="0" 
-                            allow="autoplay; fullscreen; picture-in-picture" 
-                            allowfullscreen>
-                          </iframe>
-                        </div>
-                        <p style="margin-top: 15px; font-size: 14px; color: #475569;">
-                          Follow these steps to configure your restaurant opening and closing hours.
-                        </p>
-                      `,
-                      width: 700,
-                      showCloseButton: true,
-                      showConfirmButton: false,
-                    })
-                  }
-                >
+                <button className="btn-help">
                   <svg
                     viewBox="0 0 24 24"
                     width="14"

@@ -55,12 +55,22 @@ export async function GET(request: NextRequest) {
       if (endDate) targetUrl.searchParams.set("end_date", endDate);
     }
 
-    const res = await fetch(targetUrl.toString(), {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    let res: Response;
+    try {
+      res = await fetch(targetUrl.toString(), {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+        signal: controller.signal,
+        next: { revalidate: 60 },
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!res.ok) {
       throw new Error(`Upstream returned ${res.status} ${res.statusText}`);
@@ -74,7 +84,11 @@ export async function GET(request: NextRequest) {
       data = { data: null };
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: {
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
+      },
+    });
   } catch (error: any) {
     return NextResponse.json(
       { message: "Failed to fetch pos total sales data", error: error.message },

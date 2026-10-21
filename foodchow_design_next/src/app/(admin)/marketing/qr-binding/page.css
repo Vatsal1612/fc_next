@@ -294,15 +294,37 @@
     box-shadow: 0 0 0 3px rgba(10, 168, 158, 0.12);
   }
 
-  /* Container for long links (Scroll removed, text truncated with ellipsis) */
+  /* Container for long links — scrolls horizontally only when content overflows */
   .scrollable-link {
     max-width: 320px;
     margin: 0 auto;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow-x: auto;
+    overflow-y: hidden;
     white-space: nowrap;
-  font-size: var(--text-label); line-height: var(--lh-label);
+    font-size: var(--text-label); line-height: var(--lh-label);
     color: var(--ink);
+    padding-bottom: 3px; /* room for the scrollbar track */
+  }
+
+  /* thin, styled scrollbar — only visible when link overflows */
+  .scrollable-link::-webkit-scrollbar {
+    height: 4px;
+  }
+  .scrollable-link::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 4px;
+  }
+  .scrollable-link::-webkit-scrollbar-thumb {
+    background: #b0bec5;
+    border-radius: 4px;
+  }
+  .scrollable-link::-webkit-scrollbar-thumb:hover {
+    background: #78909c;
+  }
+  /* Firefox */
+  .scrollable-link {
+    scrollbar-width: thin;
+    scrollbar-color: #b0bec5 transparent;
   }
 
   /* Modal Styles - Consistent with Total Sales */

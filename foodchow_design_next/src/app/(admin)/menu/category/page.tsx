@@ -1,297 +1,66 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { menuService, type MenuCategory } from "@/api";
 import { WizardFooter } from "@/components/shared/WizardFooter";
-import Swal from "sweetalert2";
-import { useShopId, getShopId } from "@/utils/shop";
-import ReportPagination from "@/components/shared/ReportPagination";
 import "./page.css";
 
-function getCategoryImageUrl(imagePath?: string | null): string | null {
-  if (!imagePath || imagePath === "null" || imagePath.trim() === "") return null;
-  if (
-    imagePath.startsWith("data:") ||
-    imagePath.startsWith("http://") ||
-    imagePath.startsWith("https://") ||
-    imagePath.startsWith("blob:")
-  ) {
-    return imagePath;
-  }
-  return `https://admin.foodchow.com/CategoryImages/${imagePath}`;
-}
-
-const showToast = (icon: "success" | "error" | "warning", title: string) => {
-  Swal.fire({
-    toast: true,
-    position: "top-end",
-    showConfirmButton: false,
-    timer: 3000,
-    timerProgressBar: true,
-    icon,
-    title,
-  });
-};
+const SHOP_ID = 3161;
+const PAGE_SIZE = 10;
 
 export default function CategoryPage() {
-  const SHOP_ID = useShopId();
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [draggedCategoryId, setDraggedCategoryId] = useState<number | null>(null);
 
-  // ── Edit modal state ──
-  const [editOpen, setEditOpen] = useState(false);
-  const [editCategory, setEditCategory] = useState<{
-    id: number;
-    cate_name: string;
-    cate_image: string;
-    status: number;
-  } | null>(null);
-  const [catName, setCatName] = useState("");
-  const [catStatus, setCatStatus] = useState<"active" | "deactive">("active");
-  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  // ── Delete modal state ──
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<MenuCategory | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
-  // Stable ref so the useEffect crop logic can push the cropped base64 back to React state
-  const setEditImagePreviewRef = useRef(setEditImagePreview);
-  const cropSourceRef = useRef<"add" | "edit">("add");
-  useEffect(() => {
-    setEditImagePreviewRef.current = setEditImagePreview;
-  }, []);
-
-  const filteredCategories = categories.filter((cat) => {
-    if (!searchQuery.trim()) return true;
-    return String(cat.cate_name || "").toLowerCase().includes(searchQuery.trim().toLowerCase());
-  });
-
-  const totalPages = Math.max(1, Math.ceil(filteredCategories.length / pageSize));
-  const pageStart = (page - 1) * pageSize;
-  const pagedCategories = filteredCategories.slice(pageStart, pageStart + pageSize);
-
-  const loadCategories = async () => {
-    const currentShop = SHOP_ID || getShopId();
-    if (!currentShop) return;
-    try {
-      setLoading(true);
-      const data = await menuService.categoriesByShop(currentShop);
-      setCategories(data);
-    } catch (err: any) {
-      setError(err?.message ?? "Failed to load categories");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const totalPages = Math.max(1, Math.ceil(categories.length / PAGE_SIZE));
+  const pageStart = (page - 1) * PAGE_SIZE;
+  const pagedCategories = categories.slice(pageStart, pageStart + PAGE_SIZE);
 
   // ── Load categories from the FoodChow API ──
   useEffect(() => {
-    loadCategories();
-  }, [SHOP_ID]);
-
-  // ── Drag & Drop handlers ──
-  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, catId: number) => {
-    setDraggedCategoryId(catId);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(catId));
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-  };
-
-  const handleDrop = async (e: React.DragEvent<HTMLTableRowElement>, targetCatId: number) => {
-    e.preventDefault();
-    const sourceIdStr = e.dataTransfer.getData("text/plain");
-    const sourceCatId = Number(sourceIdStr);
-
-    if (!sourceCatId || sourceCatId === targetCatId) {
-      setDraggedCategoryId(null);
-      return;
-    }
-
-    const currentList = [...categories];
-    const sourceIdx = currentList.findIndex((c) => c.id === sourceCatId);
-    const targetIdx = currentList.findIndex((c) => c.id === targetCatId);
-
-    if (sourceIdx === -1 || targetIdx === -1) {
-      setDraggedCategoryId(null);
-      return;
-    }
-
-    const [movedCat] = currentList.splice(sourceIdx, 1);
-    currentList.splice(targetIdx, 0, movedCat);
-
-    // Optimistic update
-    setCategories(currentList);
-    setDraggedCategoryId(null);
-
-    const catIds = currentList.map((c) => c.id);
-    const posIds = currentList.map((_, idx) => idx + 1);
-
-    try {
-      await menuService.changeCategoryPosition(catIds, posIds);
-      Swal.fire({
-        icon: "success",
-        title: "Position Updated",
-        text: "Category position reordered successfully.",
-        timer: 1500,
-        showConfirmButton: false,
-        toast: true,
-        position: "top-end",
+    let active = true;
+    setLoading(true);
+    menuService
+      .categoriesByShop(SHOP_ID)
+      .then((data) => {
+        if (active) setCategories(data);
+      })
+      .catch((err) => {
+        if (active) setError(err?.message ?? "Failed to load categories");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
-    } catch (err) {
-      console.error("Failed to update category position:", err);
-      loadCategories();
-    }
-  };
+    return () => {
+      active = false;
+    };
+  }, []);
 
-  // ── React handlers ──
-
-  function handleEdit(cat: MenuCategory) {
-    setEditCategory({ id: cat.id, cate_name: cat.cate_name, cate_image: cat.cate_image, status: cat.status });
-    setCatName(cat.cate_name);
-    setCatStatus(cat.status === 1 ? "active" : "deactive");
-    setEditImagePreview(cat.cate_image || null);
-    setEditOpen(true);
-  }
-
-  async function handleSave() {
-    if (!editCategory) return;
-    const trimmedName = catName.trim();
-    if (!trimmedName) {
-      showToast("warning", "Category name is required.");
-      return;
-    }
-    const activeShopId = SHOP_ID || getShopId();
-    if (!activeShopId) {
-      showToast("warning", "Shop ID not found. Please log in again.");
-      return;
-    }
-    setSaving(true);
-    try {
-      let finalImageName = "";
-
-      // 1. If user selected/cropped a new image (base64)
-      if (editImagePreview && editImagePreview.startsWith("data:image/")) {
-        const rawBase64 = editImagePreview.replace(/^data:image\/[a-z]+;base64,/, "");
-        const uploadRes = await menuService.uploadCategoryImage({
-          id: editCategory.id,
-          shop_id: activeShopId,
-          base64Image: rawBase64,
-        });
-
-        if (uploadRes && uploadRes.success === false) {
-          throw new Error(uploadRes.message || "Failed to upload category image");
-        }
-        finalImageName = uploadRes?.data || "";
-      } else if (editImagePreview) {
-        // Kept existing image filename
-        finalImageName = editCategory.cate_image || "";
-      } else {
-        // Image was cleared / deleted
-        finalImageName = "";
-      }
-
-      // 2. Update category name and metadata
-      const saveRes = await menuService.addStoreCategory({
-        id: editCategory.id,
-        shop_id: activeShopId,
-        cate_name: trimmedName,
-        cate_image: finalImageName,
-        description: "",
-        parent_id: 0,
-      });
-
-      if (saveRes && saveRes.success === false) {
-        throw new Error(saveRes.message || "Failed to save category name");
-      }
-
-      // 3. Update status if changed
-      const targetStatus = catStatus === "active" ? 1 : 0;
-      if (targetStatus !== editCategory.status) {
-        await menuService.changeStoreCategoryStatus(editCategory.id, targetStatus);
-      }
-
-      // 4. Reload fresh categories from server
-      const refreshed = await menuService.categoriesByShop(activeShopId);
-      setCategories(refreshed);
-      setEditOpen(false);
-      showToast("success", "Category updated successfully");
-    } catch (err: any) {
-      showToast("error", err?.message || "Failed to save category. Please try again.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function handleDelete(cat: MenuCategory) {
-    setDeleteTarget(cat);
-    setDeleteOpen(true);
-  }
-
-  async function handleConfirmDelete() {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      const res = await menuService.deleteCategory(deleteTarget.id);
-      if (res?.message === "Item Available In This Category") {
-        showToast("error", "Cannot delete: this category has items. Remove items first.");
-        setDeleteOpen(false);
-        return;
-      }
-      setCategories((prev) => prev.filter((c) => c.id !== deleteTarget.id));
-      setDeleteOpen(false);
-      setDeleteTarget(null);
-      showToast("success", "Category deleted successfully");
-    } catch {
-      showToast("error", "Failed to delete category. Please try again.");
-    } finally {
-      setDeleting(false);
-    }
-  }
-
-  async function handleToggle(cat: MenuCategory) {
-    const newStatus = cat.status === 1 ? 0 : 1;
-    // Optimistic update
-    setCategories((prev) =>
-      prev.map((c) => (c.id === cat.id ? { ...c, status: newStatus } : c))
-    );
-    try {
-      await menuService.changeStoreCategoryStatus(cat.id, newStatus);
-      showToast("success", `Category ${newStatus === 1 ? "activated" : "deactivated"} successfully`);
-    } catch {
-      // Roll back on failure
-      setCategories((prev) =>
-        prev.map((c) => (c.id === cat.id ? { ...c, status: cat.status } : c))
-      );
-      showToast("error", "Failed to update status.");
-    }
-  }
-
-  // ── DOM-manipulation useEffect (search, bulk delete, add new modal, crop) ──
   useEffect(() => {
+    let nextId = 3;
+    let rowToDelete: HTMLTableRowElement | null = null;
+    let editMode = false;
+    let editRowEl: HTMLTableRowElement | null = null;
+
     const root = document.getElementById("pg-menu-category");
     if (!root) return;
 
     const $ = <T extends HTMLElement = HTMLElement>(id: string): T | null =>
       document.getElementById(id) as T | null;
 
+    const searchInput = $<HTMLInputElement>("searchInput");
     const selectAll = $<HTMLInputElement>("selectAll");
     const deleteAllBtn = $("deleteAllBtn");
     const openAddModal = $("openAddModal");
     const saveCatBtn = $("saveCatBtn");
     const modalClose = $("modalClose");
     const cancelBtn = $("cancelBtn");
-    const addModal = $("addCatModal");
+    const catModal = $("catModal");
+    const deleteModal = $("deleteModal");
+    const confirmDeleteBtn = $("confirmDeleteBtn");
+    const cancelDeleteBtn = $("cancelDeleteBtn");
     const prevBtn = $("prevBtn");
     const nextBtn = $("nextBtn");
     const fileInput = $<HTMLInputElement>("fileInput");
@@ -300,6 +69,18 @@ export default function CategoryPage() {
       const total = document.querySelectorAll("#catTableBody tr").length;
       const tf = $("tableFooter");
       if (tf) tf.textContent = `Showing 1 to ${total} of ${total} entries`;
+    }
+
+    function buildRow(
+      id: number,
+      name: string,
+      imgSrc: string | null,
+      isActive: boolean
+    ): HTMLTableRowElement {
+      const tr = document.createElement("tr");
+      tr.dataset.id = String(id);
+      tr.innerHTML = `<td><input type="checkbox" class="cb row-cb"></td><td>${imgSrc ? `<img src="${imgSrc}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;">` : `<div class="no-img"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2h1l2-2h6l2 2h1a2 2 0 012 2z"/><circle cx="12" cy="13" r="3"/></svg><span>No Image</span></div>`}</td><td><span class="cat-name">${name.toUpperCase()}</span></td><td><div class="act-btns"><button class="icon-btn edit-btn" title="Edit"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="icon-btn delete-btn" title="Delete"><svg viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button><label class="toggle-switch"><input type="checkbox" ${isActive ? "checked" : ""}><span class="slider"></span></label></div></td>`;
+      return tr;
     }
 
     function resetImgPreview() {
@@ -315,13 +96,88 @@ export default function CategoryPage() {
       if (span) span.style.display = "";
     }
 
+    function openEditModal(btn: HTMLElement) {
+      editMode = true;
+      editRowEl = btn.closest("tr");
+      if (!editRowEl) return;
+      const name = editRowEl.querySelector(".cat-name")?.textContent ?? "";
+      const isActive =
+        (editRowEl.querySelector(".toggle-switch input") as HTMLInputElement | null)
+          ?.checked ?? false;
+      const existingImg = editRowEl.querySelector(
+        "td:nth-child(2) img"
+      ) as HTMLImageElement | null;
+      const modalTitle = $("modalTitle");
+      const saveBtn = $("saveCatBtn");
+      const catNameInput = $<HTMLInputElement>("catNameInput");
+      if (modalTitle) modalTitle.textContent = "Edit Category";
+      if (saveBtn) saveBtn.textContent = "SAVE";
+      if (catNameInput) catNameInput.value = name;
+      if (isActive) {
+        const r = root!.querySelector(
+          'input[name=catStatus][value=active]'
+        ) as HTMLInputElement | null;
+        if (r) r.checked = true;
+      } else {
+        const r = root!.querySelector(
+          'input[name=catStatus][value=deactive]'
+        ) as HTMLInputElement | null;
+        if (r) r.checked = true;
+      }
+      resetImgPreview();
+      if (existingImg) {
+        const previewImg = $<HTMLImageElement>("previewImg");
+        if (previewImg) {
+          previewImg.src = existingImg.src;
+          previewImg.style.display = "block";
+        }
+        const imgPreview = $("imgPreview");
+        const svg = imgPreview?.querySelector("svg") as SVGElement | null;
+        const span = imgPreview?.querySelector("span") as HTMLElement | null;
+        if (svg) svg.style.display = "none";
+        if (span) span.style.display = "none";
+      }
+      catModal?.classList.add("open");
+    }
+
+    function openDeleteModal(btn: HTMLElement) {
+      rowToDelete = btn.closest("tr");
+      const name = rowToDelete?.querySelector(".cat-name")?.textContent ?? "";
+      const msg = $("deleteModalMsg");
+      if (msg)
+        msg.textContent = `Are you sure you want to delete "${name}"? This action cannot be undone.`;
+      deleteModal?.classList.add("open");
+    }
+
     function closeModal() {
-      addModal?.classList.remove("open");
+      catModal?.classList.remove("open");
       resetImgPreview();
       if (fileInput) fileInput.value = "";
     }
 
-    // ── Search handled by React state (searchQuery) ──
+    function closeDeleteModal() {
+      deleteModal?.classList.remove("open");
+      rowToDelete = null;
+    }
+
+    // ── Search ──
+    const onSearch = function (this: HTMLInputElement) {
+      const q = this.value.toLowerCase().trim();
+      const rows = document.querySelectorAll<HTMLTableRowElement>("#catTableBody tr");
+      let v = 0;
+      rows.forEach((r) => {
+        const name = r.querySelector(".cat-name")?.textContent?.toLowerCase() || "";
+        const show = !q || name.includes(q);
+        r.style.display = show ? "" : "none";
+        if (show) v++;
+      });
+      const tf = $("tableFooter");
+      if (tf)
+        tf.textContent = q
+          ? `Showing ${v} of ${rows.length} entries (filtered)`
+          : `Showing 1 to ${rows.length} of ${rows.length} entries`;
+    };
+    searchInput?.addEventListener("input", onSearch);
 
     const onSelectAll = function (this: HTMLInputElement) {
       document
@@ -333,7 +189,7 @@ export default function CategoryPage() {
     const onDeleteAll = () => {
       const checked = document.querySelectorAll<HTMLInputElement>(".row-cb:checked");
       if (!checked.length) {
-        showToast("warning", "Select at least one row.");
+        alert("Select at least one row.");
         return;
       }
       checked.forEach((cb) => cb.closest("tr")?.remove());
@@ -343,23 +199,26 @@ export default function CategoryPage() {
     deleteAllBtn?.addEventListener("click", onDeleteAll);
 
     const onOpenAdd = () => {
-      cropSourceRef.current = "add";
-      const modalTitle = $("addModalTitle");
-      const catNameInput = $<HTMLInputElement>("addCatNameInput");
+      editMode = false;
+      editRowEl = null;
+      const modalTitle = $("modalTitle");
+      const saveBtn = $("saveCatBtn");
+      const catNameInput = $<HTMLInputElement>("catNameInput");
       if (modalTitle) modalTitle.textContent = "Add New Category";
+      if (saveBtn) saveBtn.textContent = "ADD";
       if (catNameInput) catNameInput.value = "";
       const r = root.querySelector(
-        'input[name=addCatStatus][value=active]'
+        'input[name=catStatus][value=active]'
       ) as HTMLInputElement | null;
       if (r) r.checked = true;
       resetImgPreview();
-      addModal?.classList.add("open");
-      setTimeout(() => $<HTMLInputElement>("addCatNameInput")?.focus(), 50);
+      catModal?.classList.add("open");
+      setTimeout(() => $<HTMLInputElement>("catNameInput")?.focus(), 50);
     };
     openAddModal?.addEventListener("click", onOpenAdd);
 
-    const onSave = async () => {
-      const catNameInput = $<HTMLInputElement>("addCatNameInput");
+    const onSave = () => {
+      const catNameInput = $<HTMLInputElement>("catNameInput");
       if (!catNameInput) return;
       const name = catNameInput.value.trim();
       if (!name) {
@@ -369,78 +228,80 @@ export default function CategoryPage() {
       catNameInput.style.borderColor = "";
       const isActive =
         (root.querySelector(
-          'input[name=addCatStatus]:checked'
+          'input[name=catStatus]:checked'
         ) as HTMLInputElement | null)?.value === "active";
       const previewImg = $<HTMLImageElement>("previewImg");
       const imgSrc =
         previewImg && previewImg.style.display !== "none" && previewImg.src
           ? previewImg.src
           : null;
-
-      const activeShopId = getShopId();
-      if (!activeShopId) {
-        showToast("warning", "Shop ID not found");
-        return;
+      if (editMode && editRowEl) {
+        const catName = editRowEl.querySelector(".cat-name");
+        if (catName) catName.textContent = name.toUpperCase();
+        const toggle = editRowEl.querySelector(
+          ".toggle-switch input"
+        ) as HTMLInputElement | null;
+        if (toggle) toggle.checked = isActive;
+        const imgCell = editRowEl.querySelector(
+          "td:nth-child(2)"
+        ) as HTMLElement | null;
+        if (imgCell)
+          imgCell.innerHTML = imgSrc
+            ? `<img src="${imgSrc}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;">`
+            : `<div class="no-img"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2h1l2-2h6l2 2h1a2 2 0 012 2z"/><circle cx="12" cy="13" r="3"/></svg><span>No Image</span></div>`;
+      } else {
+        const tr = buildRow(nextId++, name, imgSrc, isActive);
+        $("catTableBody")?.appendChild(tr);
       }
-
-      try {
-        if (saveCatBtn) saveCatBtn.textContent = "ADDING...";
-        const addRes = await menuService.addStoreCategory({
-          id: 0,
-          shop_id: activeShopId,
-          cate_name: name,
-          cate_image: "",
-          description: "",
-          parent_id: 0,
-        });
-
-        if (addRes && addRes.success === false) {
-          showToast("error", addRes.message || "Failed to add category");
-          return;
-        }
-
-        const newId = addRes?.data;
-        if (newId && imgSrc && imgSrc.startsWith("data:image/")) {
-          const rawBase64 = imgSrc.replace(/^data:image\/[a-z]+;base64,/, "");
-          await menuService.uploadCategoryImage({
-            id: newId,
-            shop_id: activeShopId,
-            base64Image: rawBase64,
-          });
-        }
-
-        if (newId && !isActive) {
-          await menuService.changeStoreCategoryStatus(newId, 0);
-        }
-
-        const refreshed = await menuService.categoriesByShop(activeShopId);
-        setCategories(refreshed);
-        closeModal();
-        showToast("success", "Category added successfully");
-      } catch (err: any) {
-        showToast("error", err?.message || "Failed to add category");
-      } finally {
-        if (saveCatBtn) saveCatBtn.textContent = "ADD";
-      }
+      updateFooter();
+      closeModal();
     };
     saveCatBtn?.addEventListener("click", onSave);
 
     modalClose?.addEventListener("click", closeModal);
     cancelBtn?.addEventListener("click", closeModal);
-    const onAddModalClick = (e: MouseEvent) => {
-      if (e.target === addModal) closeModal();
+    const onCatModalClick = (e: MouseEvent) => {
+      if (e.target === catModal) closeModal();
     };
-    addModal?.addEventListener("click", onAddModalClick);
+    catModal?.addEventListener("click", onCatModalClick);
 
     const onKeydown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         closeModal();
-        setEditImagePreviewRef.current(null);
-        setEditOpen(false);
-        setDeleteOpen(false);
+        closeDeleteModal();
       }
     };
     document.addEventListener("keydown", onKeydown);
+
+    const onConfirmDelete = () => {
+      if (rowToDelete) {
+        rowToDelete.remove();
+        updateFooter();
+      }
+      closeDeleteModal();
+    };
+    confirmDeleteBtn?.addEventListener("click", onConfirmDelete);
+    cancelDeleteBtn?.addEventListener("click", closeDeleteModal);
+    const onDeleteModalClick = (e: MouseEvent) => {
+      if (e.target === deleteModal) closeDeleteModal();
+    };
+    deleteModal?.addEventListener("click", onDeleteModalClick);
+
+    // ── Event delegation for edit/delete buttons (incl. dynamic rows) ──
+    const tableBody = $("catTableBody");
+    const onTableClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const editB = target.closest(".edit-btn") as HTMLElement | null;
+      if (editB) {
+        openEditModal(editB);
+        return;
+      }
+      const delB = target.closest(".delete-btn") as HTMLElement | null;
+      if (delB) {
+        openDeleteModal(delB);
+      }
+    };
+    tableBody?.addEventListener("click", onTableClick);
 
     // ── Step nav ──
     let currentStep = 6;
@@ -618,20 +479,16 @@ export default function CategoryPage() {
           canvas.height
         );
       const src = canvas.toDataURL("image/jpeg", 0.92);
-      if (cropSourceRef.current === "edit") {
-        setEditImagePreviewRef.current(src);
-      } else {
-        const prev = $<HTMLImageElement>("previewImg");
-        if (prev) {
-          prev.src = src;
-          prev.style.display = "block";
-        }
-        const imgPreview = $("imgPreview");
-        const svg = imgPreview?.querySelector("svg") as SVGElement | null;
-        const span = imgPreview?.querySelector("span") as HTMLElement | null;
-        if (svg) svg.style.display = "none";
-        if (span) span.style.display = "none";
+      const prev = $<HTMLImageElement>("previewImg");
+      if (prev) {
+        prev.src = src;
+        prev.style.display = "block";
       }
+      const imgPreview = $("imgPreview");
+      const svg = imgPreview?.querySelector("svg") as SVGElement | null;
+      const span = imgPreview?.querySelector("span") as HTMLElement | null;
+      if (svg) svg.style.display = "none";
+      if (span) span.style.display = "none";
       closeCropModal();
     }
 
@@ -639,7 +496,7 @@ export default function CategoryPage() {
       const f = (e.target as HTMLInputElement).files?.[0];
       if (!f) return;
       if (f.size > 1024 * 1024) {
-        showToast("warning", "Max 1MB image allowed");
+        alert("Max 1MB image allowed");
         this.value = "";
         return;
       }
@@ -688,14 +545,19 @@ export default function CategoryPage() {
     cropApply?.addEventListener("click", applyCrop);
 
     return () => {
+      searchInput?.removeEventListener("input", onSearch);
       selectAll?.removeEventListener("change", onSelectAll);
       deleteAllBtn?.removeEventListener("click", onDeleteAll);
       openAddModal?.removeEventListener("click", onOpenAdd);
       saveCatBtn?.removeEventListener("click", onSave);
       modalClose?.removeEventListener("click", closeModal);
       cancelBtn?.removeEventListener("click", closeModal);
-      addModal?.removeEventListener("click", onAddModalClick);
+      catModal?.removeEventListener("click", onCatModalClick);
       document.removeEventListener("keydown", onKeydown);
+      confirmDeleteBtn?.removeEventListener("click", onConfirmDelete);
+      cancelDeleteBtn?.removeEventListener("click", closeDeleteModal);
+      deleteModal?.removeEventListener("click", onDeleteModalClick);
+      tableBody?.removeEventListener("click", onTableClick);
       prevBtn?.removeEventListener("click", onPrev);
       nextBtn?.removeEventListener("click", onNext);
       fileInput?.removeEventListener("change", onFileChange);
@@ -723,7 +585,7 @@ export default function CategoryPage() {
                   </svg>
                   ADD NEW CATEGORY
                 </button>
-                <button className="btn-help" id="helpBtnCard" style={{ marginLeft: "0" }} onClick={() => window.open('https://vimeo.com/1075943159', '_blank')}>
+                <button className="btn-help" id="helpBtnCard" style={{ marginLeft: "0" }}>
                   <svg viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="10" />
                     <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
@@ -740,7 +602,7 @@ export default function CategoryPage() {
                 </button>
               </div>
 
-              {/* ── TABLE ── */}
+              {/* ── TABLE (comparison-by-product style) ── */}
               <div className="table-card">
                 <div className="table-card-header">
                   <span>All Categories</span>
@@ -749,23 +611,13 @@ export default function CategoryPage() {
                       <circle cx="11" cy="11" r="8" />
                       <line x1="21" y1="21" x2="16.65" y2="16.65" />
                     </svg>
-                    <input
-                      type="text"
-                      id="searchInput"
-                      placeholder="Search categories…"
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        setPage(1);
-                      }}
-                    />
+                    <input type="text" id="searchInput" placeholder="Search categories…" />
                   </div>
                 </div>
                 <div className="table-wrap">
                   <table id="catTable">
                     <thead>
                       <tr>
-                        <th style={{ width: "40px" }}></th>
                         <th style={{ width: "50px" }}>
                           <input type="checkbox" className="cb" id="selectAll" />
                         </th>
@@ -777,7 +629,7 @@ export default function CategoryPage() {
                     <tbody id="catTableBody">
                       {loading && (
                         <tr>
-                          <td colSpan={5} style={{ textAlign: "center", padding: "24px" }}>
+                          <td colSpan={4} style={{ textAlign: "center", padding: "24px" }}>
                             Loading categories…
                           </td>
                         </tr>
@@ -785,7 +637,7 @@ export default function CategoryPage() {
                       {!loading && error && (
                         <tr>
                           <td
-                            colSpan={5}
+                            colSpan={4}
                             style={{ textAlign: "center", padding: "24px", color: "#e53e3e" }}
                           >
                             {error}
@@ -794,7 +646,7 @@ export default function CategoryPage() {
                       )}
                       {!loading && !error && categories.length === 0 && (
                         <tr>
-                          <td colSpan={5} style={{ textAlign: "center", padding: "24px" }}>
+                          <td colSpan={4} style={{ textAlign: "center", padding: "24px" }}>
                             No categories found.
                           </td>
                         </tr>
@@ -802,36 +654,14 @@ export default function CategoryPage() {
                       {!loading &&
                         !error &&
                         pagedCategories.map((cat) => (
-                          <tr
-                            key={cat.id}
-                            data-id={cat.id}
-                            draggable={true}
-                            onDragStart={(e) => handleDragStart(e, cat.id)}
-                            onDragOver={handleDragOver}
-                            onDrop={(e) => handleDrop(e, cat.id)}
-                            onDragEnd={() => setDraggedCategoryId(null)}
-                            style={{
-                              opacity: draggedCategoryId === cat.id ? 0.4 : 1,
-                              cursor: "default",
-                              transition: "opacity 0.2s ease",
-                            }}
-                          >
-                            <td>
-                              <div
-                                className="drag-handle"
-                                style={{ cursor: "grab" }}
-                                title="Drag to reorder position"
-                              >
-                                <i className="fa-solid fa-bars"></i>
-                              </div>
-                            </td>
+                          <tr key={cat.id} data-id={cat.id}>
                             <td>
                               <input type="checkbox" className="cb row-cb" />
                             </td>
                             <td>
-                              {getCategoryImageUrl(cat.cate_image) ? (
+                              {cat.cate_image ? (
                                 <img
-                                  src={getCategoryImageUrl(cat.cate_image)!}
+                                  src={cat.cate_image}
                                   alt={cat.cate_name}
                                   style={{
                                     width: 52,
@@ -839,25 +669,16 @@ export default function CategoryPage() {
                                     borderRadius: "50%",
                                     objectFit: "cover",
                                   }}
-                                  onError={(e) => {
-                                    (e.currentTarget as HTMLImageElement).style.display = "none";
-                                    const next = (e.currentTarget as HTMLImageElement).nextElementSibling as HTMLElement | null;
-                                    if (next) next.style.display = "inline-flex";
-                                  }}
                                 />
-                              ) : null}
-                              <div
-                                className="no-img"
-                                style={{
-                                  display: getCategoryImageUrl(cat.cate_image) ? "none" : "inline-flex",
-                                }}
-                              >
-                                <svg viewBox="0 0 24 24">
-                                  <path d="M21 15a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2h1l2-2h6l2 2h1a2 2 0 012 2z" />
-                                  <circle cx="12" cy="13" r="3" />
-                                </svg>
-                                <span>No Image</span>
-                              </div>
+                              ) : (
+                                <div className="no-img">
+                                  <svg viewBox="0 0 24 24">
+                                    <path d="M21 15a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2h1l2-2h6l2 2h1a2 2 0 012 2z" />
+                                    <circle cx="12" cy="13" r="3" />
+                                  </svg>
+                                  <span>No Image</span>
+                                </div>
+                              )}
                             </td>
                             <td>
                               <span className="cat-name">
@@ -866,33 +687,21 @@ export default function CategoryPage() {
                             </td>
                             <td>
                               <div className="act-btns">
-                                <button
-                                  className="icon-btn edit-btn"
-                                  title="Edit Category"
-                                  onClick={() => handleEdit(cat)}
-                                >
+                                <button className="icon-btn edit-btn" title="Edit">
                                   <svg viewBox="0 0 24 24">
                                     <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
                                     <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
                                   </svg>
                                 </button>
-                                <button
-                                  className="icon-btn delete-btn"
-                                  title="Delete Category"
-                                  onClick={() => handleDelete(cat)}
-                                >
+                                <button className="icon-btn delete-btn" title="Delete">
                                   <svg viewBox="0 0 24 24">
                                     <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
                                   </svg>
                                 </button>
-                                <label
-                                  className="toggle-switch"
-                                  title={cat.status === 1 ? "DeActivate Category" : "Activate Category"}
-                                >
+                                <label className="toggle-switch">
                                   <input
                                     type="checkbox"
-                                    checked={cat.status === 1}
-                                    onChange={() => handleToggle(cat)}
+                                    defaultChecked={cat.status === 1}
                                   />
                                   <span className="slider"></span>
                                 </label>
@@ -905,21 +714,45 @@ export default function CategoryPage() {
                   <div
                     className="table-footer"
                     id="tableFooter"
-                    style={{ width: "100%" }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "12px",
+                      flexWrap: "wrap",
+                    }}
                   >
-                    {!loading && !error && filteredCategories.length > 0 && (
-                      <ReportPagination
-                        currentPage={page}
-                        totalPages={totalPages}
-                        totalRecords={filteredCategories.length}
-                        pageSize={pageSize}
-                        onPageChange={(p) => setPage(p)}
-                        onPageSizeChange={(newSize) => {
-                          setPageSize(newSize);
-                          setPage(1);
-                        }}
-                        pageSizeOptions={[10, 25, 50, 100]}
-                      />
+                    <span>
+                      {loading
+                        ? "Loading…"
+                        : categories.length === 0
+                        ? "Showing 0 entries"
+                        : `Showing ${pageStart + 1} to ${
+                            pageStart + pagedCategories.length
+                          } of ${categories.length} entries`}
+                    </span>
+                    {!loading && !error && categories.length > 0 && (
+                      <div className="pagination">
+                        <button
+                          type="button"
+                          className="page-btn"
+                          onClick={() => setPage((p) => Math.max(1, p - 1))}
+                          disabled={page <= 1}
+                        >
+                          Prev
+                        </button>
+                        <span className="page-info">
+                          Page {page} of {totalPages}
+                        </span>
+                        <button
+                          type="button"
+                          className="page-btn"
+                          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                          disabled={page >= totalPages}
+                        >
+                          Next
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -931,17 +764,18 @@ export default function CategoryPage() {
         </div>
       </div>
 
-      {/* ADD NEW Modal (DOM-controlled via useEffect) */}
-      <div className="modal-overlay" id="addCatModal">
+      {/* ADD/EDIT Modal */}
+      <div className="modal-overlay" id="catModal">
         <div className="modal">
           <button className="modal-close" id="modalClose">
             <svg viewBox="0 0 24 24">
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
-          <div className="modal-title" id="addModalTitle">
+          <div className="modal-title" id="modalTitle">
             Add New Category
           </div>
+          <input type="hidden" id="editRowId" />
           <div className="form-group">
             <label className="form-label">
               Category Name <span className="req">*</span>
@@ -949,7 +783,7 @@ export default function CategoryPage() {
             <input
               className="form-input"
               type="text"
-              id="addCatNameInput"
+              id="catNameInput"
               placeholder="e.g. Italian, Mexican, Thai..."
             />
           </div>
@@ -957,10 +791,10 @@ export default function CategoryPage() {
             <label className="form-label">Status</label>
             <div className="radio-group">
               <label className="radio-label">
-                <input type="radio" name="addCatStatus" value="active" defaultChecked /> Active
+                <input type="radio" name="catStatus" value="active" defaultChecked /> Active
               </label>
               <label className="radio-label">
-                <input type="radio" name="addCatStatus" value="deactive" /> De-Active
+                <input type="radio" name="catStatus" value="deactive" /> De-Active
               </label>
             </div>
           </div>
@@ -973,7 +807,7 @@ export default function CategoryPage() {
                   <circle cx="12" cy="13" r="3" />
                 </svg>
                 <span>No image</span>
-                <img id="previewImg" alt="preview" style={{ display: "none" }} />
+                <img id="previewImg" alt="preview" />
               </div>
               <div className="img-upload-info">
                 <button className="upload-btn" type="button">
@@ -1007,167 +841,31 @@ export default function CategoryPage() {
         </div>
       </div>
 
-      {/* EDIT Modal (React-controlled) */}
-      {editOpen && (
-        <div
-          className="modal-overlay open"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setEditOpen(false);
-          }}
-        >
-          <div className="modal">
-            <button className="modal-close" onClick={() => setEditOpen(false)}>
-              <svg viewBox="0 0 24 24">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
+      {/* DELETE Modal */}
+      <div className="modal-overlay" id="deleteModal">
+        <div className="modal del-modal">
+          <div className="del-icon">
+            <svg viewBox="0 0 24 24">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+              <path d="M10 11v6M14 11v6" />
+              <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+            </svg>
+          </div>
+          <h3>Delete Category?</h3>
+          <p id="deleteModalMsg">
+            Are you sure you want to delete this category? This action cannot be undone.
+          </p>
+          <div className="del-btns">
+            <button className="btn-del-confirm" id="confirmDeleteBtn">
+              DELETE
             </button>
-            <div className="modal-title">Edit Category</div>
-            <div className="form-group">
-              <label className="form-label">
-                Category Name <span className="req">*</span>
-              </label>
-              <input
-                className="form-input"
-                type="text"
-                value={catName}
-                onChange={(e) => setCatName(e.target.value)}
-                placeholder="e.g. Italian, Mexican, Thai..."
-                autoFocus
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Status</label>
-              <div className="radio-group">
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    name="editCatStatus"
-                    value="active"
-                    checked={catStatus === "active"}
-                    onChange={() => setCatStatus("active")}
-                  />{" "}
-                  Active
-                </label>
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    name="editCatStatus"
-                    value="deactive"
-                    checked={catStatus === "deactive"}
-                    onChange={() => setCatStatus("deactive")}
-                  />{" "}
-                  De-Active
-                </label>
-              </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Choose Image</label>
-              <div className="img-upload-row">
-                <div className="img-preview" id="editImgPreview">
-                  {getCategoryImageUrl(editImagePreview) ? (
-                    <img
-                      src={getCategoryImageUrl(editImagePreview)!}
-                      alt="preview"
-                      style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }}
-                    />
-                  ) : (
-                    <>
-                      <svg viewBox="0 0 24 24">
-                        <path d="M21 15a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2h1l2-2h6l2 2h1a2 2 0 012 2z" />
-                        <circle cx="12" cy="13" r="3" />
-                      </svg>
-                      <span>No image</span>
-                    </>
-                  )}
-                </div>
-                <div className="img-upload-info">
-                  <button
-                    className="upload-btn"
-                    type="button"
-                    onClick={() => {
-                      cropSourceRef.current = "edit";
-                      document.getElementById("fileInput")?.click();
-                    }}
-                  >
-                    <svg viewBox="0 0 24 24">
-                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
-                    </svg>
-                    UPLOAD IMAGE
-                  </button>
-                  {editImagePreview && (
-                    <button
-                      type="button"
-                      className="btn-cancel-modal"
-                      style={{ marginTop: 8, fontSize: "0.75rem" }}
-                      onClick={() => setEditImagePreview(null)}
-                    >
-                      DELETE IMAGE
-                    </button>
-                  )}
-                  <div className="upload-hint">
-                    Only .gif, .png, .jpeg, .jpg upto 1 MB
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button
-                className="btn-add"
-                onClick={handleSave}
-                disabled={saving}
-              >
-                {saving ? "SAVING…" : "SAVE"}
-              </button>
-              <button
-                className="btn-cancel-modal"
-                onClick={() => setEditOpen(false)}
-              >
-                CANCEL
-              </button>
-            </div>
+            <button className="btn-cancel-modal" id="cancelDeleteBtn">
+              CANCEL
+            </button>
           </div>
         </div>
-      )}
-
-      {/* DELETE Modal (React-controlled) */}
-      {deleteOpen && (
-        <div
-          className="modal-overlay open"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setDeleteOpen(false);
-          }}
-        >
-          <div className="modal del-modal">
-            <div className="del-icon">
-              <svg viewBox="0 0 24 24">
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                <path d="M10 11v6M14 11v6" />
-                <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
-              </svg>
-            </div>
-            <h3>Delete Category?</h3>
-            <p>
-              Are you sure you want to delete &quot;{deleteTarget?.cate_name}&quot;? This action cannot be undone.
-            </p>
-            <div className="del-btns">
-              <button
-                className="btn-del-confirm"
-                onClick={handleConfirmDelete}
-                disabled={deleting}
-              >
-                {deleting ? "DELETING…" : "DELETE"}
-              </button>
-              <button
-                className="btn-cancel-modal"
-                onClick={() => setDeleteOpen(false)}
-              >
-                CANCEL
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* CROP MODAL */}
       <div className="crop-overlay" id="cropOverlay">

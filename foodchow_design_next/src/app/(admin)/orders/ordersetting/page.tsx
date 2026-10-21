@@ -33,23 +33,24 @@ export default function OrderSettingPage() {
   const [_missedOrderTiming, setMissedOrderTiming] =
     useState<MissedOrderTiming | null>(null);
   void _missedOrderTiming;
-  
+
 
   const [customLabel, setCustomLabel] = useState("");
-const [prepTime, setPrepTime] = useState("");
-const [customNotes, setCustomNotes] = useState("");
-const [chargeLabel, setChargeLabel] = useState("");
-const [chargeAmount, setChargeAmount] = useState("");
+  const [prepTime, setPrepTime] = useState("");
+  const [customNotes, setCustomNotes] = useState("");
+  const [chargeLabel, setChargeLabel] = useState("");
+  const [chargeAmount, setChargeAmount] = useState("");
+  const [showHelpVideo, setShowHelpVideo] = useState(false);
 
-useEffect(() => {
+  useEffect(() => {
     if (orderMethodStatus) {
-        setCustomLabel(orderMethodStatus.custom_label_method || "");
-        setPrepTime(orderMethodStatus.prep_time || "");
-        setCustomNotes(orderMethodStatus.custom_notes || "");
-        setChargeLabel(orderMethodStatus.order_method_charge_label || "");
-        setChargeAmount(orderMethodStatus.order_method_charge_amount || "");
+      setCustomLabel(orderMethodStatus.custom_label_method || "");
+      setPrepTime(orderMethodStatus.prep_time || "");
+      setCustomNotes(orderMethodStatus.custom_notes || "");
+      setChargeLabel(orderMethodStatus.order_method_charge_label || "");
+      setChargeAmount(orderMethodStatus.order_method_charge_amount || "");
     }
-}, [orderMethodStatus]);
+  }, [orderMethodStatus]);
 
   console.log(
     "Rendering",
@@ -111,53 +112,47 @@ useEffect(() => {
   }, []);
 
   useEffect(() => {
-    const loadMenuTypes = async () => {
-      try {
-        const menus = await orderService.fetchMenuTypes(SHOP_ID);
+    if (!SHOP_ID) return;
 
-        setMenuTypes(menus);
+    let isMounted = true;
 
-        if (menus.length > 0) {
-          setActiveMenu(menus[0].id);
-        }
-      } catch (err) {
-        console.error("Failed to load menu types", err);
+    // Load all primary options in parallel to optimize initial page render
+    Promise.allSettled([
+      orderService.fetchMenuTypes(SHOP_ID),
+      orderService.fetchOrderingMethods(),
+      orderService.fetchPaymentMethods(),
+      orderService.fetchUserOptionDetails(SHOP_ID),
+      orderService.fetchOnlineOrderStatus(SHOP_ID),
+      orderService.fetchMissedOrderTiming(SHOP_ID),
+    ]).then(([menusRes, methodsRes, paymentsRes, userOptsRes, onlineStatusRes, missedTimingRes]) => {
+      if (!isMounted) return;
+
+      if (menusRes.status === "fulfilled" && menusRes.value?.length > 0) {
+        setMenuTypes(menusRes.value);
+        setActiveMenu(menusRes.value[0].id);
       }
-    };
-
-    loadMenuTypes();
-  }, []);
-
-  useEffect(() => {
-    const loadOrderingMethods = async () => {
-      try {
-        const methods = await orderService.fetchOrderingMethods();
-
-        setOrderingMethods(methods);
-
-        if (methods.length > 0) {
-          setActiveMethod(methods[0].id);
-        }
-      } catch (err) {
-        console.error("Failed to load ordering methods", err);
+      if (methodsRes.status === "fulfilled" && methodsRes.value?.length > 0) {
+        setOrderingMethods(methodsRes.value);
+        setActiveMethod(methodsRes.value[0].id);
       }
-    };
-
-    loadOrderingMethods();
-  }, []);
-
-  useEffect(() => {
-    const loadPaymentMethods = async () => {
-      try {
-        const methods = await orderService.fetchPaymentMethods();
-        setPaymentMethods(methods);
-      } catch (err) {
-        console.error(err);
+      if (paymentsRes.status === "fulfilled") {
+        setPaymentMethods(paymentsRes.value || []);
       }
-    };
+      if (userOptsRes.status === "fulfilled") {
+        setUserOptionDetails(userOptsRes.value);
+      }
+      if (onlineStatusRes.status === "fulfilled") {
+        setOnlineOrderStatus(onlineStatusRes.value);
+      }
+      if (missedTimingRes.status === "fulfilled") {
+        setMissedOrderTiming(missedTimingRes.value);
+      }
+    });
 
-    loadPaymentMethods();
-  }, []);
+    return () => {
+      isMounted = false;
+    };
+  }, [SHOP_ID]);
 
   useEffect(() => {
 
@@ -219,248 +214,207 @@ useEffect(() => {
 
   }, [activeMenu, activeMethod]);
 
-  useEffect(() => {
 
-    const loadUserOptions = async () => {
-      try {
-        const options =
-          await orderService.fetchUserOptionDetails(SHOP_ID);
-
-        setUserOptionDetails(options);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    loadUserOptions();
-
-  }, []);
-
-  useEffect(() => {
-    const loadOnlineOrderStatus = async () => {
-      try {
-        const status = await orderService.fetchOnlineOrderStatus(SHOP_ID);
-        setOnlineOrderStatus(status);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    loadOnlineOrderStatus();
-  }, []);
-
-  useEffect(() => {
-    const loadMissedOrderTiming = async () => {
-      try {
-        const timing = await orderService.fetchMissedOrderTiming(SHOP_ID);
-        setMissedOrderTiming(timing);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    loadMissedOrderTiming();
-  }, []);
 
 
   // Handler functions for each feature
-const handleOrderMethodToggle = async (checked: boolean) => {
+  const handleOrderMethodToggle = async (checked: boolean) => {
     if (!activeMenu || !activeMethod) return;
-    
-    await orderService.updateOrderMethodFlag(
-        SHOP_ID,
-        activeMethod,
-        activeMenu,
-        checked ? 1 : 0,
-        "order_method"
-    );
-    
-    const status = await orderService.fetchOrderMethodStatus(
-        SHOP_ID,
-        activeMethod,
-        activeMenu
-    );
-    setOrderMethodStatus(status);
-};
 
-const handlePreOrderToggle = async (checked: boolean) => {
-    if (!activeMenu || !activeMethod) return;
-    
     await orderService.updateOrderMethodFlag(
-        SHOP_ID,
-        activeMethod,
-        activeMenu,
-        checked ? 1 : 0,
-        "preorder_status"
+      SHOP_ID,
+      activeMethod,
+      activeMenu,
+      checked ? 1 : 0,
+      "order_method"
     );
-    
-    const status = await orderService.fetchOrderMethodStatus(
-        SHOP_ID,
-        activeMethod,
-        activeMenu
-    );
-    setOrderMethodStatus(status);
-};
 
-const handleRestaurantEmailToggle = async (checked: boolean) => {
-    if (!activeMenu || !activeMethod) return;
-    
-    await orderService.updateOrderMethodFlag(
-        SHOP_ID,
-        activeMethod,
-        activeMenu,
-        checked ? 1 : 0,
-        "email_notify"
-    );
-    
     const status = await orderService.fetchOrderMethodStatus(
-        SHOP_ID,
-        activeMethod,
-        activeMenu
+      SHOP_ID,
+      activeMethod,
+      activeMenu
     );
     setOrderMethodStatus(status);
-};
+  };
 
-const handleCustomerEmailToggle = async (checked: boolean) => {
+  const handlePreOrderToggle = async (checked: boolean) => {
     if (!activeMenu || !activeMethod) return;
-    
-    await orderService.updateOrderMethodFlag(
-        SHOP_ID,
-        activeMethod,
-        activeMenu,
-        checked ? 1 : 0,
-        "email_notify_customer"
-    );
-    
-    const status = await orderService.fetchOrderMethodStatus(
-        SHOP_ID,
-        activeMethod,
-        activeMenu
-    );
-    setOrderMethodStatus(status);
-};
 
-const handleCustomNotesSave = async () => {
-    if (!activeMenu || !activeMethod) return;
-    
     await orderService.updateOrderMethodFlag(
-        SHOP_ID,
-        activeMethod,
-        activeMenu,
-        customNotes,
-        "custom_notes"
+      SHOP_ID,
+      activeMethod,
+      activeMenu,
+      checked ? 1 : 0,
+      "preorder_status"
     );
-    
+
     const status = await orderService.fetchOrderMethodStatus(
-        SHOP_ID,
-        activeMethod,
-        activeMenu
+      SHOP_ID,
+      activeMethod,
+      activeMenu
     );
     setOrderMethodStatus(status);
-    
+  };
+
+  const handleRestaurantEmailToggle = async (checked: boolean) => {
+    if (!activeMenu || !activeMethod) return;
+
+    await orderService.updateOrderMethodFlag(
+      SHOP_ID,
+      activeMethod,
+      activeMenu,
+      checked ? 1 : 0,
+      "email_notify"
+    );
+
+    const status = await orderService.fetchOrderMethodStatus(
+      SHOP_ID,
+      activeMethod,
+      activeMenu
+    );
+    setOrderMethodStatus(status);
+  };
+
+  const handleCustomerEmailToggle = async (checked: boolean) => {
+    if (!activeMenu || !activeMethod) return;
+
+    await orderService.updateOrderMethodFlag(
+      SHOP_ID,
+      activeMethod,
+      activeMenu,
+      checked ? 1 : 0,
+      "email_notify_customer"
+    );
+
+    const status = await orderService.fetchOrderMethodStatus(
+      SHOP_ID,
+      activeMethod,
+      activeMenu
+    );
+    setOrderMethodStatus(status);
+  };
+
+  const handleCustomNotesSave = async () => {
+    if (!activeMenu || !activeMethod) return;
+
+    await orderService.updateOrderMethodFlag(
+      SHOP_ID,
+      activeMethod,
+      activeMenu,
+      customNotes,
+      "custom_notes"
+    );
+
+    const status = await orderService.fetchOrderMethodStatus(
+      SHOP_ID,
+      activeMethod,
+      activeMenu
+    );
+    setOrderMethodStatus(status);
+
     // Show toast
     showToast();
-};
+  };
 
-const handleCustomLabelSave = async () => {
+  const handleCustomLabelSave = async () => {
     if (!activeMenu || !activeMethod) return;
-    
+
     await orderService.updateOrderMethodFlag(
-        SHOP_ID,
-        activeMethod,
-        activeMenu,
-        customLabel,
-        "custom_label"
+      SHOP_ID,
+      activeMethod,
+      activeMenu,
+      customLabel,
+      "custom_label"
     );
-    
+
     const status = await orderService.fetchOrderMethodStatus(
-        SHOP_ID,
-        activeMethod,
-        activeMenu
+      SHOP_ID,
+      activeMethod,
+      activeMenu
     );
     setOrderMethodStatus(status);
-    
+
     // Show toast
     showToast();
-};
+  };
 
-const handleExtraChargeSave = async () => {
+  const handleExtraChargeSave = async () => {
     if (!activeMenu || !activeMethod) return;
-    
+
     // Format: chargeLabel***chargeAmount
     const value = `${chargeLabel}***${chargeAmount}`;
-    
+
     await orderService.updateOrderMethodFlag(
-        SHOP_ID,
-        activeMethod,
-        activeMenu,
-        value,
-        "order_method_charge"
+      SHOP_ID,
+      activeMethod,
+      activeMenu,
+      value,
+      "order_method_charge"
     );
-    
+
     const status = await orderService.fetchOrderMethodStatus(
-        SHOP_ID,
-        activeMethod,
-        activeMenu
+      SHOP_ID,
+      activeMethod,
+      activeMenu
     );
     setOrderMethodStatus(status);
-    
+
     // Show toast
     showToast();
-};
+  };
 
-// Add this after handleExtraChargeSave
-const handleUserOptionToggle = async (
+  // Add this after handleExtraChargeSave
+  const handleUserOptionToggle = async (
     field: "f_name" | "l_name" | "phone_no",
     checked: boolean
-) => {
+  ) => {
     try {
-        await orderService.updateUserOption(
-            SHOP_ID,
-            field,
-            checked
-        );
-        
-        // Refresh user options after update
-        const options = await orderService.fetchUserOptionDetails(SHOP_ID);
-        setUserOptionDetails(options);
-        
-        // Show toast
-        showToast();
+      await orderService.updateUserOption(
+        SHOP_ID,
+        field,
+        checked
+      );
+
+      // Refresh user options after update
+      const options = await orderService.fetchUserOptionDetails(SHOP_ID);
+      setUserOptionDetails(options);
+
+      // Show toast
+      showToast();
     } catch (err) {
-        console.error("Error updating user option:", err);
+      console.error("Error updating user option:", err);
     }
-};
-// Add this handler
-const handlePrepTimeSave = async () => {
+  };
+  // Add this handler
+  const handlePrepTimeSave = async () => {
     if (!activeMenu || !activeMethod) return;
-    
+
     await orderService.updateOrderMethodFlag(
-        SHOP_ID,
-        activeMethod,
-        activeMenu,
-        prepTime,
-        "prep_time" // Check with your senior if this flag exists
+      SHOP_ID,
+      activeMethod,
+      activeMenu,
+      prepTime,
+      "prep_time" // Check with your senior if this flag exists
     );
-    
+
     const status = await orderService.fetchOrderMethodStatus(
-        SHOP_ID,
-        activeMethod,
-        activeMenu
+      SHOP_ID,
+      activeMethod,
+      activeMenu
     );
     setOrderMethodStatus(status);
     showToast();
-};
-// Toast helper function
-const showToast = () => {
+  };
+  // Toast helper function
+  const showToast = () => {
     const toast = document.getElementById("successToast");
     if (toast) {
-        toast.classList.add("show");
-        setTimeout(() => {
-            toast.classList.remove("show");
-        }, 2000);
+      toast.classList.add("show");
+      setTimeout(() => {
+        toast.classList.remove("show");
+      }, 2000);
     }
-};
+  };
 
   const handlePaymentMethodToggle = async (
     paymentMethodId: number,
@@ -501,7 +455,7 @@ const showToast = () => {
   };
 
   console.log("Current activeMethod:", activeMethod);
-console.log("Available ordering methods:", orderingMethods);
+  console.log("Available ordering methods:", orderingMethods);
 
 
 
@@ -514,7 +468,7 @@ console.log("Available ordering methods:", orderingMethods);
               <div className="report-header">
                 <h1 className="typ-page-heading report-title">Order Setting</h1>
                 <div className="report-header-actions">
-                  <button className="btn-help">
+                  <button className="btn-help" onClick={() => setShowHelpVideo(true)}>
                     <svg viewBox="0 0 24 24" style={{ width: "16px", height: "16px", fill: "none", stroke: "currentColor", strokeWidth: 2 }}>
                       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                     </svg>
@@ -704,7 +658,7 @@ console.log("Available ordering methods:", orderingMethods);
                           // value={orderMethodStatus?.custom_label_method ?? ""}
                           // readOnly
                           value={customLabel}
-            onChange={(e) => setCustomLabel(e.target.value)}
+                          onChange={(e) => setCustomLabel(e.target.value)}
                         />
                         <button type="button" className="btn-save" onClick={handleCustomLabelSave}>
                           SAVE
@@ -724,7 +678,7 @@ console.log("Available ordering methods:", orderingMethods);
                           // value={orderMethodStatus?.prep_time ?? ""}
                           // readOnly
                           value={prepTime}
-            onChange={(e) => setPrepTime(e.target.value)}
+                          onChange={(e) => setPrepTime(e.target.value)}
                         />
                         <button type="button" className="btn-save" onClick={handlePrepTimeSave}>
                           SAVE
@@ -740,9 +694,9 @@ console.log("Available ordering methods:", orderingMethods);
                           // value={orderMethodStatus?.custom_notes ?? ""}
                           // readOnly
                           value={customNotes}
-            onChange={(e) => setCustomNotes(e.target.value)}
-            placeholder="Enter notes for customers..."
-            rows={3}
+                          onChange={(e) => setCustomNotes(e.target.value)}
+                          placeholder="Enter notes for customers..."
+                          rows={3}
                         />
                         <button type="button" className="btn-save" onClick={handleCustomNotesSave}>
                           SAVE
@@ -761,8 +715,8 @@ console.log("Available ordering methods:", orderingMethods);
                             className="form-control"
                             // value={orderMethodStatus?.order_method_charge_label ?? ""}
                             value={chargeLabel}
-                onChange={(e) => setChargeLabel(e.target.value)}
-                            
+                            onChange={(e) => setChargeLabel(e.target.value)}
+
                           />
                         </div>
                         <div className="charge-field">
@@ -773,7 +727,7 @@ console.log("Available ordering methods:", orderingMethods);
                             className="form-control"
                             // value={orderMethodStatus?.order_method_charge_amount ?? ""}
                             value={chargeAmount}
-                onChange={(e) => setChargeAmount(e.target.value)}
+                            onChange={(e) => setChargeAmount(e.target.value)}
                           />
                         </div>
                         <button type="button" className="btn-save" onClick={handleExtraChargeSave}>
@@ -814,219 +768,219 @@ console.log("Available ordering methods:", orderingMethods);
                   </div>
                 )}
 
-{activeMethod === 2 && (
-    <div className="form-section tab-content">
-        <div className="toggle-wrapper">
-            <label className="switch">
-                <input
-                    type="checkbox"
-                    checked={orderMethodStatus?.method_status === 1}
-                    onChange={(e) =>
-                        handleOrderMethodToggle(e.target.checked)
-                    }
-                />
-                <span className="slider" />
-            </label>
-            Enable Dine In
-        </div>
+                {activeMethod === 2 && (
+                  <div className="form-section tab-content">
+                    <div className="toggle-wrapper">
+                      <label className="switch">
+                        <input
+                          type="checkbox"
+                          checked={orderMethodStatus?.method_status === 1}
+                          onChange={(e) =>
+                            handleOrderMethodToggle(e.target.checked)
+                          }
+                        />
+                        <span className="slider" />
+                      </label>
+                      Enable Dine In
+                    </div>
 
-        <div>
-            <div className="section-title">Select Payment Method for Dine In</div>
-            <div className="checkbox-group" style={{ fontWeight: 400 }}>
-                {paymentMethods.map((payment) => {
-                    const checked = selectedPayments.some(
-                        (p) => p.payment_method_id === payment.id
-                    );
-                    return (
-                        <label key={payment.id} className="checkbox-label">
-                            <input
+                    <div>
+                      <div className="section-title">Select Payment Method for Dine In</div>
+                      <div className="checkbox-group" style={{ fontWeight: 400 }}>
+                        {paymentMethods.map((payment) => {
+                          const checked = selectedPayments.some(
+                            (p) => p.payment_method_id === payment.id
+                          );
+                          return (
+                            <label key={payment.id} className="checkbox-label">
+                              <input
                                 type="checkbox"
                                 checked={checked}
                                 onChange={(e) =>
-                                    handlePaymentMethodToggle(
-                                        payment.id,
-                                        e.target.checked
-                                    )
+                                  handlePaymentMethodToggle(
+                                    payment.id,
+                                    e.target.checked
+                                  )
                                 }
-                            />
-                            {payment.method_name}
+                              />
+                              {payment.method_name}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="toggle-wrapper">
+                      <label className="switch">
+                        <input
+                          type="checkbox"
+                          checked={orderMethodStatus?.preorder_status === 1}
+                          onChange={(e) => handlePreOrderToggle(e.target.checked)}
+                        />
+                        <span className="slider" />
+                      </label>
+                      Pre-Order
+                    </div>
+
+                    <div className="radio-group" style={{ fontWeight: 600 }}>
+                      Order Approval :
+                      <label className="radio-label" style={{ fontWeight: 500 }}>
+                        <input
+                          type="radio"
+                          name="dinein_approval"
+                          checked={orderMethodStatus?.order_approval === 0}
+                          readOnly
+                        /> Auto
+                      </label>
+                      <label className="radio-label" style={{ fontWeight: 500 }}>
+                        <input
+                          type="radio"
+                          name="dinein_approval"
+                          checked={orderMethodStatus?.order_approval === 1}
+                          readOnly
+                        /> Manual
+                      </label>
+                    </div>
+
+                    <div className="input-save-row">
+                      <label>Enter Custom Label For : Dine In</label>
+                      <div className="input-group">
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={customLabel}
+                          onChange={(e) => setCustomLabel(e.target.value)}
+                        />
+                        <button type="button" className="btn-save" onClick={handleCustomLabelSave}>
+                          SAVE
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="input-save-row">
+                      <label>Order Dine In Time (Minutes) <span>*</span></label>
+                      <div className="input-group">
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={prepTime}
+                          onChange={(e) => setPrepTime(e.target.value)}
+                        />
+                        <button type="button" className="btn-save" onClick={handlePrepTimeSave}>
+                          SAVE
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="input-save-row">
+                      <label>Enter notes to display the customers</label>
+                      <div className="input-group">
+                        <textarea
+                          className="form-control"
+                          value={customNotes}
+                          onChange={(e) => setCustomNotes(e.target.value)}
+                          placeholder="Enter notes for customers..."
+                        />
+                        <button type="button" className="btn-save" onClick={handleCustomNotesSave}>
+                          SAVE
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="extra-charge-container">
+                      <div className="section-title">Add Extra Charge On Dine In</div>
+                      <div className="extra-charge-row">
+                        <div className="charge-field">
+                          <label>Charge Label</label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            value={chargeLabel}
+                            onChange={(e) => setChargeLabel(e.target.value)}
+                          />
+                        </div>
+                        <div className="charge-field">
+                          <label>Charge Amount (INR)</label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            value={chargeAmount}
+                            onChange={(e) => setChargeAmount(e.target.value)}
+                          />
+                        </div>
+                        <button type="button" className="btn-save" onClick={handleExtraChargeSave}>
+                          SAVE
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="section-title">Customers Details (For QR Orders Only)</div>
+                      <div className="checkbox2-group">
+                        <label className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={userOptionDetails?.first_name === "1"}
+                            onChange={(e) =>
+                              handleUserOptionToggle("f_name", e.target.checked)
+                            }
+                          />
+                          First Name
                         </label>
-                    );
-                })}
-            </div>
-        </div>
 
-        <div className="toggle-wrapper">
-            <label className="switch">
-                <input 
-                    type="checkbox" 
-                    checked={orderMethodStatus?.preorder_status === 1} 
-                    onChange={(e) => handlePreOrderToggle(e.target.checked)} 
-                />
-                <span className="slider" />
-            </label>
-            Pre-Order
-        </div>
+                        <label className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={userOptionDetails?.last_name === "1"}
+                            onChange={(e) =>
+                              handleUserOptionToggle("l_name", e.target.checked)
+                            }
+                          />
+                          Last Name
+                        </label>
 
-        <div className="radio-group" style={{ fontWeight: 600 }}>
-            Order Approval :
-            <label className="radio-label" style={{ fontWeight: 500 }}>
-                <input
-                    type="radio"
-                    name="dinein_approval"
-                    checked={orderMethodStatus?.order_approval === 0}
-                    readOnly
-                /> Auto
-            </label>
-            <label className="radio-label" style={{ fontWeight: 500 }}>
-                <input
-                    type="radio"
-                    name="dinein_approval"
-                    checked={orderMethodStatus?.order_approval === 1}
-                    readOnly
-                /> Manual
-            </label>
-        </div>
+                        <label className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={userOptionDetails?.phone_no === "1"}
+                            onChange={(e) =>
+                              handleUserOptionToggle("phone_no", e.target.checked)
+                            }
+                          />
+                          Phone Number
+                        </label>
+                      </div>
+                    </div>
 
-        <div className="input-save-row">
-            <label>Enter Custom Label For : Dine In</label>
-            <div className="input-group">
-                <input 
-                    type="text" 
-                    className="form-control" 
-                    value={customLabel}
-                    onChange={(e) => setCustomLabel(e.target.value)} 
-                />
-                <button type="button" className="btn-save" onClick={handleCustomLabelSave}>
-                    SAVE
-                </button>
-            </div>
-        </div>
+                    <div className="toggle-wrapper">
+                      <label className="switch">
+                        <input
+                          type="checkbox"
+                          checked={orderMethodStatus?.email_notify === 1}
+                          onChange={(e) =>
+                            handleRestaurantEmailToggle(e.target.checked)
+                          }
+                        />
+                        <span className="slider" />
+                      </label>
+                      Send Order Email Notification to Restaurant
+                    </div>
 
-        <div className="input-save-row">
-            <label>Order Dine In Time (Minutes) <span>*</span></label>
-            <div className="input-group">
-                <input
-                    type="text"
-                    className="form-control"
-                    value={prepTime}
-                    onChange={(e) => setPrepTime(e.target.value)}
-                />
-                <button type="button" className="btn-save" onClick={handlePrepTimeSave}>
-                    SAVE
-                </button>
-            </div>
-        </div>
-
-        <div className="input-save-row">
-            <label>Enter notes to display the customers</label>
-            <div className="input-group">
-                <textarea
-                    className="form-control"
-                    value={customNotes}
-                    onChange={(e) => setCustomNotes(e.target.value)}
-                    placeholder="Enter notes for customers..."
-                />
-                <button type="button" className="btn-save" onClick={handleCustomNotesSave}>
-                    SAVE
-                </button>
-            </div>
-        </div>
-
-        <div className="extra-charge-container">
-            <div className="section-title">Add Extra Charge On Dine In</div>
-            <div className="extra-charge-row">
-                <div className="charge-field">
-                    <label>Charge Label</label>
-                    <input 
-                        type="text" 
-                        className="form-control" 
-                        value={chargeLabel}
-                        onChange={(e) => setChargeLabel(e.target.value)} 
-                    />
-                </div>
-                <div className="charge-field">
-                    <label>Charge Amount (INR)</label>
-                    <input
-                        type="text"
-                        className="form-control"
-                        value={chargeAmount}
-                        onChange={(e) => setChargeAmount(e.target.value)}
-                    />
-                </div>
-                <button type="button" className="btn-save" onClick={handleExtraChargeSave}>
-                    SAVE
-                </button>
-            </div>
-        </div>
-
-        <div>
-            <div className="section-title">Customers Details (For QR Orders Only)</div>
-            <div className="checkbox2-group">
-                <label className="checkbox-label">
-                    <input
-                        type="checkbox"
-                        checked={userOptionDetails?.first_name === "1"}
-                        onChange={(e) => 
-                            handleUserOptionToggle("f_name", e.target.checked)
-                        }
-                    />
-                    First Name
-                </label>
-
-                <label className="checkbox-label">
-                    <input
-                        type="checkbox"
-                        checked={userOptionDetails?.last_name === "1"}
-                        onChange={(e) => 
-                            handleUserOptionToggle("l_name", e.target.checked)
-                        }
-                    />
-                    Last Name
-                </label>
-
-                <label className="checkbox-label">
-                    <input
-                        type="checkbox"
-                        checked={userOptionDetails?.phone_no === "1"}
-                        onChange={(e) => 
-                            handleUserOptionToggle("phone_no", e.target.checked)
-                        }
-                    />
-                    Phone Number
-                </label>
-            </div>
-        </div>
-
-        <div className="toggle-wrapper">
-            <label className="switch">
-                <input
-                    type="checkbox"
-                    checked={orderMethodStatus?.email_notify === 1}
-                    onChange={(e) =>
-                        handleRestaurantEmailToggle(e.target.checked)
-                    }
-                />
-                <span className="slider" />
-            </label>
-            Send Order Email Notification to Restaurant
-        </div>
-
-        <div className="toggle-wrapper">
-            <label className="switch">
-                <input
-                    type="checkbox"
-                    checked={orderMethodStatus?.email_notify_customer === 1}
-                    onChange={(e) =>
-                        handleCustomerEmailToggle(e.target.checked)
-                    }
-                />
-                <span className="slider" />
-            </label>
-            Send Order Email Notification to Customer
-        </div>
-    </div>
-)}
+                    <div className="toggle-wrapper">
+                      <label className="switch">
+                        <input
+                          type="checkbox"
+                          checked={orderMethodStatus?.email_notify_customer === 1}
+                          onChange={(e) =>
+                            handleCustomerEmailToggle(e.target.checked)
+                          }
+                        />
+                        <span className="slider" />
+                      </label>
+                      Send Order Email Notification to Customer
+                    </div>
+                  </div>
+                )}
                 {activeMethod === 5 && (
                   // id="home-delivery-content"
                   <div className="form-section tab-content">
@@ -1104,7 +1058,7 @@ console.log("Available ordering methods:", orderingMethods);
                       <label>Enter Custom Label For : Home Delivery</label>
                       <div className="input-group">
                         <input type="text" className="form-control" value={customLabel}
-            onChange={(e) => setCustomLabel(e.target.value)} />
+                          onChange={(e) => setCustomLabel(e.target.value)} />
                         <button type="button" className="btn-save" onClick={handleCustomLabelSave}>
                           SAVE
                         </button>
@@ -1117,7 +1071,7 @@ console.log("Available ordering methods:", orderingMethods);
                       </label>
                       <div className="input-group">
                         <input type="text" className="form-control" value={prepTime}
-            onChange={(e) => setPrepTime(e.target.value)} />
+                          onChange={(e) => setPrepTime(e.target.value)} />
                         <button type="button" className="btn-save" onClick={handlePrepTimeSave}>
                           SAVE
                         </button>
@@ -1129,10 +1083,10 @@ console.log("Available ordering methods:", orderingMethods);
                       <div className="input-group">
                         <textarea
                           className="form-control"
-                           value={customNotes}
-            onChange={(e) => setCustomNotes(e.target.value)}
-            placeholder="Enter notes for customers..."
-            rows={3}
+                          value={customNotes}
+                          onChange={(e) => setCustomNotes(e.target.value)}
+                          placeholder="Enter notes for customers..."
+                          rows={3}
                         />
                         <button type="button" className="btn-save" onClick={handleCustomNotesSave}>
                           SAVE
@@ -1146,12 +1100,12 @@ console.log("Available ordering methods:", orderingMethods);
                         <div className="charge-field">
                           <label>Charge Label</label>
                           <input type="text" className="form-control" value={chargeLabel}
-                onChange={(e) => setChargeLabel(e.target.value)} />
+                            onChange={(e) => setChargeLabel(e.target.value)} />
                         </div>
                         <div className="charge-field">
                           <label>Charge Amount (INR)</label>
-                          <input type="text" className="form-control"value={chargeAmount}
-                onChange={(e) => setChargeAmount(e.target.value)} />
+                          <input type="text" className="form-control" value={chargeAmount}
+                            onChange={(e) => setChargeAmount(e.target.value)} />
                         </div>
                         <button type="button" className="btn-save" onClick={handleExtraChargeSave}>
                           SAVE
@@ -1205,6 +1159,42 @@ console.log("Available ordering methods:", orderingMethods);
         </svg>
         <span>Settings saved successfully!</span>
       </div>
+
+      {showHelpVideo && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{ position: 'relative', width: '80%', maxWidth: '1000px', aspectRatio: '16/9', backgroundColor: '#000' }}>
+            <button
+              onClick={() => setShowHelpVideo(false)}
+              style={{
+                position: 'absolute',
+                top: '-40px',
+                right: '0',
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                fontSize: '30px',
+                cursor: 'pointer'
+              }}
+            >
+              &times;
+            </button>
+            <iframe
+              src="https://player.vimeo.com/video/1075945489?autoplay=1"
+              style={{ width: '100%', height: '100%', border: 'none' }}
+              allow="autoplay; fullscreen; picture-in-picture"
+              allowFullScreen
+            ></iframe>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

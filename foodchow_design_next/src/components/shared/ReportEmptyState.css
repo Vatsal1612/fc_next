@@ -1,0 +1,17 @@
+.report-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+  text-align: center;
+}
+
+.report-empty-message {
+  margin: 0;
+  font-family: 'Poppins', 'Inter', sans-serif !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  color: black !important;
+  letter-spacing: 0.3px !important;
+  text-align: center !important;
+}

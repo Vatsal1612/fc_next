@@ -78,14 +78,10 @@ export interface LoginResponse {
   success: boolean;
   data: {
     shop_id: number;
-    token?: string;
-    jwt?: string;
   }[];
   message: string;
   responseCode: number;
   result: any;
-  token?: string;
-  jwt?: string;
 }
 
 export interface RefreshTokenRequest {

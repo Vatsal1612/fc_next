@@ -1,7 +1,7 @@
 "use client";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import { menuService } from "@/api/services/menu.service";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import "./page.css";
 import { useShopId } from "@/utils/shop";
 
@@ -13,37 +13,11 @@ interface Deal {
   mrp: number;
   minimumOrder: number;
   photo: string;
-  rawImage?: string;
   active: boolean;
-  rawDeal?: any;
 }
 
 export default function ItemDealsPage() {
   const shopId = useShopId();
-
-  // Helper to get effective shopId
-  const getEffectiveShopId = (): number => {
-    if (shopId && Number(shopId) > 0) return Number(shopId);
-    if (typeof window !== "undefined") {
-      const stored =
-        sessionStorage.getItem("shop_id") ||
-        localStorage.getItem("shop_id") ||
-        sessionStorage.getItem("shopId") ||
-        localStorage.getItem("shopId");
-      if (stored && Number(stored) > 0) return Number(stored);
-    }
-    return 7895;
-  };
-
-  // Helper to format live deal image URL
-  const getDealImageUrl = (img: string | null | undefined): string => {
-    if (!img || img === "null" || img === "undefined" || !img.trim()) {
-      return "";
-    }
-    if (img.startsWith("http://") || img.startsWith("https://")) return img;
-    if (img.startsWith("/")) return `https://admin.foodchow.com${img}`;
-    return `https://admin.foodchow.com/DealImage/${img}`;
-  };
 
   // --- Wizard & Modal States ---
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -52,13 +26,12 @@ export default function ItemDealsPage() {
   // --- Dynamic Categories State ---
   const [categories, setCategories] = useState<any[]>([]);
 
-  // Fetch categories on mount or shopId change
+  // Fetch categories on mount
   useEffect(() => {
     const fetchCategories = async () => {
-      const effShopId = getEffectiveShopId();
-      if (!effShopId) return;
+      if (!shopId) return;
       try {
-        const categoryData = await menuService.getItems(effShopId);
+        const categoryData = await menuService.getItems(shopId);
         setCategories(categoryData);
       } catch (error) {
         console.error("Error fetching categories:", error);
@@ -79,101 +52,16 @@ export default function ItemDealsPage() {
     useState("");
   void _updateStep; void _updateDealName; void _updateDealActive; void _updateDealDescription;
 
+
+
+
+
   // --- Step 1 Form States ---
   const [dealName, setDealName] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
 
-  // --- Deal Image States ---
-  const [dealImage, setDealImage] = useState<string>("");
-  const [dealBase64Image, setDealBase64Image] = useState<string>("");
-  const [dealImagePreview, setDealImagePreview] = useState<string>("");
-  const [previewImgError, setPreviewImgError] = useState(false);
-  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
-
-  // --- Crop Modal States ---
-  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
-  const [cropZoom, setCropZoom] = useState(0);
-  const [tempCropSrc, setTempCropSrc] = useState<string>("");
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const cropImgRef = useRef<HTMLImageElement | null>(null);
-
-  const generateDealImageName = () => {
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}.jpg`;
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 3 * 1024 * 1024) {
-      showToast("File size must be under 3MB");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const result = ev.target?.result as string;
-      setTempCropSrc(result);
-      setCropZoom(0);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleCropAndUpload = () => {
-    if (!tempCropSrc) {
-      showToast("Please choose an image first");
-      return;
-    }
-
-    const img = cropImgRef.current;
-    if (!img) return;
-
-    try {
-      const canvas = document.createElement("canvas");
-      canvas.width = 600;
-      canvas.height = 600;
-      const ctx = canvas.getContext("2d");
-
-      if (ctx) {
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, 600, 600);
-
-        const scale = 1 + (cropZoom / 100) * 1.5;
-        const nw = img.naturalWidth || 600;
-        const nh = img.naturalHeight || 600;
-        const cropDim = Math.min(nw, nh) / scale;
-        const sx = (nw - cropDim) / 2;
-        const sy = (nh - cropDim) / 2;
-
-        ctx.drawImage(img, sx, sy, cropDim, cropDim, 0, 0, 600, 600);
-
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-        const pureBase64 = dataUrl.replace(/^data:image\/[a-z]+;base64,/, "");
-        const imageName = generateDealImageName();
-
-        setDealImage(imageName);
-        setDealBase64Image(pureBase64);
-        setDealImagePreview(dataUrl);
-        setPreviewImgError(false);
-        setIsCropModalOpen(false);
-        showToast("Image selected successfully");
-      }
-    } catch (e) {
-      console.error("Crop error:", e);
-      const pureBase64 = tempCropSrc.replace(/^data:image\/[a-z]+;base64,/, "");
-      const imageName = generateDealImageName();
-      setDealImage(imageName);
-      setDealBase64Image(pureBase64);
-      setDealImagePreview(tempCropSrc);
-      setPreviewImgError(false);
-      setIsCropModalOpen(false);
-    }
-  };
-
-  // --- Table Data State ---
+  // --- Mock Table Data State ---
   const [deals, setDeals] = useState<Deal[]>([]);
 
   const [activeFilter, setActiveFilter] = useState("all");
@@ -207,11 +95,6 @@ export default function ItemDealsPage() {
     setDealPrice("");
     setDealMrp("");
     setMinQty("1");
-
-    setDealImage("");
-    setDealBase64Image("");
-    setDealImagePreview("");
-    setPreviewImgError(false);
 
     setSelectedTaxes([]);
     setAppliedTaxes([]);
@@ -247,21 +130,10 @@ export default function ItemDealsPage() {
     setStatus(deal.active ? "active" : "inactive");
 
     setDealPrice(String(deal.price));
-    setDealMrp(String(deal.mrp || deal.price));
-    setMinQty(String(deal.minimumOrder || 1));
+    setDealMrp(String(deal.mrp));
+    setMinQty(String(deal.minimumOrder));
 
-    // Prefetch image
-    const rawImg = deal.rawImage || "";
-    setDealImage(rawImg);
-    setDealBase64Image("");
-    setPreviewImgError(false);
-    if (rawImg) {
-      setDealImagePreview(getDealImageUrl(rawImg));
-    } else {
-      setDealImagePreview("");
-    }
-
-    // Open Modal
+    // Open FRIEND'S SAME FORM
     setCurrentStep(1);
     setIsModalOpen(true);
 
@@ -561,45 +433,11 @@ export default function ItemDealsPage() {
 
     setIsTaxModalOpen(true);
   };
-  // Helper extraction methods to support all API schemas from menuService.getItems
-  const getItemId = (it: any): string =>
-    String(it?.id ?? it?.item_Id ?? it?.Item_Id ?? it?.item_id ?? "");
-
-  const getItemName = (it: any): string =>
-    String(it?.name ?? it?.item_Name ?? it?.Item_Name ?? it?.item_name ?? "");
-
-  const getItemSizes = (it: any): Array<{ id: string; name: string }> => {
-    const rawList =
-      it?.sizes ??
-      it?.FoodItemSizeList ??
-      it?.foodItemSizeList ??
-      it?.ItemSizeList ??
-      it?.item_size_list ??
-      [];
-    if (!Array.isArray(rawList)) return [];
-    return rawList
-      .map((s: any) => ({
-        id: String(s?.id ?? s?.item_size_id ?? s?.size_id ?? s?.Size_Id ?? s?.size_ID ?? ""),
-        name: String(s?.name ?? s?.size_name ?? s?.Size_Name ?? s?.size_Name ?? "Regular"),
-      }))
-      .filter((s: any) => Boolean(s.id));
-  };
-
-  const getCategoryItems = (cat: any): any[] =>
-    cat?.items ?? cat?.item_list ?? cat?.ItemList ?? [];
-
-  const getCategoryId = (cat: any): string =>
-    String(cat?.id ?? cat?.cate_Id ?? cat?.cate_id ?? cat?.categoryId ?? "");
-
-  const getCategoryName = (cat: any): string =>
-    String(cat?.name ?? cat?.cate_name ?? cat?.categoryName ?? "");
-
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
-
-  const handleCategorySelection = (category: any) => {
+  const [expandedCategory, setExpandedCategory] = useState<string | null>("side");
+  const handleCategorySelection = (
+    category: any
+  ) => {
     if (!editingGroupId) return;
-    const catId = getCategoryId(category);
-    const catItems = getCategoryItems(category);
 
     setItemGroups((prev) =>
       prev.map((group) => {
@@ -607,53 +445,70 @@ export default function ItemDealsPage() {
           return group;
         }
 
-        const existingCategory = group.selectedCategories.find(
-          (cat) => String(cat.categoryId) === catId
-        );
+        const existingCategory =
+          group.selectedCategories.find(
+            (cat) => cat.categoryId === category.id
+          );
 
         const categoryIsSelected =
-          existingCategory && existingCategory.selectedItems.length > 0;
+          existingCategory &&
+          existingCategory.selectedItems.length > 0;
 
-        // Category is already selected -> remove ALL items
+        // Category is already selected
+        // → remove ALL items
         if (categoryIsSelected) {
           return {
             ...group,
-            selectedCategories: group.selectedCategories.filter(
-              (cat) => String(cat.categoryId) !== catId
-            ),
+            selectedCategories:
+              group.selectedCategories.filter(
+                (cat) =>
+                  cat.categoryId !== category.id
+              ),
           };
         }
 
-        // Category not selected -> select ALL items
+        // Category not selected
+        // → select ALL items
         return {
           ...group,
           selectedCategories: [
-            ...group.selectedCategories.filter((cat) => String(cat.categoryId) !== catId),
+            ...group.selectedCategories,
             {
-              categoryId: catId,
-              selectedItems: catItems.map((rawItem: any) => {
-                const itemId = getItemId(rawItem);
-                const sizes = getItemSizes(rawItem);
-                return {
-                  itemId,
-                  selectedSizes: sizes.length > 0 ? [sizes[0].id] : [],
-                };
-              }),
+              categoryId: category.id,
+
+              selectedItems: (category.items || category.item_list || []).map(
+                (rawItem: any) => {
+                  const item = {
+                    ...rawItem,
+                    id: rawItem.id || rawItem.item_id,
+                    sizes: rawItem.sizes || rawItem.item_size_list?.map((s: any) => ({ ...s, id: s.id || s.item_size_id || s.size_id }))
+                  };
+                  return {
+                    itemId: item.id,
+
+                    // Default first size
+                    selectedSizes:
+                      item.sizes &&
+                        item.sizes.length > 0
+                        ? [item.sizes[0].id]
+                        : [],
+                  }
+                }
+              ),
             },
           ],
         };
       })
     );
   };
-
   const isCategorySelected = (category: any) => {
-    const selectedCategory = getSelectedCategory(getCategoryId(category));
+    const selectedCategory = getSelectedCategory(category.id);
+
     return (
       selectedCategory !== undefined &&
       selectedCategory.selectedItems.length > 0
     );
   };
-
   const handleAddItemGroup = () => {
     const newId = (itemGroups.length + 1).toString();
 
@@ -674,31 +529,16 @@ export default function ItemDealsPage() {
     );
   };
 
-  const handleOpenItemModal = async (groupId: string) => {
+  const handleOpenItemModal = (groupId: string) => {
     setEditingGroupId(groupId);
-    setExpandedCategory(null);
+    setExpandedCategory("side");
     setIsItemModalOpen(true);
-
-    const effShopId = getEffectiveShopId();
-    if (effShopId) {
-      try {
-        const categoryData = await menuService.getItems(effShopId);
-        if (Array.isArray(categoryData) && categoryData.length > 0) {
-          setCategories(categoryData);
-        }
-      } catch (err) {
-        console.error("Error refreshing categories for item group modal:", err);
-      }
-    }
   };
-
   const handleItemSelection = (
     categoryId: string,
     itemId: string
   ) => {
     if (!editingGroupId) return;
-    const normCatId = String(categoryId);
-    const normItemId = String(itemId);
 
     setItemGroups((prev) =>
       prev.map((group) => {
@@ -707,22 +547,27 @@ export default function ItemDealsPage() {
         }
 
         const category = categories.find(
-          (cat) => String(getCategoryId(cat)) === normCatId
+          (cat) => cat.id === categoryId
         );
 
-        const rawItem = getCategoryItems(category).find(
-          (raw: any) => getItemId(raw) === normItemId
+        const rawItem = (category?.items || category?.item_list || []).find(
+          (raw: any) => (raw.id || raw.item_id) === itemId
         );
 
         if (!rawItem) {
           return group;
         }
 
-        const sizes = getItemSizes(rawItem);
+        const item = {
+          ...rawItem,
+          id: rawItem.id || rawItem.item_id,
+          sizes: rawItem.sizes || rawItem.item_size_list?.map((s: any) => ({ ...s, id: s.id || s.item_size_id || s.size_id }))
+        };
 
-        const existingCategory = group.selectedCategories.find(
-          (cat) => String(cat.categoryId) === normCatId
-        );
+        const existingCategory =
+          group.selectedCategories.find(
+            (cat) => cat.categoryId === categoryId
+          );
 
         // Category does not exist yet
         if (!existingCategory) {
@@ -731,11 +576,15 @@ export default function ItemDealsPage() {
             selectedCategories: [
               ...group.selectedCategories,
               {
-                categoryId: normCatId,
+                categoryId,
                 selectedItems: [
                   {
-                    itemId: normItemId,
-                    selectedSizes: sizes.length > 0 ? [sizes[0].id] : [],
+                    itemId,
+                    selectedSizes:
+                      item.sizes &&
+                        item.sizes.length > 0
+                        ? [item.sizes[0].id]
+                        : [],
                   },
                 ],
               },
@@ -743,65 +592,73 @@ export default function ItemDealsPage() {
           };
         }
 
-        const itemAlreadySelected = existingCategory.selectedItems.some(
-          (selectedItem) => String(selectedItem.itemId) === normItemId
-        );
+        const itemAlreadySelected =
+          existingCategory.selectedItems.some(
+            (selectedItem) =>
+              selectedItem.itemId === itemId
+          );
 
         // Remove item
         if (itemAlreadySelected) {
-          const remainingItems = existingCategory.selectedItems.filter(
-            (selectedItem) => String(selectedItem.itemId) !== normItemId
-          );
+          const remainingItems =
+            existingCategory.selectedItems.filter(
+              (selectedItem) =>
+                selectedItem.itemId !== itemId
+            );
 
           return {
             ...group,
             selectedCategories:
               remainingItems.length === 0
                 ? group.selectedCategories.filter(
-                    (cat) => String(cat.categoryId) !== normCatId
-                  )
-                : group.selectedCategories.map((cat) =>
-                    String(cat.categoryId) === normCatId
+                  (cat) =>
+                    cat.categoryId !== categoryId
+                )
+                : group.selectedCategories.map(
+                  (cat) =>
+                    cat.categoryId === categoryId
                       ? {
-                          ...cat,
-                          selectedItems: remainingItems,
-                        }
+                        ...cat,
+                        selectedItems:
+                          remainingItems,
+                      }
                       : cat
-                  ),
+                ),
           };
         }
 
         // Add item
         return {
           ...group,
-          selectedCategories: group.selectedCategories.map((cat) =>
-            String(cat.categoryId) === normCatId
-              ? {
+          selectedCategories:
+            group.selectedCategories.map((cat) =>
+              cat.categoryId === categoryId
+                ? {
                   ...cat,
                   selectedItems: [
                     ...cat.selectedItems,
                     {
-                      itemId: normItemId,
-                      selectedSizes: sizes.length > 0 ? [sizes[0].id] : [],
+                      itemId,
+                      selectedSizes:
+                        item.sizes &&
+                          item.sizes.length > 0
+                          ? [item.sizes[0].id]
+                          : [],
                     },
                   ],
                 }
-              : cat
-          ),
+                : cat
+            ),
         };
       })
     );
   };
-
   const handleSizeSelection = (
     categoryId: string,
     itemId: string,
     sizeId: string
   ) => {
     if (!editingGroupId) return;
-    const normCatId = String(categoryId);
-    const normItemId = String(itemId);
-    const normSizeId = String(sizeId);
 
     setItemGroups((prev) =>
       prev.map((group) => {
@@ -811,31 +668,34 @@ export default function ItemDealsPage() {
 
         return {
           ...group,
-          selectedCategories: group.selectedCategories.map((category) => {
-            if (String(category.categoryId) !== normCatId) {
-              return category;
+          selectedCategories: group.selectedCategories.map(
+            (category) => {
+              if (category.categoryId !== categoryId) {
+                return category;
+              }
+
+              return {
+                ...category,
+                selectedItems: category.selectedItems.map(
+                  (item) => {
+                    if (item.itemId !== itemId) {
+                      return item;
+                    }
+
+                    // ONE item → ONE size
+                    return {
+                      ...item,
+                      selectedSizes: [sizeId],
+                    };
+                  }
+                ),
+              };
             }
-
-            return {
-              ...category,
-              selectedItems: category.selectedItems.map((item) => {
-                if (String(item.itemId) !== normItemId) {
-                  return item;
-                }
-
-                // ONE item -> ONE size
-                return {
-                  ...item,
-                  selectedSizes: [normSizeId],
-                };
-              }),
-            };
-          }),
+          ),
         };
       })
     );
   };
-
   const handleSaveItemGroup = () => {
     if (!editingGroupId) return;
 
@@ -862,23 +722,29 @@ export default function ItemDealsPage() {
     setIsItemModalOpen(false);
     setEditingGroupId(null);
   };
-
-  const getSelectedCategory = (categoryId: string) => {
+  const getSelectedCategory = (
+    categoryId: string
+  ) => {
     const group = itemGroups.find(
       (group) => group.id === editingGroupId
     );
 
     return group?.selectedCategories.find(
-      (category) => String(category.categoryId) === String(categoryId)
+      (category) =>
+        category.categoryId === categoryId
     );
   };
 
-  const isItemSelected = (categoryId: string, itemId: string) => {
-    const category = getSelectedCategory(String(categoryId));
+  const isItemSelected = (
+    categoryId: string,
+    itemId: string
+  ) => {
+    const category =
+      getSelectedCategory(categoryId);
 
     return (
       category?.selectedItems.some(
-        (item) => String(item.itemId) === String(itemId)
+        (item) => item.itemId === itemId
       ) ?? false
     );
   };
@@ -1061,7 +927,7 @@ export default function ItemDealsPage() {
 
       selectedCategoryList: group.selectedCategories.map((category) => {
         const categoryData = categories.find(
-          (cat) => String(getCategoryId(cat)) === String(category.categoryId)
+          (cat) => cat.id === category.categoryId
         );
 
         return {
@@ -1072,24 +938,19 @@ export default function ItemDealsPage() {
           GroupNo: groupIndex + 1,
 
           selectedItemList: category.selectedItems.flatMap((selectedItem) => {
-            const itemData = getCategoryItems(categoryData).find(
-              (item: any) => getItemId(item) === String(selectedItem.itemId)
+            const itemData = (categoryData?.items || categoryData?.item_list || []).find(
+              (item: any) => (item.id || item.item_id) === selectedItem.itemId
             );
 
-            const sizesToUse =
-              selectedItem.selectedSizes && selectedItem.selectedSizes.length > 0
-                ? selectedItem.selectedSizes
-                : [0];
-
-            return sizesToUse.map((sizeId) => ({
+            return selectedItem.selectedSizes.map((sizeId) => ({
               DealItemId: 0,
               DealCategoryId: 0,
 
               categoryId: Number(category.categoryId),
-              categoryName: getCategoryName(categoryData),
+              categoryName: categoryData?.name || categoryData?.cate_name || "",
 
               itemId: Number(selectedItem.itemId),
-              itemName: getItemName(itemData),
+              itemName: itemData?.name || itemData?.item_name || "",
 
               sizeId: Number(sizeId),
 
@@ -1148,9 +1009,7 @@ export default function ItemDealsPage() {
 
       ShopId: shopId,
 
-      DealImage: dealImage || "",
-
-      base64Image: dealBase64Image || "",
+      DealImage: "",
 
       DealTypeId: 1,
 
@@ -1320,12 +1179,6 @@ export default function ItemDealsPage() {
               minimumOrder:
                 Number(minQty) || 1,
 
-              photo:
-                dealImagePreview || getDealImageUrl(dealImage),
-
-              rawImage:
-                dealImage,
-
               active:
                 status === "active",
             }
@@ -1392,9 +1245,7 @@ export default function ItemDealsPage() {
 
         DealMinOrder: Number(minQty),
 
-        DealImage: dealImage || (dealBase64Image ? generateDealImageName() : ""),
-
-        base64Image: dealBase64Image || "",
+        DealImage: "",
 
         DealTypeId: "1",
 
@@ -1566,38 +1417,25 @@ export default function ItemDealsPage() {
   };
 
   const fetchDeals = async () => {
-    const effShopId = getEffectiveShopId();
-    if (!effShopId) return;
     try {
-      const response = await menuService.getAllDeals(effShopId);
+      const response = await menuService.getAllDeals(3161);
 
       console.log("GET ALL DEALS RESPONSE:", response);
 
-      const rawData = response?.data !== undefined ? response.data : response;
-      const apiDeals =
-        typeof rawData === "string"
-          ? JSON.parse(rawData)
-          : Array.isArray(rawData)
-          ? rawData
-          : [];
+      const apiDeals = JSON.parse(response.data);
 
-      const formattedDeals: Deal[] = Array.isArray(apiDeals)
-        ? apiDeals.map((deal: any) => {
-            const rawImage = String(deal.deal_image ?? deal.photo ?? "").trim();
-            return {
-              id: String(deal.deal_id ?? deal.id ?? ""),
-              name: deal.deal_name ?? deal.name ?? "",
-              description: deal.deal_desc ?? deal.description ?? "",
-              price: Number(deal.deal_price ?? deal.price ?? 0) || 0,
-              mrp: Number(deal.deal_mrp ?? deal.mrp ?? 0) || 0,
-              minimumOrder: Number(deal.deal_min_order ?? deal.minimumOrder ?? 1) || 1,
-              rawImage: rawImage,
-              photo: getDealImageUrl(rawImage),
-              active: String(deal.status ?? deal.active ?? "") === "1" || deal.status === 1 || deal.active === true,
-              rawDeal: deal,
-            };
-          })
-        : [];
+      const formattedDeals: Deal[] = apiDeals.map((deal: any) => ({
+        id: deal.deal_id,
+        name: deal.deal_name,
+        description: deal.deal_desc || "",
+        price: Number(deal.deal_price) || 0,
+        mrp: Number(deal.deal_mrp) || 0,
+        minimumOrder: Number(deal.deal_min_order) || 1,
+        photo:
+          deal.deal_image ||
+          "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=120&h=80&q=80",
+        active: deal.status === "1",
+      }));
 
       console.log("FORMATTED DEALS:", formattedDeals);
 
@@ -1609,8 +1447,9 @@ export default function ItemDealsPage() {
   };
 
   useEffect(() => {
+
     fetchDeals();
-  }, [shopId]);
+  }, []);
   return (
     <div id="pg-menu-item-deals">
       <link
@@ -1733,23 +1572,17 @@ export default function ItemDealsPage() {
                           <td className="deal-name-cell">{deal.name}</td>
                           <td style={{ textAlign: "center" }}>
                             <div className="deal-photo-container">
-                              {deal.photo && !imageErrors[deal.id] ? (
-                                <div className="deal-photo-wrapper">
-                                  <img
-                                    src={deal.photo}
-                                    alt={deal.name}
-                                    className="deal-photo-img"
-                                    onError={() => {
-                                      setImageErrors((prev) => ({ ...prev, [deal.id]: true }));
-                                    }}
-                                  />
-                                </div>
-                              ) : (
-                                <div className="placeholder-img deal-table-placeholder">
-                                  <i className="fa-solid fa-concierge-bell"></i>
-                                  <span>No Image</span>
-                                </div>
-                              )}
+                              <div className="deal-photo-wrapper">
+                                <img
+                                  src={deal.photo}
+                                  alt={deal.name}
+                                  className="deal-photo-img"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src =
+                                      "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=120&h=80&q=80";
+                                  }}
+                                />
+                              </div>
                             </div>
                           </td>
                           <td className="deal-price-cell">Rs. {deal.price}</td>
@@ -1865,94 +1698,55 @@ export default function ItemDealsPage() {
               <div className="step-card">
                 <h3 className="card-title">Set Deal Basic Info</h3>
 
-                <div className="step1-content-layout">
-                  <div className="step1-fields-column">
-                    <div className="form-group">
-                      <label className="field-label">
-                        Deal Name <span className="required-star">*</span>
-                      </label>
+                <div className="form-group">
+                  <label className="field-label">
+                    Deal Name <span className="required-star">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="text-input"
+                    placeholder="Special Combo"
+                    value={dealName}
+                    onChange={(e) => setDealName(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="field-label">
+                    Description <span className="required-star">*</span>
+                  </label>
+                  <textarea
+                    className="textarea-input"
+                    placeholder="Deal Description"
+                    rows={3}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="field-label">Status</label>
+                  <div className="radio-group">
+                    <label className="radio-label restriction-option">
                       <input
-                        type="text"
-                        className="text-input"
-                        placeholder="Special Combo"
-                        value={dealName}
-                        onChange={(e) => setDealName(e.target.value)}
+                        type="radio"
+                        name="status"
+                        value="active"
+                        checked={status === "active"}
+                        onChange={() => setStatus("active")}
                       />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="field-label">
-                        Description <span className="required-star">*</span>
-                      </label>
-                      <textarea
-                        className="textarea-input"
-                        placeholder="Deal Description"
-                        rows={3}
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
+                      <h4>Active</h4>
+                    </label>
+                    <label className="radio-label restriction-option">
+                      <input
+                        type="radio"
+                        name="status"
+                        value="inactive"
+                        checked={status === "inactive"}
+                        onChange={() => setStatus("inactive")}
                       />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="field-label">Status</label>
-                      <div className="radio-group">
-                        <label className="radio-label restriction-option">
-                          <input
-                            type="radio"
-                            name="status"
-                            value="active"
-                            checked={status === "active"}
-                            onChange={() => setStatus("active")}
-                          />
-                          <h4>Active</h4>
-                        </label>
-                        <label className="radio-label restriction-option">
-                          <input
-                            type="radio"
-                            name="status"
-                            value="inactive"
-                            checked={status === "inactive"}
-                            onChange={() => setStatus("inactive")}
-                          />
-                          <h4>Inactive</h4>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Image Upload Column */}
-                  <div className="image-upload-column">
-                    <label className="field-label" style={{ marginBottom: 0 }}>Choose Image</label>
-                    <div className="uploader-box-frame">
-                      <div className="uploader-thumbnail-frame">
-                        {dealImagePreview && !previewImgError ? (
-                          <img
-                            src={dealImagePreview}
-                            alt="Deal"
-                            style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "8px" }}
-                            onError={() => setPreviewImgError(true)}
-                          />
-                        ) : (
-                          <>
-                            <i className="fa-solid fa-concierge-bell"></i>
-                            <span>No Image</span>
-                          </>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        className="btn-upload-action"
-                        onClick={() => {
-                          setTempCropSrc(dealImagePreview || "");
-                          setIsCropModalOpen(true);
-                        }}
-                      >
-                        Upload Image
-                      </button>
-                    </div>
-                    <div className="upload-info-note">
-                      Image Should Be 600 * 600 For Best View In Gallery Image. You Can Select Only (.gif, .png, .jpeg, .jpg) Format Files Upto 3MB File Size !
-                    </div>
+                      <h4>Inctive</h4>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -1995,20 +1789,7 @@ export default function ItemDealsPage() {
 
                   <div className="offer-summary-section">
                     <h4 className="section-heading">Your deal offer:</h4>
-                    {itemGroups.map((group, idx) => {
-                      const catNames = group.selectedCategories
-                        .map((sc) => {
-                          const c = categories.find((cat) => String(getCategoryId(cat)) === String(sc.categoryId));
-                          return c ? getCategoryName(c) : "";
-                        })
-                        .filter(Boolean);
-
-                      return (
-                        <p key={group.id} className="offer-item">
-                          Item {idx + 1} - ( {catNames.length > 0 ? catNames.join(", ") : "Select items"} )
-                        </p>
-                      );
-                    })}
+                    <p className="offer-item">Item 1 - ( Side Orders )</p>
                     <p className="offer-hint">
                       <strong>Example:</strong> Buy a Pizza and cold drink would require you to select all Pizza for group 1 and all cold drinks for group 2.
                     </p>
@@ -2256,151 +2037,154 @@ export default function ItemDealsPage() {
 
                   {/* Header */}
                   <div className="nested-modal-header">
-                    <h3>Add Item in Item group</h3>
+                    <h3>Add item in item group</h3>
 
                     <button
-                      type="button"
                       className="close-btn"
                       onClick={() => setIsItemModalOpen(false)}
                     >
-                      <i className="fa-solid fa-xmark"></i>
+                      &times;
                     </button>
                   </div>
 
                   {/* Body */}
                   <div className="nested-modal-body">
-                    {categories.map((category) => {
-                      const catId = getCategoryId(category);
-                      const catName = getCategoryName(category);
-                      const catItems = getCategoryItems(category);
-                      const isExpanded = String(expandedCategory) === catId;
 
-                      return (
-                        <div className="accordion-item" key={catId || category.id}>
+                    {categories.map((category) => (
+                      <div className="accordion-item" key={category.id}>
 
-                          {/* Category Header */}
-                          <div
-                            className="accordion-header"
-                            onClick={() =>
-                              setExpandedCategory(
-                                isExpanded ? null : catId
-                              )
-                            }
+                        {/* Category Header */}
+                        <div
+                          className="accordion-header"
+                          onClick={() =>
+                            setExpandedCategory(
+                              expandedCategory === category.id
+                                ? null
+                                : category.id
+                            )
+                          }
+                        >
+                          <label
+                            className="checkbox-container"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <label
-                              className="checkbox-container"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={isCategorySelected(category)}
-                                disabled={catItems.length === 0}
-                                onChange={() =>
-                                  handleCategorySelection(category)
-                                }
-                              />
+                            <input
+                              type="checkbox"
+                              checked={isCategorySelected(category)}
+                              disabled={!(category.items || category.item_list) || (category.items || category.item_list).length === 0}
+                              onChange={() =>
+                                handleCategorySelection(category)
+                              }
+                            />
 
-                              <span>{catName}</span>
-                            </label>
+                            <span>{category.name || category.cate_name}</span>
+                          </label>
 
-                            <i
-                              className={`fa-solid fa-caret-${
-                                isExpanded ? "up" : "down"
+                          <i
+                            className={`fa-solid fa-caret-${expandedCategory === category.id
+                              ? "up"
+                              : "down"
                               }`}
-                            ></i>
-                          </div>
+                          ></i>
+                        </div>
 
-                          {/* Items */}
-                          {isExpanded && (
-                            <div className="accordion-content">
-                              {catItems.length === 0 ? (
-                                <span className="empty-items-text">No items in this category</span>
-                              ) : (
-                                catItems.map((rawItem: any) => {
-                                  const itemId = getItemId(rawItem);
-                                  const itemName = getItemName(rawItem);
-                                  const itemSizes = getItemSizes(rawItem);
-                                  const isChecked = isItemSelected(catId, itemId);
+                        {/* Items */}
+                        {expandedCategory === category.id && (
+                          <div className="accordion-content">
 
-                                  return (
-                                    <div key={itemId || rawItem.id} className="accordion-sub-item-wrap">
-                                      {/* ITEM CHECKBOX */}
-                                      <label className="checkbox-container sub-item">
-                                        <input
-                                          type="checkbox"
-                                          checked={isChecked}
-                                          onChange={() =>
-                                            handleItemSelection(
-                                              catId,
-                                              itemId
+                            {(category.items || category.item_list)?.map((rawItem: any) => {
+                              const item = {
+                                ...rawItem,
+                                id: rawItem.id || rawItem.item_id,
+                                name: rawItem.name || rawItem.item_name,
+                                sizes: rawItem.sizes || rawItem.item_size_list?.map((s: any) => ({ ...s, id: s.id || s.item_size_id || s.size_id, name: s.name || s.size_name }))
+                              };
+                              return (
+                                <div key={item.id}>
+
+                                  {/* ITEM CHECKBOX */}
+                                  <label className="checkbox-container sub-item">
+                                    <input
+                                      type="checkbox"
+                                      checked={isItemSelected(
+                                        category.id,
+                                        item.id
+                                      )}
+                                      onChange={() =>
+                                        handleItemSelection(
+                                          category.id,
+                                          item.id
+                                        )
+                                      }
+                                    />
+
+                                    <span>{item.name}</span>
+                                  </label>
+
+                                  {/* Sizes */}
+                                  {/* Size Dropdown - shown only when item is selected */}
+                                  {item.sizes &&
+                                    item.sizes.length > 0 &&
+                                    isItemSelected(category.id, item.id) && (
+                                      <div className="item-size-dropdown">
+                                        <select
+                                          className="size-select"
+                                          value={
+                                            getSelectedCategory(category.id)
+                                              ?.selectedItems.find(
+                                                (selectedItem) =>
+                                                  selectedItem.itemId === item.id
+                                              )
+                                              ?.selectedSizes[0] || item.sizes[0].id
+                                          }
+                                          onChange={(e) =>
+                                            handleSizeSelection(
+                                              category.id,
+                                              item.id,
+                                              e.target.value
                                             )
                                           }
-                                        />
+                                        >
+                                          {item.sizes?.map((size: ItemSize) => (
+                                            <option
+                                              key={size.id}
+                                              value={size.id}
+                                            >
+                                              {size.name}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    )}
+                                </div>
+                              )
+                            })}
 
-                                        <span>{itemName}</span>
-                                      </label>
+                          </div>
+                        )}
 
-                                      {/* Sizes Dropdown - shown only when item is selected */}
-                                      {itemSizes.length > 0 && isChecked && (
-                                        <div className="item-size-dropdown">
-                                          <select
-                                            className="size-select"
-                                            value={
-                                              getSelectedCategory(catId)
-                                                ?.selectedItems.find(
-                                                  (selectedItem) =>
-                                                    String(selectedItem.itemId) === itemId
-                                                )
-                                                ?.selectedSizes[0] || itemSizes[0]?.id
-                                            }
-                                            onChange={(e) =>
-                                              handleSizeSelection(
-                                                catId,
-                                                itemId,
-                                                e.target.value
-                                              )
-                                            }
-                                          >
-                                            {itemSizes.map((size: ItemSize) => (
-                                              <option
-                                                key={size.id}
-                                                value={size.id}
-                                              >
-                                                {size.name}
-                                              </option>
-                                            ))}
-                                          </select>
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })
-                              )}
-                            </div>
-                          )}
+                      </div>
+                    ))}
 
-                        </div>
-                      );
-                    })}
                   </div>
 
                   {/* Footer */}
                   <div className="nested-modal-footer">
+
                     <button
-                      type="button"
                       className="btn-modal-cancel"
                       onClick={() => setIsItemModalOpen(false)}
                     >
-                      <i className="fa-solid fa-xmark"></i> CANCEL
+                      CANCEL
                     </button>
 
                     <button
-                      type="button"
                       className="btn-modal-save"
                       onClick={handleSaveItemGroup}
                     >
-                      <i className="fa-solid fa-check"></i> SAVE
+                      SAVE
                     </button>
+
                   </div>
 
                 </div>
@@ -2650,87 +2434,6 @@ export default function ItemDealsPage() {
                   Next
                 </button>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Upload & Crop Image Modal */}
-      {isCropModalOpen && (
-        <div
-          className="upload-crop-overlay"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsCropModalOpen(false);
-          }}
-        >
-          <div className="upload-crop-modal">
-            <div className="ucm-header">
-              <h3>Upload &amp; Crop Image</h3>
-              <button
-                type="button"
-                className="ucm-close-btn"
-                onClick={() => setIsCropModalOpen(false)}
-              >
-                &times;
-              </button>
-            </div>
-            <div className="ucm-body">
-              <div className="ucm-choose-row">
-                <button
-                  type="button"
-                  className="ucm-choose-btn"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  Choose File
-                </button>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept=".gif,.png,.jpeg,.jpg"
-                  style={{ display: "none" }}
-                  onChange={handleFileChange}
-                />
-              </div>
-              <p className="ucm-info-text">
-                Image Should Be 600 * 600 For Best View. You Can Select Only (.gif, .png, .jpeg, .jpg) Format Files Upto 3MB File Size !
-              </p>
-              <div className="ucm-preview-area">
-                {tempCropSrc ? (
-                  <img
-                    ref={cropImgRef}
-                    src={tempCropSrc}
-                    alt="Preview"
-                    style={{
-                      display: "block",
-                      transform: `scale(${1 + (cropZoom / 100) * 1.5})`,
-                    }}
-                  />
-                ) : (
-                  <div className="ucm-preview-placeholder">
-                    <i className="fa-solid fa-image"></i>
-                    No image selected
-                  </div>
-                )}
-              </div>
-              <div className="ucm-slider-row">
-                <i className="fa-solid fa-magnifying-glass-minus"></i>
-                <input
-                  type="range"
-                  className="ucm-zoom-slider"
-                  min="0"
-                  max="100"
-                  value={cropZoom}
-                  onChange={(e) => setCropZoom(Number(e.target.value))}
-                />
-                <i className="fa-solid fa-magnifying-glass-plus"></i>
-              </div>
-              <button
-                type="button"
-                className="ucm-crop-upload-btn"
-                onClick={handleCropAndUpload}
-              >
-                Crop &amp; Upload Image
-              </button>
             </div>
           </div>
         </div>

@@ -3,9 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { setupService } from "@/api/services/setup.service";
 import Script from "next/script";
-import Swal from "sweetalert2";
 import { WizardFooter } from "@/components/shared/WizardFooter";
-import { ReportPagination } from "@/components/shared/ReportPagination";
 import "./page.css";
 
 /**
@@ -41,7 +39,6 @@ interface LMap {
   addLayer(layer: LLayer): void;
   panBy(offset: [number, number]): void;
   invalidateSize(): void;
-  fitBounds(bounds: unknown, options?: unknown): void;
   on(event: string, handler: (e: { layer: LLayer }) => void): void;
 }
 interface LCircle extends LLayer {
@@ -57,15 +54,18 @@ interface LDrawPolygon {
 interface LeafletStatic {
   map(
     id: string,
-    opts: Record<string, unknown>
+    opts: {
+      center: unknown;
+      zoom: number;
+      layers: LLayer[];
+      zoomControl: boolean;
+    }
   ): LMap;
 
   tileLayer(
     url: string,
-    opts?: Record<string, unknown>
+    opts: { maxZoom: number }
   ): LLayer;
-
-  latLngBounds(southWest: unknown, northEast: unknown): any;
 
   circle(
     center: unknown,
@@ -112,65 +112,13 @@ declare global {
 }
 
 export default function DeliveryPage() {
-  const [deliveryType, setDeliveryType] = useState<"area" | "zone">("area");
-  const [areas, setAreas] = useState<any[]>([]);
-  const [isLoadingAreas, setIsLoadingAreas] = useState(false);
-  const [shopId, setShopId] = useState<number>(0);
-
-  // Modal & Edit states for Area
-  const [showAreaModal, setShowAreaModal] = useState(false);
-  const [isEditingArea, setIsEditingArea] = useState(false);
-  const [editingAreaId, setEditingAreaId] = useState<number | null>(null);
-
-  // Form fields
-  const [areaName, setAreaName] = useState("");
-  const [areaMinAmt, setAreaMinAmt] = useState("");
-  const [areaFreeAmt, setAreaFreeAmt] = useState("");
-  const [areaFee, setAreaFee] = useState("");
-  const [areaDeliveryTime, setAreaDeliveryTime] = useState("10 Minute");
-
-  // Custom Time Sub-Modal
-  const [showCustomTimeModal, setShowCustomTimeModal] = useState(false);
-  const [customHours, setCustomHours] = useState("00");
-  const [customMinutes, setCustomMinutes] = useState("05");
-
-  // Delete Confirmation Modal for Area
-  const [showDeleteAreaModal, setShowDeleteAreaModal] = useState(false);
-  const [deletingAreaId, setDeletingAreaId] = useState<number | null>(null);
-
   const [zones, setZones] = useState<any[]>([]);
-  const zonesRef = useRef<any[]>([]);
-  useEffect(() => {
-    zonesRef.current = zones;
-    if (renderAllZonesRef.current) {
-      renderAllZonesRef.current(zones);
-    }
-  }, [zones]);
-
-  // Pagination States
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-
-  const showNotification = (_msg?: string, _type?: string) => {
-    // Notifications disabled
-  };
-
-  const formatDeliveryTime = (hours: string | number, minutes: string | number) => {
-    const h = String(hours || "00").trim();
-    const m = String(minutes || "00").trim();
-    if (h === "00" || h === "0") {
-      return m ? `${m} Minute` : "";
-    }
-    return `${h} Hours ${m} Minute`;
-  };
 
   const editingZoneRef = useRef<any | null>(null);
   const editModeRef = useRef<"FORM" | "MAP" | null>(null);
 
   const mapRef = useRef<LMap | null>(null);
-  const zonesLayerGroupRef = useRef<any | null>(null);
   const loadZoneOnMapRef = useRef<((zone: any) => void) | null>(null);
-  const renderAllZonesRef = useRef<((zonesToRender?: any[]) => void) | null>(null);
 
   const mapEditorRef = useRef<any | null>(null);
   const validateFreeDeliveryAmount = (): boolean => {
@@ -266,46 +214,30 @@ export default function DeliveryPage() {
       const defaultCenter = [21.1702, 72.8311];
       const streetLayer = L.tileLayer(
         "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        { maxZoom: 19, noWrap: true },
+        { maxZoom: 19 },
       );
       const terrainLayer = L.tileLayer(
         "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
-        { maxZoom: 17, noWrap: true },
+        { maxZoom: 17 },
       );
       // Satellite without labels
       const satelliteLayer = L.tileLayer(
-        "https://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}",
-        { maxZoom: 19, noWrap: true },
+        "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}",
+        { maxZoom: 19 },
       );
       // Satellite with labels (Hybrid)
       const hybridLayer = L.tileLayer(
-        "https://mt0.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}",
-        { maxZoom: 19, noWrap: true },
+        "http://mt0.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}",
+        { maxZoom: 19 },
       );
-
-      const bounds = L.latLngBounds
-        ? L.latLngBounds([-85, -180], [85, 180])
-        : [[-85, -180], [85, 180]];
 
       const map = L.map("map", {
         center: defaultCenter,
-        zoom: 14,
-        minZoom: 3,
-        maxBounds: bounds,
-        maxBoundsViscosity: 1.0,
-        worldCopyJump: false,
+        zoom: 13,
         layers: [hybridLayer], // default to satellite with labels
         zoomControl: false,
       });
       mapRef.current = map;
-
-      // Invalidate size immediately once initialized
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 100);
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 350);
 
       const terrainCheckbox = byId("terrainToggleCheckbox") as HTMLInputElement | null;
       const labelsCheckbox = byId("labelsToggleCheckbox") as HTMLInputElement | null;
@@ -663,110 +595,6 @@ export default function DeliveryPage() {
         console.error("Unknown zone shape:", shape);
       };
       loadZoneOnMapRef.current = loadZoneOnMap;
-
-      // ── DISPLAY ALL ZONES ON MAP ──
-      const renderAllZones = (zonesList?: any[]): void => {
-        if (!map || !(window as any).L) return;
-        const currentZones = zonesList ?? zonesRef.current ?? [];
-        if (!zonesLayerGroupRef.current) {
-          zonesLayerGroupRef.current = (L as any).featureGroup().addTo(map);
-        } else {
-          zonesLayerGroupRef.current.clearLayers();
-        }
-
-        const validBoundsPoints: [number, number][] = [];
-
-        currentZones.forEach((zone: any) => {
-          const shape = String(zone.type ?? zone.shape ?? "").trim().toUpperCase();
-          const zoneColor = zone.color ?? zone.col ?? "#00a89d";
-          const zoneName = zone.zone_no ?? zone.name ?? "Delivery Zone";
-          const minOrder = zone.min_order ?? "0";
-          const deliveryFee = zone.delivery_fee ?? "0";
-          const popupContent = `
-            <div style="font-family: inherit; font-size: 13px; min-width: 150px;">
-              <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px; color: #1e293b;">
-                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${zoneColor}; margin-right:6px;"></span>
-                ${zoneName}
-              </div>
-              <div style="color: #64748b; font-size: 12px; margin-bottom: 2px;">Min Order: <strong>${minOrder}</strong></div>
-              <div style="color: #64748b; font-size: 12px;">Delivery Fee: <strong>${deliveryFee}</strong></div>
-            </div>
-          `;
-
-          if (shape === "CIRCLE") {
-            const lat = Number(zone.latitude ?? zone.lat ?? zone.latArray?.[0]);
-            const lng = Number(zone.longitude ?? zone.lng ?? zone.longArray?.[0]);
-            const radius = Number(zone.radius ?? 1000);
-
-            if (Number.isFinite(lat) && Number.isFinite(lng)) {
-              validBoundsPoints.push([lat, lng]);
-              const circleLayer = (L as any).circle([lat, lng], {
-                color: zoneColor,
-                fillColor: zoneColor,
-                fillOpacity: 0.28,
-                weight: 2,
-                radius,
-              });
-              circleLayer.bindPopup(popupContent);
-              zonesLayerGroupRef.current.addLayer(circleLayer);
-            }
-          } else if (shape === "SHAPE") {
-            let latArray: any = zone.latArray ?? zone.latitudeArray ?? [];
-            let longArray: any = zone.longArray ?? zone.longitudeArray ?? [];
-
-            if (typeof latArray === "string") {
-              try { latArray = JSON.parse(latArray); } catch { latArray = []; }
-            }
-            if (typeof longArray === "string") {
-              try { longArray = JSON.parse(longArray); } catch { longArray = []; }
-            }
-
-            if (Array.isArray(latArray) && Array.isArray(longArray) && latArray.length > 0 && latArray.length === longArray.length) {
-              const points = latArray
-                .map((lat: any, index: number) => {
-                  const latitude = Number(lat);
-                  const longitude = Number(longArray[index]);
-                  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
-                  return [latitude, longitude] as [number, number];
-                })
-                .filter(Boolean) as [number, number][];
-
-              if (points.length >= 3) {
-                points.forEach((p) => validBoundsPoints.push(p));
-                const polyLayer = (L as any).polygon(points, {
-                  color: zoneColor,
-                  fillColor: zoneColor,
-                  fillOpacity: 0.28,
-                  weight: 2,
-                });
-                polyLayer.bindPopup(popupContent);
-                zonesLayerGroupRef.current.addLayer(polyLayer);
-              }
-            }
-          }
-        });
-
-        // Fit map view to zones if available and not actively editing
-        if (!editingZoneRef.current && validBoundsPoints.length > 0) {
-          try {
-            if (validBoundsPoints.length === 1) {
-              map.setView(validBoundsPoints[0], 14);
-            } else {
-              const groupBounds = zonesLayerGroupRef.current.getBounds();
-              if (groupBounds && groupBounds.isValid && groupBounds.isValid()) {
-                map.fitBounds(groupBounds, { padding: [30, 30] });
-              }
-            }
-          } catch (e) {
-            console.log("Could not auto-fit zone bounds:", e);
-          }
-        }
-      };
-      renderAllZonesRef.current = renderAllZones;
-
-      // Render zones once map is initialized
-      renderAllZones();
-
       const exitMapEditMode = (): void => {
         console.log("========== EXIT MAP EDIT MODE ==========");
 
@@ -806,10 +634,7 @@ export default function DeliveryPage() {
         editingZoneRef.current = null;
         editModeRef.current = null;
 
-        // 4. Restore all zones on map
-        renderAllZones();
-
-        // 5. Reset buttons
+        // 4. Reset buttons
         const defaultActions =
           byId("default-actions");
 
@@ -831,7 +656,7 @@ export default function DeliveryPage() {
           shapeActions.style.display = "none";
         }
 
-        // 6. Hide instructions
+        // 5. Hide instructions
         const circleInstruction =
           byId("circleInstructionLabel");
 
@@ -919,11 +744,6 @@ export default function DeliveryPage() {
       const closeDetailsModal = (): void => {
         const modal = byId("detailsFormModal");
         if (modal) modal.style.display = "none";
-
-        // If cancelling a NEW shape creation (no save button on map), abort completely
-        if (!editingZoneRef.current && activeDrawnLayer && !mapCircle) {
-          exitMapEditMode();
-        }
       };
 
       const onAddCircle = (): void => {
@@ -980,10 +800,7 @@ export default function DeliveryPage() {
       byId("saveCircleZoneBtn")?.addEventListener("click", () => {
         openDetailsModal(true);
       });
-      const onCancelCircle = (): void => {
-        exitMapEditMode();
-      };
-      byId("cancelCircleBtn")?.addEventListener("click", onCancelCircle);
+      byId("cancelCircleBtn")?.addEventListener("click", clearActiveModes);
 
       const onAddShape = (): void => {
         editingZoneRef.current = null;
@@ -999,12 +816,8 @@ export default function DeliveryPage() {
 
         if (def) def.style.display = "none";
 
-        // Show shape actions but hide the UPDATE ZONE button while drawing
-        if (shapeActions) {
-          shapeActions.style.display = "flex";
-          const updateBtn = document.getElementById("updateMapZoneBtn");
-          if (updateBtn) updateBtn.style.display = "none";
-        }
+        // Hide UPDATE ZONE while adding a new shape
+        if (shapeActions) shapeActions.style.display = "none";
 
         if (circleLbl) circleLbl.style.display = "none";
         if (shapeLbl) shapeLbl.style.display = "block";
@@ -1044,12 +857,12 @@ export default function DeliveryPage() {
           const shopId = sessionStorage.getItem("shop_id");
 
           if (!shopId) {
-            Swal.fire({ icon: "error", title: "Error", text: "Shop ID not found." });
+            alert("Shop ID not found.");
             return;
           }
 
           if (!activeDrawnLayer && !editingZoneRef.current) {
-            Swal.fire({ icon: "warning", title: "Warning", text: "Please create a delivery zone first." });
+            alert("Please create a delivery zone first.");
             return;
           }
 
@@ -1069,22 +882,22 @@ export default function DeliveryPage() {
             (byId("formTime") as HTMLSelectElement | null)?.value || "10 Minute";
 
           if (!name) {
-            Swal.fire({ icon: "warning", title: "Warning", text: "Please enter zone name." });
+            alert("Please enter zone name.");
             return;
           }
 
           if (!minAmt) {
-            Swal.fire({ icon: "warning", title: "Warning", text: "Please enter minimum order amount." });
+            alert("Please enter minimum order amount.");
             return;
           }
 
           if (!freeAmt) {
-            Swal.fire({ icon: "warning", title: "Warning", text: "Please enter free delivery amount." });
+            alert("Please enter free delivery amount.");
             return;
           }
 
           if (!fees) {
-            Swal.fire({ icon: "warning", title: "Warning", text: "Please enter delivery fees." });
+            alert("Please enter delivery fees.");
             return;
           }
           if (!validateFreeDeliveryAmount()) {
@@ -1205,7 +1018,7 @@ export default function DeliveryPage() {
             radius = "0";
 
           } else {
-            Swal.fire({ icon: "error", title: "Error", text: "Unable to get zone coordinates." });
+            alert("Unable to get zone coordinates.");
             return;
           }
           const payload = {
@@ -1251,7 +1064,7 @@ export default function DeliveryPage() {
               zoneToEdit.zone_id;
 
             if (!zoneId) {
-              Swal.fire({ icon: "error", title: "Error", text: "Delivery zone ID not found." });
+              alert("Delivery zone ID not found.");
               console.error("Zone object:", zoneToEdit);
               return;
             }
@@ -1266,7 +1079,7 @@ export default function DeliveryPage() {
           console.log("SELECT ZONE RESPONSE:", response);
 
           if (response?.success === false) {
-            Swal.fire({ icon: "error", title: "Error", text: response?.message || "Failed to save delivery zone." });
+            alert(response?.message || "Failed to save delivery zone.");
             return;
           }
           // Reset Add/Update mode after successful save
@@ -1290,14 +1103,11 @@ export default function DeliveryPage() {
           console.error("Message:", error?.message);
           console.error("================================");
 
-          Swal.fire({
-            icon: "error",
-            title: "Error",
-            text:
-              error?.response?.data?.message ||
-              error?.message ||
-              "Something went wrong while saving the delivery zone.",
-          });
+          alert(
+            error?.response?.data?.message ||
+            error?.message ||
+            "Something went wrong while saving the delivery zone."
+          );
         }
       };
 
@@ -1306,19 +1116,19 @@ export default function DeliveryPage() {
         const zone = editingZoneRef.current;
 
         if (!zone) {
-          Swal.fire({ icon: "warning", title: "Warning", text: "No zone selected." });
+          alert("No zone selected.");
           return;
         }
 
         if (!activeDrawnLayer) {
-          Swal.fire({ icon: "warning", title: "Warning", text: "Zone is not loaded on the map." });
+          alert("Zone is not loaded on the map.");
           return;
         }
 
         const shopId = sessionStorage.getItem("shop_id");
 
         if (!shopId) {
-          Swal.fire({ icon: "error", title: "Error", text: "Shop ID not found." });
+          alert("Shop ID not found.");
           return;
         }
 
@@ -1368,7 +1178,7 @@ export default function DeliveryPage() {
         }
 
         else {
-          Swal.fire({ icon: "error", title: "Error", text: "Unable to read zone coordinates." });
+          alert("Unable to read zone coordinates.");
           return;
         }
 
@@ -1423,7 +1233,7 @@ export default function DeliveryPage() {
             zone.zone_id;
 
           if (!zoneId) {
-            Swal.fire({ icon: "error", title: "Error", text: "Delivery zone ID not found." });
+            alert("Delivery zone ID not found.");
             return;
           }
 
@@ -1439,11 +1249,10 @@ export default function DeliveryPage() {
           );
 
           if (response?.success === false) {
-            Swal.fire({
-              icon: "error",
-              title: "Error",
-              text: response?.message || "Failed to update zone.",
-            });
+            alert(
+              response?.message ||
+              "Failed to update zone."
+            );
             return;
           }
 
@@ -1451,13 +1260,9 @@ export default function DeliveryPage() {
           // UPDATE SUCCESS
           // -----------------------------------------
 
-          Swal.fire({
-            icon: "success",
-            title: "Success",
-            text: "Delivery zone updated successfully.",
-            timer: 2000,
-            showConfirmButton: false,
-          });
+          alert(
+            "Delivery zone updated successfully."
+          );
 
           // IMPORTANT:
           // Exit Leaflet map editing completely
@@ -1500,14 +1305,11 @@ export default function DeliveryPage() {
 
           console.error(error);
 
-          Swal.fire({
-            icon: "error",
-            title: "Error",
-            text:
-              error?.response?.data?.message ||
-              error?.message ||
-              "Something went wrong while updating the delivery zone.",
-          });
+          alert(
+            error?.response?.data?.message ||
+            error?.message ||
+            "Something went wrong while updating the delivery zone."
+          );
         }
       };
       byId("updateMapZoneBtn")?.addEventListener(
@@ -1634,58 +1436,13 @@ export default function DeliveryPage() {
       byId("cancelDeleteBtn")?.addEventListener("click", closeDeleteModal);
       byId("closeDetailsBtn")?.addEventListener("click", closeDetailsModal);
 
-      const onConfirmDelete = async (): Promise<void> => {
-        if (!rowPendingDeletion) return;
-
-        const zoneIdStr = rowPendingDeletion.replace("row-idx-", "");
-        const zoneId = Number(zoneIdStr);
-        const shopId = sessionStorage.getItem("shop_id");
-
-        if (!shopId) {
-          Swal.fire({ icon: "error", title: "Error", text: "Shop ID not found." });
-          return;
-        }
-
-        const confirmBtn = byId("confirmDeleteBtn");
-        if (confirmBtn) confirmBtn.textContent = "DELETING...";
-
-        try {
-          const response = await setupService.deleteDeliveryZone(Number(shopId), zoneId);
-          if (response?.success === false) {
-            Swal.fire({ icon: "error", title: "Error", text: response?.message || "Failed to delete zone" });
-            if (confirmBtn) confirmBtn.textContent = "YES, DELETE IT";
-            return;
-          }
-
-          // Fetch fresh data
-          const refreshed = await setupService.getAllZones(Number(shopId));
-          const rawZones = refreshed.data?.[0] ?? [];
-          setZones(groupZones(rawZones));
-
-          closeDeleteModal();
-          Swal.fire({
-            icon: "success",
-            title: "Deleted!",
-            text: "Delivery zone deleted successfully.",
-            timer: 2000,
-            showConfirmButton: false,
-          });
-        } catch (error: any) {
-          console.error("Delete Error:", error);
-          Swal.fire({
-            icon: "error",
-            title: "Error",
-            text: error?.response?.data?.message || error?.message || "Failed to delete zone",
-          });
-        } finally {
-          if (confirmBtn) confirmBtn.textContent = "YES, DELETE IT";
-        }
+      const onConfirmDelete = (): void => {
+        if (rowPendingDeletion) byId(rowPendingDeletion)?.remove();
+        closeDeleteModal();
       };
-      byId("confirmDeleteBtn")?.addEventListener("click", () => { void onConfirmDelete(); });
+      byId("confirmDeleteBtn")?.addEventListener("click", onConfirmDelete);
 
-      const onHelp = (): void => {
-        Swal.fire({ icon: "info", title: "Help", text: "Delivery setup help coming soon!" });
-      };
+      const onHelp = (): void => alert("Help coming soon!");
       const helpBtns = Array.from(
         document.querySelectorAll<HTMLButtonElement>("#pg-setup-delivery .btn-help"),
       );
@@ -1737,250 +1494,10 @@ export default function DeliveryPage() {
       cleanups.forEach((fn) => fn());
     };
   }, []);
-  const fetchAreas = async (currentShopId: number) => {
-    try {
-      setIsLoadingAreas(true);
-      const res = await setupService.getCustomDeliveryLocations(currentShopId);
-      console.log("GET CUSTOM DELIVERY LOCATIONS:", res);
-      let parsedList: any[] = [];
-      if (res && res.data) {
-        try {
-          parsedList = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
-        } catch (e) {
-          console.error("Failed to parse areas json:", e);
-        }
-      }
-      if (Array.isArray(parsedList)) {
-        setAreas(
-          parsedList.map((item: any) => {
-            let timeStr = "";
-            const h = item.delivery_hours || "00";
-            const m = item.delivery_minute || "";
-            if (h === "00" || h === "0" || !h) {
-              timeStr = m ? `${m} Minute` : "";
-            } else {
-              timeStr = `${h} Hours ${m} Minute`;
-            }
-
-            return {
-              id: item.id,
-              name: item.location_name || "",
-              minAmt: item.min_order ?? 0,
-              freeAmt: item.min_order_freedelivery ?? 0,
-              fee: item.delivery_fee ?? 0,
-              time: timeStr || "10 Minute",
-              delivery_hours: item.delivery_hours || "00",
-              delivery_minute: item.delivery_minute || "10",
-              active: item.status === 1 || item.status === "1",
-            };
-          })
-        );
-      } else {
-        setAreas([]);
-      }
-    } catch (err) {
-      console.error("Error fetching areas:", err);
-    } finally {
-      setIsLoadingAreas(false);
-    }
-  };
-
-  const handleDeliveryTypeChange = async (type: "area" | "zone") => {
-    setDeliveryType(type);
-    setCurrentPage(1); // Reset pagination on tab switch
-    if (!shopId) return;
-    try {
-      const statusValue = type === "area" ? 1 : 0;
-      await setupService.updateDeliverySettingsForShop(shopId, statusValue);
-      showNotification(`Delivery mode switched to ${type === "area" ? "Area Wise" : "Zone Wise"}`);
-      if (type === "area") {
-        fetchAreas(shopId);
-      }
-    } catch (err) {
-      console.error("Error updating delivery settings:", err);
-    }
-  };
-
-  const handleToggleAreaStatus = async (areaId: number, currentActive: boolean) => {
-    try {
-      const newStatus = currentActive ? 0 : 1;
-      setAreas((prev) =>
-        prev.map((a) => (a.id === areaId ? { ...a, active: !currentActive } : a))
-      );
-      await setupService.changeCustomDeliveryLocationStatus(areaId, newStatus);
-      // showNotification("Area status updated successfully");
-    } catch (err) {
-      console.error("Error changing status:", err);
-      // showNotification("Failed to update area status", "error");
-      if (shopId) fetchAreas(shopId);
-    }
-  };
-
-  const handleOpenAddAreaModal = () => {
-    setIsEditingArea(false);
-    setEditingAreaId(null);
-    setAreaName("");
-    setAreaMinAmt("");
-    setAreaFreeAmt("");
-    setAreaFee("");
-    setAreaDeliveryTime("10 Minute");
-    setShowAreaModal(true);
-  };
-
-  const handleOpenEditAreaModal = (area: any) => {
-    setIsEditingArea(true);
-    setEditingAreaId(area.id);
-    setAreaName(area.name);
-    setAreaMinAmt(String(area.minAmt));
-    setAreaFreeAmt(String(area.freeAmt));
-    setAreaFee(String(area.fee));
-    setAreaDeliveryTime(area.time);
-    setShowAreaModal(true);
-  };
-
-  const handleSaveArea = async () => {
-    if (!areaName.trim()) {
-      Swal.fire({ icon: "warning", title: "Warning", text: "Please enter the Delivery Area name." });
-      return;
-    }
-    const minVal = parseFloat(areaMinAmt);
-    const freeVal = parseFloat(areaFreeAmt);
-    const feeVal = parseFloat(areaFee);
-
-    if (isNaN(minVal) || minVal < 0) {
-      Swal.fire({ icon: "warning", title: "Warning", text: "Please enter valid Minimum Order Amount." });
-      return;
-    }
-    if (isNaN(freeVal) || freeVal < 0) {
-      Swal.fire({ icon: "warning", title: "Warning", text: "Please enter valid Minimum Order Amount For Free Delivery." });
-      return;
-    }
-    if (freeVal <= minVal) {
-      Swal.fire({ icon: "warning", title: "Warning", text: "'Minimum order amount for free delivery' should be more than 'Minimum order amount'." });
-      return;
-    }
-    if (isNaN(feeVal) || feeVal < 0) {
-      Swal.fire({ icon: "warning", title: "Warning", text: "Please enter valid Delivery Fee." });
-      return;
-    }
-
-    // Parse delivery time
-    let dHours = "00";
-    let dMinute = "10";
-    if (areaDeliveryTime.includes("Hours")) {
-      const parts = areaDeliveryTime.split("Hours");
-      dHours = parts[0].trim();
-      dMinute = parts[1].replace("Minute", "").trim();
-    } else {
-      dMinute = areaDeliveryTime.replace("Minute", "").trim() || "10";
-    }
-
-    try {
-      if (isEditingArea && editingAreaId) {
-        await setupService.updateCustomDeliveryLocation({
-          id: editingAreaId,
-          location_name: areaName.trim(),
-          min_order: minVal,
-          delivery_fee: feeVal,
-          min_order_freedelivery: freeVal,
-          delivery_hours: dHours,
-          delivery_minute: dMinute,
-        });
-        Swal.fire({ icon: "success", title: "Success", text: "Delivery area updated successfully!", timer: 1500, showConfirmButton: false });
-      } else {
-        await setupService.addCustomDeliveryLocation({
-          shop_id: shopId,
-          location_name: areaName.trim(),
-          min_order: minVal,
-          delivery_fee: feeVal,
-          min_order_freedelivery: freeVal,
-          delivery_hours: dHours,
-          delivery_minute: dMinute,
-        });
-        Swal.fire({ icon: "success", title: "Success", text: "Delivery area added successfully!", timer: 1500, showConfirmButton: false });
-      }
-
-      setShowAreaModal(false);
-      if (shopId) fetchAreas(shopId);
-    } catch (err) {
-      console.error("Error saving area:", err);
-      Swal.fire({ icon: "error", title: "Error", text: "Error saving area. Please try again." });
-    }
-  };
-
-  const handleDeleteAreaClick = async (areaId: number) => {
-    try {
-      const result = await Swal.fire({
-        title: "Are you sure?",
-        text: "This will delete the delivery area that you have selected!",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonColor: "#ef4444",
-        cancelButtonColor: "#64748b",
-        confirmButtonText: "YES, DELETE IT",
-        cancelButtonText: "CANCEL",
-        reverseButtons: false,
-      });
-
-      if (result.isConfirmed) {
-        await setupService.deleteCustomDeliveryLocation(areaId);
-        Swal.fire({ icon: "success", title: "Deleted!", text: "Delivery area deleted successfully!", timer: 1500, showConfirmButton: false });
-        if (shopId) fetchAreas(shopId);
-      }
-    } catch (err) {
-      console.error("Error deleting area:", err);
-      Swal.fire({ icon: "error", title: "Error", text: "Failed to delete area." });
-    }
-  };
-
-  const handleDeleteAreaConfirm = async () => {
-    if (!deletingAreaId) return;
-    try {
-      await setupService.deleteCustomDeliveryLocation(deletingAreaId);
-      Swal.fire({ icon: "success", title: "Deleted!", text: "Delivery area deleted successfully!", timer: 1500, showConfirmButton: false });
-      setShowDeleteAreaModal(false);
-      setDeletingAreaId(null);
-      if (shopId) fetchAreas(shopId);
-    } catch (err) {
-      console.error("Error deleting area:", err);
-      Swal.fire({ icon: "error", title: "Error", text: "Failed to delete area." });
-    }
-  };
-
-  useEffect(() => {
-    const rawId = sessionStorage.getItem("shop_id");
-    const parsedShopId = Number(rawId) || 0;
-    setShopId(parsedShopId);
-
-    const initDeliverySettings = async () => {
-      if (!parsedShopId) return;
-      try {
-        const settingsRes = await setupService.getDeliverySettingsForShop(parsedShopId);
-        console.log("DELIVERY SETTINGS RES:", settingsRes);
-        if (settingsRes && settingsRes.data) {
-          try {
-            const dataObj = typeof settingsRes.data === "string" ? JSON.parse(settingsRes.data) : settingsRes.data;
-            if (Array.isArray(dataObj) && dataObj.length > 0) {
-              const settingVal = Number(dataObj[0].delivery_settings);
-              setDeliveryType(settingVal === 1 ? "area" : "zone");
-            }
-          } catch (e) {
-            console.error("Error parsing delivery settings:", e);
-          }
-        }
-        fetchAreas(parsedShopId);
-      } catch (err) {
-        console.error("Error initializing delivery settings:", err);
-      }
-    };
-
-    initDeliverySettings();
-  }, []);
-
   useEffect(() => {
     const fetchZones = async () => {
       try {
-        const ShopId = sessionStorage.getItem("shop_id");
+        const ShopId = sessionStorage.getItem("shop_id")
 
         const response = await setupService.getAllZones(Number(ShopId));
 
@@ -1991,16 +1508,6 @@ export default function DeliveryPage() {
         const groupedZones = groupZones(rawZones);
 
         setZones(groupedZones);
-
-        // If zones exist, center map on first zone or fit bounds
-        if (groupedZones.length > 0 && mapRef.current) {
-          const firstZone = groupedZones[0];
-          const lat = Number(firstZone.latitude ?? firstZone.lat ?? firstZone.latArray?.[0]);
-          const lng = Number(firstZone.longitude ?? firstZone.lng ?? firstZone.longArray?.[0]);
-          if (Number.isFinite(lat) && Number.isFinite(lng)) {
-            mapRef.current.setView([lat, lng], 14);
-          }
-        }
       } catch (error) {
         console.error("Error fetching delivery zones:", error);
       }
@@ -2008,30 +1515,6 @@ export default function DeliveryPage() {
 
     fetchZones();
   }, []);
-
-  useEffect(() => {
-    if (deliveryType === "zone") {
-      const runInvalidate = () => {
-        if (mapRef.current) {
-          mapRef.current.invalidateSize();
-        }
-      };
-      runInvalidate();
-      const t1 = setTimeout(runInvalidate, 100);
-      const t2 = setTimeout(runInvalidate, 300);
-      const t3 = setTimeout(runInvalidate, 600);
-      return () => {
-        clearTimeout(t1);
-        clearTimeout(t2);
-        clearTimeout(t3);
-      };
-    }
-  }, [deliveryType]);
-
-  // Pagination Logic
-  const paginatedAreas = areas.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  const paginatedZones = zones.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
   return (
     <div id="pg-setup-delivery">
       <link
@@ -2060,800 +1543,447 @@ export default function DeliveryPage() {
         {/* ── MAIN WORKSPACE ── */}
         <div className="main-workspace">
           <div className="container">
-            <div className="page-header" style={{ background: "#fff", padding: "20px", borderRadius: "8px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h1 className="header-title typ-page-heading" style={{ margin: 0, fontSize: "1.25rem", color: "#334155" }}>How would you like to Setup Delivery?</h1>
-              <div style={{ display: "flex", gap: "24px" }}>
-                <label style={{ fontWeight: 600, fontSize: "15px", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: deliveryType === "area" ? "#0f766e" : "#64748b" }}>
-                  <input type="radio" name="setup" checked={deliveryType === "area"} onChange={() => handleDeliveryTypeChange("area")} style={{ accentColor: "#0f766e", width: "16px", height: "16px" }} /> Area Wise
+            <div className="page-header">
+              <h1 className="header-title typ-page-heading" style={{ margin: 0 }}>How would you like to Setup Delivery?</h1>
+              <div>
+                <label style={{ fontWeight: 600, fontSize: "14px" }}>
+                  <input type="radio" name="setup" /> Area Wise
                 </label>
-                <label style={{ fontWeight: 600, fontSize: "15px", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: deliveryType === "zone" ? "#0f766e" : "#64748b" }}>
-                  <input type="radio" name="setup" checked={deliveryType === "zone"} onChange={() => handleDeliveryTypeChange("zone")} style={{ accentColor: "#0f766e", width: "16px", height: "16px" }} /> Zone Wise
+                <label style={{ marginLeft: "20px", fontWeight: 600, fontSize: "14px" }}>
+                  <input type="radio" name="setup" defaultChecked /> Zone Wise
                 </label>
               </div>
             </div>
 
-            <div style={{ display: deliveryType === "area" ? "block" : "none" }}>
-              <div className="area-wise-container" style={{ background: "#fff", padding: "24px", borderRadius: "8px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", marginTop: "24px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-                  <div>
-                    <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#1e293b", margin: 0, display: "inline-block", marginRight: "20px" }}>Area Wise Delivery</h2>
-                    <span style={{ fontSize: "0.95rem", color: "#64748b", fontWeight: 600 }}>Click On Add Area to Add Area</span>
-                  </div>
-                  <button className="btn-add-area" onClick={handleOpenAddAreaModal} style={{ background: "#0f766e", color: "#fff", border: "none", padding: "10px 24px", borderRadius: "6px", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", letterSpacing: "0.5px" }}>
-                    ADD AREA
-                  </button>
-                </div>
-
-                <div className="table-responsive">
-                  <table className="area-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "center" }}>
-                    <thead>
-                      <tr style={{ background: "#0f766e", color: "#fff" }}>
-                        <th style={{ padding: "14px 10px", borderTopLeftRadius: "6px", width: "60px" }}></th>
-                        <th style={{ padding: "14px 10px", fontSize: "0.85rem", fontWeight: 600 }}>Sr. No.</th>
-                        <th style={{ padding: "14px 10px", fontSize: "0.85rem", fontWeight: 600 }}>Area Name</th>
-                        <th style={{ padding: "14px 10px", fontSize: "0.85rem", fontWeight: 600 }}>Minimum Order Amount</th>
-                        <th style={{ padding: "14px 10px", fontSize: "0.85rem", fontWeight: 600 }}>Minimum Order Amount for Free Delivery</th>
-                        <th style={{ padding: "14px 10px", fontSize: "0.85rem", fontWeight: 600 }}>Delivery Fees</th>
-                        <th style={{ padding: "14px 10px", fontSize: "0.85rem", fontWeight: 600 }}>Delivery Time</th>
-                        <th style={{ padding: "14px 10px", fontSize: "0.85rem", fontWeight: 600 }}>Edit</th>
-                        <th style={{ padding: "14px 10px", borderTopRightRadius: "6px", fontSize: "0.85rem", fontWeight: 600 }}>Delete</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {isLoadingAreas ? (
-                        <tr>
-                          <td colSpan={9} style={{ padding: "40px", color: "#64748b", fontSize: "0.95rem" }}>
-                            Loading areas...
-                          </td>
-                        </tr>
-                      ) : areas.length === 0 ? (
-                        <tr>
-                          <td colSpan={9} style={{ padding: "40px", color: "#64748b", fontSize: "0.95rem" }}>
-                            No Delivery Areas Added Yet. Click &quot;ADD AREA&quot; to configure delivery locations.
-                          </td>
-                        </tr>
-                      ) : (
-                        paginatedAreas.map((area, index) => (
-                          <tr key={area.id || index} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                            <td style={{ padding: "16px 10px" }}>
-                              <label className="switch" style={{ margin: "0 auto" }}>
-                                <input
-                                  type="checkbox"
-                                  checked={area.active}
-                                  onChange={() => handleToggleAreaStatus(area.id, area.active)}
-                                />
-                                <span className="slider"></span>
-                              </label>
-                            </td>
-                            <td style={{ padding: "16px 10px", fontWeight: 600, color: "#1e293b", fontSize: "0.95rem" }}>{(currentPage - 1) * itemsPerPage + index + 1}</td>
-                            <td style={{ padding: "16px 10px", fontWeight: 600, color: "#1e293b", fontSize: "0.95rem" }}>{area.name}</td>
-                            <td style={{ padding: "16px 10px" }}>
-                              <input type="text" value={area.minAmt} readOnly className="area-input" />
-                            </td>
-                            <td style={{ padding: "16px 10px" }}>
-                              <input type="text" value={area.freeAmt} readOnly className="area-input" />
-                            </td>
-                            <td style={{ padding: "16px 10px" }}>
-                              <input type="text" value={area.fee} readOnly className="area-input" />
-                            </td>
-                            <td style={{ padding: "16px 10px" }}>
-                              <input type="text" value={area.time} readOnly className="area-input time-input" />
-                            </td>
-                            <td style={{ padding: "16px 10px" }}>
-                              <button
-                                className="circle-action-btn btn-edit"
-                                onClick={() => handleOpenEditAreaModal(area)}
-                                style={{ margin: "0 auto", width: "32px", height: "32px", borderRadius: "50%", background: "#0f766e", color: "white", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-                                title="Edit Area"
-                              >
-                                <i className="fa-solid fa-pen" style={{ fontSize: "12px" }}></i>
-                              </button>
-                            </td>
-                            <td style={{ padding: "16px 10px" }}>
-                              <button
-                                className="circle-action-btn btn-delete"
-                                onClick={() => handleDeleteAreaClick(area.id)}
-                                style={{ margin: "0 auto", width: "32px", height: "32px", borderRadius: "50%", background: "#334155", color: "white", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-                                title="Delete Area"
-                              >
-                                <i className="fa-solid fa-trash" style={{ fontSize: "12px" }}></i>
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {areas.length > 0 && (
-                  <ReportPagination
-                    currentPage={currentPage}
-                    totalPages={Math.ceil(areas.length / itemsPerPage)}
-                    onPageChange={setCurrentPage}
-                  />
-                )}
-              </div>
+            <div className="page-header" style={{ marginBottom: "15px" }}>
+              <h1 className="header-title typ-page-heading" style={{ margin: 0 }}>
+                Select Delivery Zone{" "}
+                <span className="header-subtitle">
+                  Click On &apos;Add Zone&apos; To Add Zone
+                </span>
+              </h1>
             </div>
 
-            <div style={{ display: deliveryType === "zone" ? "block" : "none" }}>
-              <>
-                <div className="page-header" style={{ marginBottom: "15px", marginTop: "24px" }}>
-                  <h1 className="header-title typ-page-heading" style={{ margin: 0 }}>
-                    Select Delivery Zone{" "}
-                    <span className="header-subtitle">
-                      Click On &apos;Add Zone&apos; To Add Zone
-                    </span>
-                  </h1>
-                </div>
-
-                <div
-                  id="default-actions"
-                  style={{ display: "flex", gap: "10px", alignItems: "center" }}
-                >
-                  <button className="btn-teal" id="addShapeBtn">
-                    ADD ZONE IN SHAPE
-                  </button>
-                  <button className="btn-teal" id="addCircleBtn">
-                    ADD ZONE IN CIRCLE
-                  </button>
-                  <button className="btn-help">
-                    <svg viewBox="0 0 24 24">
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                      <line x1="12" y1="17" x2="12.01" y2="17" />
-                    </svg>
-                    HELP
-                  </button>
-                </div>
-
-                <div
-                  id="active-circle-actions"
-                  style={{ display: "none", gap: "10px", alignItems: "center" }}
-                >
-                  <button className="btn-teal" id="saveCircleZoneBtn">
-                    SAVE ZONE
-                  </button>
-                  <button className="btn-red" id="cancelCircleBtn">
-                    CANCEL
-                  </button>
-                  <button className="btn-help">
-                    <svg viewBox="0 0 24 24">
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                      <line x1="12" y1="17" x2="12.01" y2="17" />
-                    </svg>
-                    HELP
-                  </button>
-                </div>
-
-                <div
-                  id="active-shape-actions"
-                  style={{ display: "none", gap: "10px", alignItems: "center" }}
-                >
-                  <button className="btn-teal" id="updateMapZoneBtn">
-                    UPDATE ZONE
-                  </button>
-                  <button className="btn-red" id="cancelShapeBtn">
-                    CANCEL
-                  </button>
-                  <button className="btn-help">
-                    <svg viewBox="0 0 24 24">
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                      <line x1="12" y1="17" x2="12.01" y2="17" />
-                    </svg>
-                    HELP
-                  </button>
-                </div>
-
-
-                <div className="instruction-text" id="circleInstructionLabel">
-                  look at the circle on map and you can resize and move the circle at your
-                  preferred location
-                </div>
-                <div className="instruction-text" id="shapeInstructionLabel">
-                  start drawing your zone in the map below:
-                </div>
-
-                <div className="map-wrapper-canvas" id="mapWrapper">
-                  <div className="custom-map-type-control">
-                    <div className="map-type-tabs-row">
-                      <button
-                        className="map-tab-btn"
-                        id="mapViewTab"
-                        data-type="map"
-                      >
-                        Map
-                      </button>
-                      <button
-                        className="map-tab-btn tab-active"
-                        id="satelliteViewTab"
-                        data-type="satellite"
-                      >
-                        Satellite
-                      </button>
-                    </div>
-                    <div className="map-sub-options-panel" id="terrainCheckboxContainer" style={{ visibility: 'hidden', left: 0 }}>
-                      <input type="checkbox" id="terrainToggleCheckbox" />
-                      <label htmlFor="terrainToggleCheckbox" style={{ cursor: "pointer" }}>
-                        Terrain
-                      </label>
-                    </div>
-                    <div className="map-sub-options-panel" id="labelsCheckboxContainer" style={{ right: 0 }}>
-                      <input type="checkbox" id="labelsToggleCheckbox" defaultChecked />
-                      <label htmlFor="labelsToggleCheckbox" style={{ cursor: "pointer" }}>
-                        Labels
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="google-fullscreen-control">
-                    <button
-                      className="google-control-box"
-                      id="fullscreenToggleBtn"
-                      title="Toggle Fullscreen"
-                    >
-                      <i className="fas fa-expand" />
-                    </button>
-                  </div>
-
-                  <div className="google-bottom-right-controls">
-                    <div className="google-pan-pad" id="panPad">
-                      <i className="fas fa-caret-up pan-up" data-dir="up" />
-                      <i className="fas fa-caret-left pan-left" data-dir="left" />
-                      <i className="fas fa-caret-right pan-right" data-dir="right" />
-                      <i className="fas fa-caret-down pan-down" data-dir="down" />
-                    </div>
-                    <div className="google-pegman-box" title="Drag to enter Street View">
-                      <div className="pegman-icon" />
-                    </div>
-                  </div>
-
-                  <div id="map" />
-                </div>
-
-                <div className="table-responsive-container">
-                  <table id="deliveryTable">
-                    <thead>
-                      <tr>
-                        <th>Sr. No.</th>
-                        <th>Zone Name</th>
-                        <th>Minimum Order Amount</th>
-                        <th>Minimum Order Amount for Free Delivery</th>
-                        <th>Delivery Fees</th>
-                        <th>Delivery Time</th>
-                        <th className="action-col-header">ACTION</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {zones.length > 0 ? (
-                        paginatedZones.map((zone, index) => (
-                          <tr key={zone.Id} id={`row-idx-${zone.Id}`}>
-                            <td>{(currentPage - 1) * itemsPerPage + index + 1}</td>
-
-                            <td>
-                              <div className="cell-flex-center">
-                                <span
-                                  className="zone-dot"
-                                  style={{ background: zone.color || "#e5a2cb" }}
-                                />
-                                {zone.zone_no}
-                              </div>
-                            </td>
-
-                            <td>
-                              <input
-                                type="text"
-                                value={zone.min_order ?? ""}
-                                disabled
-                                readOnly
-                              />
-                            </td>
-
-                            <td>
-                              <input
-                                type="text"
-                                value={zone.min_order_freedelivery ?? ""}
-                                disabled
-                                readOnly
-                              />
-                            </td>
-
-                            <td>
-                              <input
-                                type="text"
-                                value={zone.delivery_fee ?? ""}
-                                disabled
-                                readOnly
-                              />
-                            </td>
-
-                            <td>
-                              <input
-                                type="text"
-                                value={formatDeliveryTime(zone.delivery_hours, zone.delivery_minute)}
-                                style={{ width: "120px" }}
-                                disabled
-                                readOnly
-                              />
-                            </td>
-
-                            <td>
-                              <div
-                                style={{
-                                  display: "inline-flex",
-                                  gap: "10px",
-                                  alignItems: "center",
-                                }}
-                              >
-                                <button
-                                  className="icon-btn-edit"
-                                  title="Edit"
-                                  onClick={() => {
-                                    console.log("========== FORM EDIT ==========");
-                                    console.log("ZONE:", zone);
-
-                                    editingZoneRef.current = zone;
-                                    editModeRef.current = "FORM";
-
-                                    const zoneName =
-                                      document.getElementById("formZoneName") as HTMLInputElement | null;
-                                    const minAmt =
-                                      document.getElementById("formMinAmt") as HTMLInputElement | null;
-                                    const freeAmt =
-                                      document.getElementById("formFreeAmt") as HTMLInputElement | null;
-                                    const fees =
-                                      document.getElementById("formFees") as HTMLInputElement | null;
-                                    const time =
-                                      document.getElementById("formTime") as HTMLSelectElement | null;
-                                    const modal =
-                                      document.getElementById("detailsFormModal");
-
-                                    if (zoneName) {
-                                      zoneName.value = zone.zone_no ?? "";
-                                    }
-                                    if (minAmt) {
-                                      minAmt.value = zone.min_order ?? "";
-                                    }
-                                    if (freeAmt) {
-                                      freeAmt.value = zone.min_order_freedelivery ?? "";
-                                    }
-                                    if (fees) {
-                                      fees.value = zone.delivery_fee ?? "";
-                                    }
-                                    if (time) {
-                                      time.value = `${zone.delivery_minute ?? "10"} Minute`;
-                                    }
-                                    validateFreeDeliveryAmount();
-                                    if (modal) {
-                                      modal.style.display = "flex";
-                                    }
-                                  }}
-                                >
-                                  <i className="fa-solid fa-pen-to-square" />
-                                </button>
-
-                                <button
-                                  className="icon-btn-delete"
-                                  data-row={`row-idx-${zone.Id}`}
-                                  title="Delete"
-                                >
-                                  <i className="fa-solid fa-trash" />
-                                </button>
-                                <button
-                                  className="edit-zone-btn"
-                                  title="Edit Zone Map"
-                                  onClick={() => {
-                                    console.log("========== MAP EDIT ==========");
-                                    console.log("ZONE:", zone);
-
-                                    editingZoneRef.current = zone;
-                                    editModeRef.current = "MAP";
-
-                                    if (!loadZoneOnMapRef.current) {
-                                      console.error("loadZoneOnMap is not available");
-                                      return;
-                                    }
-
-                                    loadZoneOnMapRef.current(zone);
-
-                                    const defaultActions =
-                                      document.getElementById("default-actions");
-
-                                    const mapEditActions =
-                                      document.getElementById("active-shape-actions");
-
-                                    if (defaultActions) {
-                                      defaultActions.style.display = "none";
-                                    }
-
-                                    if (mapEditActions) {
-                                      mapEditActions.style.display = "flex";
-                                      const updateBtn = document.getElementById("updateMapZoneBtn");
-                                      if (updateBtn) updateBtn.style.display = "inline-block";
-                                    }
-                                  }}
-                                >
-                                  Edit Zone
-                                </button>
-                              </div>
-                            </td>
-
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={7} style={{ textAlign: "center", padding: "20px" }}>
-                            No delivery zones found
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {zones.length > 0 && (
-                  <ReportPagination
-                    currentPage={currentPage}
-                    totalPages={Math.ceil(zones.length / itemsPerPage)}
-                    onPageChange={setCurrentPage}
-                  />
-                )}
-              </>
-            </div>
-          </div>
-
-          <WizardFooter />
-        </div>
-
-
-        {/* Delete Modal */}
-        <div className="modal-overlay" id="deleteModal">
-          <div className="modal-box">
-            <div className="modal-text">
-              This will delete all the zone details and the region that you have just
-              added!!
-            </div>
-            <div className="modal-actions">
-              <button className="modal-btn btn-cancel" id="cancelDeleteBtn">
-                Cancel
+            <div
+              id="default-actions"
+              style={{ display: "flex", gap: "10px", alignItems: "center" }}
+            >
+              <button className="btn-teal" id="addShapeBtn">
+                ADD ZONE IN SHAPE
               </button>
-              <button className="modal-btn btn-confirm" id="confirmDeleteBtn">
-                YES, DELETE IT
+              <button className="btn-teal" id="addCircleBtn">
+                ADD ZONE IN CIRCLE
+              </button>
+              <button className="btn-help">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                HELP
               </button>
             </div>
-          </div>
-        </div>
 
-        {/* Zone Details Form Modal */}
-        <div className="modal-overlay" id="detailsFormModal">
-          <div className="form-modal-box">
-            <div className="form-title">Enter Zone Details</div>
-            <div className="form-group">
-              <label>Zone Name</label>
-              <input
-                type="text"
-                className="form-control"
-                id="formZoneName"
-                placeholder="Enter Zone Name"
-                style={{ textAlign: "left", fontWeight: "normal", width: "100%" }}
-              />
-            </div>
-            <div className="form-group">
-              <label>Minimum Order Amount</label>
-              <input
-                type="text"
-                className="form-control"
-                id="formMinAmt"
-                placeholder="0.00"
-                style={{ textAlign: "left", fontWeight: "normal", width: "100%" }}
-              />
-            </div>
-            <div className="form-group">
-              <label>Minimum Order Amount for Free Delivery</label>
-              <span
-                className="error-subtext"
-                id="freeDeliveryError"
-                style={{ display: "none" }}
-              >
-                ** Amount must be greater than minimum order amount
-              </span>
-              <input
-                type="text"
-                className="form-control"
-                id="formFreeAmt"
-                placeholder="0.00"
-                style={{
-                  textAlign: "left",
-                  fontWeight: "normal",
-                  width: "100%",
-                  marginTop: "4px",
-                }}
-              />
-            </div>
-            <div className="form-row-grid">
-              <div className="form-group">
-                <label>Delivery Fees</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  id="formFees"
-                  placeholder="0.00"
-                  style={{ textAlign: "left", fontWeight: "normal", width: "100%" }}
-                />
-              </div>
-              <div className="form-group">
-                <label>Delivery Time</label>
-                <select
-                  className="form-control"
-                  id="formTime"
-                  style={{ height: "40px", padding: "5px 10px" }}
-                  defaultValue="10 Minute"
-                >
-                  <option value="10 Minute">10 Minutes</option>
-                  <option value="20 Minute">20 Minutes</option>
-                  <option value="30 Minute">30 Minutes</option>
-                </select>
-              </div>
-            </div>
-            <div className="modal-actions" style={{ marginTop: "25px" }}>
-              <button className="btn-teal" style={{ padding: "10px 30px" }} id="saveDetailsBtn">
-                SAVE
+            <div
+              id="active-circle-actions"
+              style={{ display: "none", gap: "10px", alignItems: "center" }}
+            >
+              <button className="btn-teal" id="saveCircleZoneBtn">
+                SAVE ZONE
               </button>
-              <button className="btn-red" style={{ padding: "10px 30px" }} id="closeDetailsBtn">
+              <button className="btn-red" id="cancelCircleBtn">
                 CANCEL
               </button>
+              <button className="btn-help">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                HELP
+              </button>
             </div>
-          </div>
-        </div>
 
-        {/* Success Modal */}
-        <div className="modal-overlay" id="successModal" style={{ zIndex: 10000 }}>
-          <div className="success-box">
-            <div className="success-title">Success</div>
-            <div className="success-text">Your Delivery Zone Save Successfully</div>
-            <button className="btn-success-ok" id="successOkBtn">
-              OK
-            </button>
-          </div>
-        </div>
-
-        {/* ── Area Wise Modal (Add / Edit Area) ── */}
-        {showAreaModal && (
-          <div className="modal-overlay-custom" style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 9999 }}>
-            <div className="area-modal-content" style={{ background: "white", padding: "30px", borderRadius: "8px", width: "90%", maxWidth: "550px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
-              <h3 className="area-modal-title" style={{ marginTop: 0, marginBottom: "20px", fontSize: "1.25rem", textAlign: "center" }}>
-                {isEditingArea ? "Update Area Details" : "Enter Area Details"}
-              </h3>
-
-              <div className="area-modal-field" style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>Area Name</label>
-                <input
-                  type="text"
-                  className="area-modal-input"
-                  style={{ width: "100%", padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
-                  placeholder="Enter Area Name"
-                  value={areaName}
-                  onChange={(e) => setAreaName(e.target.value)}
-                />
-              </div>
-
-              <div className="area-modal-field" style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>Minimum Order Amount</label>
-                <input
-                  type="number"
-                  step="any"
-                  className="area-modal-input"
-                  style={{ width: "100%", padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
-                  placeholder="0.00"
-                  value={areaMinAmt}
-                  onChange={(e) => setAreaMinAmt(e.target.value)}
-                />
-              </div>
-
-              <div className="area-modal-field" style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>
-                  Minimum Order Amount for Free Delivery
-                  <div style={{ color: "#ef4444", fontSize: "0.8rem", fontWeight: 500, marginTop: "4px" }}>
-                    ** Amount must be greater than minimum order amount
-                  </div>
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  className="area-modal-input"
-                  style={{ width: "100%", padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
-                  placeholder="0.00"
-                  value={areaFreeAmt}
-                  onChange={(e) => setAreaFreeAmt(e.target.value)}
-                />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                <div className="area-modal-field" style={{ marginBottom: "16px" }}>
-                  <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>Delivery Fees</label>
-                  <input
-                    type="number"
-                    step="any"
-                    className="area-modal-input"
-                    style={{ width: "100%", padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
-                    placeholder="0.00"
-                    value={areaFee}
-                    onChange={(e) => setAreaFee(e.target.value)}
-                  />
-                </div>
-
-                <div className="area-modal-field" style={{ marginBottom: "16px" }}>
-                  <label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>Delivery Time</label>
-                  <select
-                    className="area-modal-select"
-                    style={{ width: "100%", padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
-                    value={areaDeliveryTime}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === "Custom") {
-                        setShowCustomTimeModal(true);
-                      } else {
-                        setAreaDeliveryTime(val);
-                      }
-                    }}
-                  >
-                    <option value="10 Minute">10 Minutes</option>
-                    <option value="20 Minute">20 Minutes</option>
-                    <option value="30 Minute">30 Minutes</option>
-                    <option value="40 Minute">40 Minutes</option>
-                    <option value="50 Minute">50 Minutes</option>
-                    <option value="60 Minute">60 Minutes</option>
-                    {areaDeliveryTime.includes("Hours") && (
-                      <option value={areaDeliveryTime}>{areaDeliveryTime}</option>
-                    )}
-                    <option value="Custom">Custom Time...</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="area-modal-actions">
-                <button
-                  className="btn-teal"
-                  onClick={handleSaveArea}
-                  style={{ padding: "10px 28px", borderRadius: "6px", fontWeight: 700 }}
-                >
-                  {isEditingArea ? "UPDATE" : "SAVE"}
-                </button>
-                <button
-                  className="btn-red"
-                  onClick={() => setShowAreaModal(false)}
-                  style={{ padding: "10px 28px", borderRadius: "6px", fontWeight: 700 }}
-                >
-                  CANCEL
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Custom Delivery Time Sub-Modal ── */}
-        {showCustomTimeModal && (
-          <div className="modal-overlay-custom" style={{ zIndex: 10002 }}>
-            <div className="area-modal-content" style={{ maxWidth: "400px" }}>
-              <h3 className="area-modal-title">Delivery On Time</h3>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "#475569", marginBottom: "6px" }}>Hours</label>
-                  <select
-                    className="area-modal-select"
-                    value={customHours}
-                    onChange={(e) => setCustomHours(e.target.value)}
-                  >
-                    {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")).map((hr) => (
-                      <option key={hr} value={hr}>{hr}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "#475569", marginBottom: "6px" }}>Minutes</label>
-                  <select
-                    className="area-modal-select"
-                    value={customMinutes}
-                    onChange={(e) => setCustomMinutes(e.target.value)}
-                  >
-                    {Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0")).map((mn) => (
-                      <option key={mn} value={mn}>{mn}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="area-modal-actions">
-                <button
-                  className="btn-teal"
-                  onClick={() => {
-                    const formattedTime = `${customHours} Hours ${customMinutes} Minute`;
-                    setAreaDeliveryTime(formattedTime);
-                    setShowCustomTimeModal(false);
-                  }}
-                  style={{ padding: "8px 24px" }}
-                >
-                  SAVE
-                </button>
-                <button
-                  className="btn-red"
-                  onClick={() => setShowCustomTimeModal(false)}
-                  style={{ padding: "8px 24px" }}
-                >
-                  CLOSE
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Delete Confirmation Modal for Area ── */}
-        {showDeleteAreaModal && (
-          <div className="modal-overlay-custom" onClick={() => setShowDeleteAreaModal(false)}>
             <div
-              className="area-modal-content delete-confirmation-card"
-              style={{ maxWidth: "460px", textAlign: "center", padding: "36px 28px" }}
-              onClick={(e) => e.stopPropagation()}
+              id="active-shape-actions"
+              style={{ display: "none", gap: "10px", alignItems: "center" }}
             >
-              <div className="delete-modal-icon-badge">
-                <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: "28px", color: "#f59e0b" }}></i>
+              <button className="btn-teal" id="updateMapZoneBtn">
+                UPDATE ZONE
+              </button>
+              <button className="btn-red" id="cancelShapeBtn">
+                CANCEL
+              </button>
+              <button className="btn-help">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                HELP
+              </button>
+            </div>
+
+
+          <div className="instruction-text" id="circleInstructionLabel">
+            look at the circle on map and you can resize and move the circle at your
+            preferred location
+          </div>
+          <div className="instruction-text" id="shapeInstructionLabel">
+            start drawing your zone in the map below:
+          </div>
+
+          <div className="map-wrapper-canvas" id="mapWrapper">
+            <div className="custom-map-type-control">
+              <div className="map-type-tabs-row">
+                <button
+                  className="map-tab-btn"
+                  id="mapViewTab"
+                  data-type="map"
+                >
+                  Map
+                </button>
+                <button
+                  className="map-tab-btn tab-active"
+                  id="satelliteViewTab"
+                  data-type="satellite"
+                >
+                  Satellite
+                </button>
               </div>
-              <h3 style={{ fontSize: "1.35rem", fontWeight: 700, color: "#1e293b", margin: "16px 0 8px" }}>
-                Are you sure?
-              </h3>
-              <p style={{ fontSize: "0.95rem", fontWeight: 500, color: "#64748b", marginBottom: "28px", lineHeight: "1.5" }}>
-                This will delete the delivery area that you have selected!
-              </p>
-              <div className="area-modal-actions" style={{ gap: "14px" }}>
-                <button
-                  className="btn-red"
-                  onClick={handleDeleteAreaConfirm}
-                  style={{
-                    padding: "11px 26px",
-                    borderRadius: "8px",
-                    fontWeight: 700,
-                    fontSize: "0.88rem",
-                    letterSpacing: "0.5px",
-                    background: "#ef4444",
-                    boxShadow: "0 4px 12px rgba(239, 68, 68, 0.25)",
-                    border: "none",
-                    cursor: "pointer",
-                    color: "white"
-                  }}
-                >
-                  YES, DELETE IT
-                </button>
-                <button
-                  className="btn-teal"
-                  onClick={() => {
-                    setShowDeleteAreaModal(false);
-                    setDeletingAreaId(null);
-                  }}
-                  style={{
-                    padding: "11px 26px",
-                    borderRadius: "8px",
-                    fontWeight: 700,
-                    fontSize: "0.88rem",
-                    letterSpacing: "0.5px",
-                    background: "#64748b",
-                    boxShadow: "0 4px 12px rgba(100, 116, 139, 0.2)",
-                    border: "none",
-                    cursor: "pointer",
-                    color: "white"
-                  }}
-                >
-                  CANCEL
-                </button>
+              <div className="map-sub-options-panel" id="terrainCheckboxContainer" style={{ visibility: 'hidden', left: 0 }}>
+                <input type="checkbox" id="terrainToggleCheckbox" />
+                <label htmlFor="terrainToggleCheckbox" style={{ cursor: "pointer" }}>
+                  Terrain
+                </label>
+              </div>
+              <div className="map-sub-options-panel" id="labelsCheckboxContainer" style={{ right: 0 }}>
+                <input type="checkbox" id="labelsToggleCheckbox" defaultChecked />
+                <label htmlFor="labelsToggleCheckbox" style={{ cursor: "pointer" }}>
+                  Labels
+                </label>
               </div>
             </div>
-          </div>
-        )}
 
+            <div className="google-fullscreen-control">
+              <button
+                className="google-control-box"
+                id="fullscreenToggleBtn"
+                title="Toggle Fullscreen"
+              >
+                <i className="fas fa-expand" />
+              </button>
+            </div>
+
+            <div className="google-bottom-right-controls">
+              <div className="google-pan-pad" id="panPad">
+                <i className="fas fa-caret-up pan-up" data-dir="up" />
+                <i className="fas fa-caret-left pan-left" data-dir="left" />
+                <i className="fas fa-caret-right pan-right" data-dir="right" />
+                <i className="fas fa-caret-down pan-down" data-dir="down" />
+              </div>
+              <div className="google-pegman-box" title="Drag to enter Street View">
+                <div className="pegman-icon" />
+              </div>
+            </div>
+
+            <div id="map" />
+          </div>
+
+          <div className="table-responsive-container">
+            <table id="deliveryTable">
+              <thead>
+                <tr>
+                  <th>Sr. No.</th>
+                  <th>Zone Name</th>
+                  <th>Minimum Order Amount</th>
+                  <th>Minimum Order Amount for Free Delivery</th>
+                  <th>Delivery Fees</th>
+                  <th>Delivery Time</th>
+                  <th className="action-col-header">ACTION</th>
+                </tr>
+              </thead>
+              <tbody>
+                {zones.length > 0 ? (
+                  zones.map((zone, index) => (
+                    <tr key={zone.Id} id={`row-idx-${zone.Id}`}>
+                      <td>{index + 1}</td>
+
+                      <td>
+                        <div className="cell-flex-center">
+                          <span
+                            className="zone-dot"
+                            style={{ background: zone.color || "#e5a2cb" }}
+                          />
+                          {zone.zone_no}
+                        </div>
+                      </td>
+
+                      <td>
+                        <input
+                          type="text"
+                          value={zone.min_order ?? ""}
+                          disabled
+                          readOnly
+                        />
+                      </td>
+
+                      <td>
+                        <input
+                          type="text"
+                          value={zone.min_order_freedelivery ?? ""}
+                          disabled
+                          readOnly
+                        />
+                      </td>
+
+                      <td>
+                        <input
+                          type="text"
+                          value={zone.delivery_fee ?? ""}
+                          disabled
+                          readOnly
+                        />
+                      </td>
+
+                      <td>
+                        <input
+                          type="text"
+                          value={`${zone.delivery_hours ?? "00"}:${zone.delivery_minute ?? "00"}`}
+                          style={{ width: "100px" }}
+                          disabled
+                          readOnly
+                        />
+                      </td>
+
+                      <td>
+                        <div
+                          style={{
+                            display: "inline-flex",
+                            gap: "10px",
+                            alignItems: "center",
+                          }}
+                        >
+                          <button
+                            className="icon-btn-edit"
+                            title="Edit"
+                            onClick={() => {
+                              console.log("========== FORM EDIT ==========");
+                              console.log("ZONE:", zone);
+
+                              editingZoneRef.current = zone;
+                              editModeRef.current = "FORM";
+
+                              const zoneName =
+                                document.getElementById("formZoneName") as HTMLInputElement | null;
+                              const minAmt =
+                                document.getElementById("formMinAmt") as HTMLInputElement | null;
+                              const freeAmt =
+                                document.getElementById("formFreeAmt") as HTMLInputElement | null;
+                              const fees =
+                                document.getElementById("formFees") as HTMLInputElement | null;
+                              const time =
+                                document.getElementById("formTime") as HTMLSelectElement | null;
+                              const modal =
+                                document.getElementById("detailsFormModal");
+
+                              if (zoneName) {
+                                zoneName.value = zone.zone_no ?? "";
+                              }
+                              if (minAmt) {
+                                minAmt.value = zone.min_order ?? "";
+                              }
+                              if (freeAmt) {
+                                freeAmt.value = zone.min_order_freedelivery ?? "";
+                              }
+                              if (fees) {
+                                fees.value = zone.delivery_fee ?? "";
+                              }
+                              if (time) {
+                                time.value = `${zone.delivery_minute ?? "10"} Minute`;
+                              }
+                              validateFreeDeliveryAmount();
+                              if (modal) {
+                                modal.style.display = "flex";
+                              }
+                            }}
+                          >
+                            <i className="fa-solid fa-pen-to-square" />
+                          </button>
+
+                          <button
+                            className="icon-btn-delete"
+                            data-row={`row-idx-${zone.Id}`}
+                            title="Delete"
+                          >
+                            <i className="fa-solid fa-trash" />
+                          </button>
+                          <button
+                            className="edit-zone-btn"
+                            title="Edit Zone Map"
+                            onClick={() => {
+                              console.log("========== MAP EDIT ==========");
+                              console.log("ZONE:", zone);
+
+                              editingZoneRef.current = zone;
+                              editModeRef.current = "MAP";
+
+                              if (!loadZoneOnMapRef.current) {
+                                console.error("loadZoneOnMap is not available");
+                                return;
+                              }
+
+                              loadZoneOnMapRef.current(zone);
+
+                              const defaultActions =
+                                document.getElementById("default-actions");
+
+                              const mapEditActions =
+                                document.getElementById("active-shape-actions");
+
+                              if (defaultActions) {
+                                defaultActions.style.display = "none";
+                              }
+
+                              if (mapEditActions) {
+                                mapEditActions.style.display = "flex";
+                              }
+                            }}
+                          >
+                            Edit Zone
+                          </button>
+                        </div>
+                      </td>
+
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: "center", padding: "20px" }}>
+                      No delivery zones found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <WizardFooter />
       </div>
+
+
+      {/* Delete Modal */ }
+  <div className="modal-overlay" id="deleteModal">
+    <div className="modal-box">
+      <div className="modal-text">
+        This will delete all the zone details and the region that you have just
+        added!!
+      </div>
+      <div className="modal-actions">
+        <button className="modal-btn btn-cancel" id="cancelDeleteBtn">
+          Cancel
+        </button>
+        <button className="modal-btn btn-confirm" id="confirmDeleteBtn">
+          YES, DELETE IT
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {/* Zone Details Form Modal */ }
+  <div className="modal-overlay" id="detailsFormModal">
+    <div className="form-modal-box">
+      <div className="form-title">Enter Zone Details</div>
+      <div className="form-group">
+        <label>Zone Name</label>
+        <input
+          type="text"
+          className="form-control"
+          id="formZoneName"
+          placeholder="Enter Zone Name"
+          style={{ textAlign: "left", fontWeight: "normal", width: "100%" }}
+        />
+      </div>
+      <div className="form-group">
+        <label>Minimum Order Amount</label>
+        <input
+          type="text"
+          className="form-control"
+          id="formMinAmt"
+          placeholder="0.00"
+          style={{ textAlign: "left", fontWeight: "normal", width: "100%" }}
+        />
+      </div>
+      <div className="form-group">
+        <label>Minimum Order Amount for Free Delivery</label>
+        <span
+          className="error-subtext"
+          id="freeDeliveryError"
+          style={{ display: "none" }}
+        >
+          ** Amount must be greater than minimum order amount
+        </span>
+        <input
+          type="text"
+          className="form-control"
+          id="formFreeAmt"
+          placeholder="0.00"
+          style={{
+            textAlign: "left",
+            fontWeight: "normal",
+            width: "100%",
+            marginTop: "4px",
+          }}
+        />
+      </div>
+      <div className="form-row-grid">
+        <div className="form-group">
+          <label>Delivery Fees</label>
+          <input
+            type="text"
+            className="form-control"
+            id="formFees"
+            placeholder="0.00"
+            style={{ textAlign: "left", fontWeight: "normal", width: "100%" }}
+          />
+        </div>
+        <div className="form-group">
+          <label>Delivery Time</label>
+          <select
+            className="form-control"
+            id="formTime"
+            style={{ height: "40px", padding: "5px 10px" }}
+            defaultValue="10 Minute"
+          >
+            <option value="10 Minute">10 Minutes</option>
+            <option value="20 Minute">20 Minutes</option>
+            <option value="30 Minute">30 Minutes</option>
+          </select>
+        </div>
+      </div>
+      <div className="modal-actions" style={{ marginTop: "25px" }}>
+        <button className="btn-teal" style={{ padding: "10px 30px" }} id="saveDetailsBtn">
+          SAVE
+        </button>
+        <button className="btn-red" style={{ padding: "10px 30px" }} id="closeDetailsBtn">
+          CANCEL
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {/* Success Modal */ }
+  <div className="modal-overlay" id="successModal" style={{ zIndex: 10000 }}>
+    <div className="success-box">
+      <div className="success-title">Success</div>
+      <div className="success-text">Your Delivery Zone Save Successfully</div>
+      <button className="btn-success-ok" id="successOkBtn">
+        OK
+      </button>
+    </div>
+  </div>
+    </div>
     </div>
   );
 }

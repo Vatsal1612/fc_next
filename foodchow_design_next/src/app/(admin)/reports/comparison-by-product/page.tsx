@@ -2,11 +2,14 @@
 
 import "./page.css";
 import { useEffect, useState, useRef } from "react";
+import Script from "next/script";
 import {
   reportsService,
   ProductWiseComparison,
 } from "@/api/services/report.service";
-import ReportPagination from "@/components/shared/ReportPagination";
+import ReportTableFooter from "@/components/shared/ReportTableFooter";
+import ReportTableState from "@/components/shared/ReportTableState";
+import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
 
 export default function ComparisonByProductPage() {
@@ -116,6 +119,10 @@ export default function ComparisonByProductPage() {
 
   return (
     <div id="pg-reports-comparison-by-product">
+      <Script
+        src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+        strategy="afterInteractive"
+      />
       <div className="app-container">
         <div className="main-content">
           <div className="report-card">
@@ -150,128 +157,118 @@ export default function ComparisonByProductPage() {
               </button>
             </div>
 
-            <p className="description-title">{headers.desc}</p>
+            <div className="results-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
+              <p className="description-title" style={{ margin: 0 }}>{headers.desc}</p>
 
-            <button className="btn-export">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#fff"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+              <button
+                className="btn-action btn-export"
+                style={{ margin: 0 }}
+                onClick={() => {
+                  if (!tableData || tableData.length === 0) {
+                    alert("No data available to export");
+                    return;
+                  }
+                  const XLSX = (window as any).XLSX;
+                  if (!XLSX) {
+                    return;
+                  }
+                  const h = getHeaders();
+                  const wsData: any[][] = [
+                    ["Item Report - " + activeTab.toUpperCase()],
+                    [],
+                    ["Item Name", h.prev, h.curr],
+                    ...tableData.map((item) => [
+                      item.item_name,
+                      item.previous_quantity,
+                      item.current_quantity,
+                    ]),
+                  ];
+                  const wb = XLSX.utils.book_new();
+                  const ws = XLSX.utils.aoa_to_sheet(wsData);
+                  XLSX.utils.book_append_sheet(wb, ws, "Item Report");
+                  XLSX.writeFile(wb, `Item_Report_${activeTab}.xlsx`);
+                }}
               >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              EXPORT TO EXCEL
-            </button>
-
-            <div className="table-wrapper">
-              <table id="reportTable">
-                <thead>
-                  <tr>
-                    <th>Item Name</th>
-                    <th>{headers.prev}</th>
-                    <th>{headers.curr}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={3} style={{ textAlign: "center", padding: "20px" }}>
-                        Loading...
-                      </td>
-                    </tr>
-                  ) : paginatedData.length > 0 ? (
-                    paginatedData.map((item, idx) => (
-                      <tr key={idx}>
-                        <td style={{ fontWeight: 600 }}>{item.item_name}</td>
-                        <td>
-                          <span
-                            className={`qty-pill ${item.previous_quantity === 0 ? "zero" : ""
-                              }`}
-                          >
-                            {item.previous_quantity}
-                          </span>
-                        </td>
-                        <td>
-                          <span
-                            className={`qty-pill ${item.current_quantity === 0 ? "zero" : ""
-                              }`}
-                          >
-                            {item.current_quantity}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={3} style={{ textAlign: "center", padding: "20px" }}>
-                        No Record Found
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#fff"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ width: "18px", height: "18px", marginRight: "6px" }}
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                EXPORT TO EXCEL
+              </button>
             </div>
 
-            <div
-              style={{
-                marginTop: "16px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ fontSize: "14px", color: "#666" }}>Show</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setPageNumber(1);
-                  }}
-                  style={{
-                    padding: "4px 8px",
-                    borderRadius: "4px",
-                    border: "1px solid #ccc",
-                  }}
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
-                <span style={{ fontSize: "14px", color: "#666" }}>entries</span>
+            <ReportTableState loading={loading} hasData={paginatedData.length > 0} columns={3}>
+              <div className="table-wrapper">
+                <table id="reportTable">
+                  <thead>
+                    <tr>
+                      <th>Item Name</th>
+                      <th>{headers.prev}</th>
+                      <th>{headers.curr}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan={3} style={{ textAlign: "center", padding: "40px" }}>
+                          Loading data...
+                        </td>
+                      </tr>
+                    ) : paginatedData.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
+                          No Records Found
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedData.map((item, idx) => (
+                        <tr key={idx}>
+                          <td style={{ fontWeight: 600 }}>{item.item_name}</td>
+                          <td>
+                            <span
+                              className={`qty-pill ${item.previous_quantity === 0 ? "zero" : ""
+                                }`}
+                            >
+                              {item.previous_quantity}
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              className={`qty-pill ${item.current_quantity === 0 ? "zero" : ""
+                                }`}
+                            >
+                              {item.current_quantity}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
-
-              <ReportPagination
+              <ReportTableFooter
                 currentPage={pageNumber}
                 totalPages={totalPages}
                 totalRecords={totalRecords}
                 pageSize={pageSize}
                 onPageChange={(page) => setPageNumber(page)}
+                onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
               />
-            </div>
+            </ReportTableState>
           </div>
-          <div className="step-footer">
-            <button className="btn-prev" id="prevBtn">
-              <i className="fas fa-chevron-left"></i> PREVIOUS
-            </button>
-            <div className="step-indicator">
-              <span className="step-label">STEP</span>
-              <span className="step-value" id="stepValue">
-                13/26
-              </span>
-            </div>
-            <button className="btn-next" id="nextBtn">
-              NEXT <i className="fas fa-chevron-right"></i>
-            </button>
-          </div>
+          <ReportStepFooter currentStepOverride={14} totalStepsOverride={25} />
         </div>
       </div>
     </div>

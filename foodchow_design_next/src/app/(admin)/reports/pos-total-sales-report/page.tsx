@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Script from "next/script";
 import { reportsService } from "@/api/services/report.service";
-import ReportPagination from "@/components/shared/ReportPagination";
+import ReportTableFooter from "@/components/shared/ReportTableFooter";
+import ReportTableState from "@/components/shared/ReportTableState";
+import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
 import "./page.css";
 
@@ -49,6 +51,9 @@ export default function PosTotalSalesReportPage() {
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
 
+  // In-memory cache for fast instant filter switching
+  const cacheRef = useRef<Map<string, { rows: Row[]; totalAmount: number; totalOrders: number }>>(new Map());
+
   useEffect(() => {
     const today = new Date().toISOString().split("T")[0];
     setDateFrom(today);
@@ -56,8 +61,18 @@ export default function PosTotalSalesReportPage() {
   }, []);
 
   const loadPeriodData = useCallback(async (selectedPeriod: Period) => {
-    setLoading(true);
     setPageNumber(1);
+
+    const cacheKey = `${selectedPeriod}_${shopId}_${selMonth}_${selYearM}_${selYearY}_${dateFrom}_${dateTo}`;
+    if (cacheRef.current.has(cacheKey)) {
+      const cached = cacheRef.current.get(cacheKey)!;
+      setRows(cached.rows);
+      setTotalAmount(cached.totalAmount);
+      setTotalOrders(cached.totalOrders);
+      return;
+    }
+
+    setLoading(true);
     try {
       let result: any[] = [];
       if (selectedPeriod === "today") {
@@ -79,13 +94,27 @@ export default function PosTotalSalesReportPage() {
           amount: item.total_amount || item.amount || 0,
         }));
 
+        const tAmt = formattedRows.reduce((sum, item) => sum + item.amount, 0);
+        const tOrd = formattedRows.reduce((sum, item) => sum + item.orders, 0);
+
         setRows(formattedRows);
-        setTotalAmount(formattedRows.reduce((sum, item) => sum + item.amount, 0));
-        setTotalOrders(formattedRows.reduce((sum, item) => sum + item.orders, 0));
+        setTotalAmount(tAmt);
+        setTotalOrders(tOrd);
+
+        cacheRef.current.set(cacheKey, {
+          rows: formattedRows,
+          totalAmount: tAmt,
+          totalOrders: tOrd,
+        });
       } else {
         setRows([]);
         setTotalAmount(0);
         setTotalOrders(0);
+        cacheRef.current.set(cacheKey, {
+          rows: [],
+          totalAmount: 0,
+          totalOrders: 0,
+        });
       }
     } catch (err) {
       console.error(`Error loading POS total sales for ${selectedPeriod}:`, err);
@@ -99,14 +128,14 @@ export default function PosTotalSalesReportPage() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (shopId && (period === "today" || period === "weekly")) {
-      loadPeriodData(period);
+    if (shopId && period === "today") {
+      loadPeriodData("today");
     }
   }, [shopId, period]);
 
   const exportExcel = (): void => {
     if (!rows.length) {
-      alert("No data to export. Please select a period with data.");
+      alert("No data available to export");
       return;
     }
     const XLSX = window.XLSX;
@@ -140,7 +169,6 @@ export default function PosTotalSalesReportPage() {
   const totalPages = Math.ceil(totalRecords / pageSize);
   const startIndex = (pageNumber - 1) * pageSize;
   const paginatedRows = rows.slice(startIndex, startIndex + pageSize);
-  const endIndex = Math.min(startIndex + pageSize, totalRecords);
 
   return (
     <div id="pg-reports-pos-total-sales-report">
@@ -167,136 +195,202 @@ export default function PosTotalSalesReportPage() {
 
               {/* Filter tabs row */}
               <div className="filter-row">
-                <div className="filter-tabs">
-                  <button
-                    className={`period-btn ${period === "today" ? "active" : ""}`}
-                    onClick={() => { setPeriod("today"); setRows([]); }}
-                  >
-                    Today
+                <button
+                  className={`period-btn ${period === "today" ? "active" : ""}`}
+                  onClick={() => { setPeriod("today"); loadPeriodData("today"); }}
+                >
+                  Today
+                </button>
+                <button
+                  className={`period-btn ${period === "weekly" ? "active" : ""}`}
+                  onClick={() => {
+                    setPeriod("weekly");
+                    setRows([]);
+                    setTotalAmount(0);
+                    setTotalOrders(0);
+                  }}
+                >
+                  This Week
+                </button>
+                <button
+                  className={`period-btn ${period === "monthly" ? "active" : ""}`}
+                  onClick={() => {
+                    setPeriod("monthly");
+                    setRows([]);
+                    setTotalAmount(0);
+                    setTotalOrders(0);
+                  }}
+                >
+                  Month Wise
+                </button>
+                <button
+                  className={`period-btn ${period === "yearly" ? "active" : ""}`}
+                  onClick={() => {
+                    setPeriod("yearly");
+                    setRows([]);
+                    setTotalAmount(0);
+                    setTotalOrders(0);
+                  }}
+                >
+                  Year Wise
+                </button>
+                <button
+                  className={`period-btn ${period === "datewise" ? "active" : ""}`}
+                  onClick={() => {
+                    setPeriod("datewise");
+                    setRows([]);
+                    setTotalAmount(0);
+                    setTotalOrders(0);
+                  }}
+                >
+                  Custom
+                </button>
+              </div>
+              {/* Top export button */}
+              <div style={{ display: "flex", gap: "10px" }}>
+                {rows.length > 0 && (
+                  <button className="btn-action btn-export" onClick={exportExcel}>
+                    <svg viewBox="0 0 24 24">
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    EXPORT TO EXCEL
                   </button>
-                  <button
-                    className={`period-btn ${period === "weekly" ? "active" : ""}`}
-                    onClick={() => { setPeriod("weekly"); setRows([]); }}
-                  >
-                    Weekly
-                  </button>
-                  <button
-                    className={`period-btn ${period === "monthly" ? "active" : ""}`}
-                    onClick={() => { setPeriod("monthly"); setRows([]); }}
-                  >
-                    Monthly
-                  </button>
-                  <button
-                    className={`period-btn ${period === "yearly" ? "active" : ""}`}
-                    onClick={() => { setPeriod("yearly"); setRows([]); }}
-                  >
-                    Yearly
-                  </button>
-                  <button
-                    className={`period-btn ${period === "datewise" ? "active" : ""}`}
-                    onClick={() => { setPeriod("datewise"); setRows([]); }}
-                  >
-                    Date Wise
-                  </button>
-                </div>
-                {/* Top GET DATA button removed to avoid confusion; each section has its own or auto-loads */}
-                <div style={{ display: "flex", gap: "10px" }}>
-                  {rows.length > 0 && (
-                    <button className="btn-export" onClick={exportExcel}>
-                      <i className="fas fa-file-excel"></i> Export to Excel
-                    </button>
-                  )}
-                </div>
+                )}
               </div>
 
-              {/* Monthly filters */}
-              {period === "monthly" && (
-                <div className="date-controls visible" id="ctrl-monthly">
-                  <div className="filter-group">
-                    <label className="filter-label">Select Month :</label>
-                    <select
-                      className="filter-select"
-                      value={selMonth}
-                      onChange={(e) => setSelMonth(e.target.value)}
-                    >
-                      <option value="1">January</option>
-                      <option value="2">February</option>
-                      <option value="3">March</option>
-                      <option value="4">April</option>
-                      <option value="5">May</option>
-                      <option value="6">June</option>
-                      <option value="7">July</option>
-                      <option value="8">August</option>
-                      <option value="9">September</option>
-                      <option value="10">October</option>
-                      <option value="11">November</option>
-                      <option value="12">December</option>
-                    </select>
-                  </div>
-                  <div className="filter-group">
-                    <label className="filter-label">Select Year :</label>
-                    <select
-                      className="filter-select"
-                      value={selYearM}
-                      onChange={(e) => setSelYearM(e.target.value)}
-                    >
-                      {yearOptions.map((y) => (
-                        <option key={y} value={String(y)}>
-                          {y}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <button className="btn-apply" onClick={() => loadPeriodData("monthly")}>GET DATA</button>
-                </div>
-              )}
+            {/* Weekly filters */}
+            {period === "weekly" && (
+              <div className="date-controls visible" id="ctrl-weekly">
+                <button className="btn-apply" onClick={() => loadPeriodData("weekly")}>GET DATA</button>
+                {rows.length > 0 && (
+                  <button className="btn-action btn-export" onClick={exportExcel}>
+                    <svg viewBox="0 0 24 24">
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    EXPORT TO EXCEL
+                  </button>
+                )}
+              </div>
+            )}
 
-              {/* Yearly filters */}
-              {period === "yearly" && (
-                <div className="date-controls visible" id="ctrl-yearly">
-                  <div className="filter-group">
-                    <label className="filter-label">Select Year :</label>
-                    <select
-                      className="filter-select"
-                      value={selYearY}
-                      onChange={(e) => setSelYearY(e.target.value)}
-                    >
-                      {yearOptions.map((y) => (
-                        <option key={y} value={String(y)}>
-                          {y}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <button className="btn-apply" onClick={() => loadPeriodData("yearly")}>GET DATA</button>
+            {/* Monthly filters */}
+            {period === "monthly" && (
+              <div className="date-controls visible" id="ctrl-monthly">
+                <div className="filter-group">
+                  <label className="filter-label">Select Month :</label>
+                  <select
+                    className="filter-select"
+                    value={selMonth}
+                    onChange={(e) => setSelMonth(e.target.value)}
+                  >
+                    <option value="1">January</option>
+                    <option value="2">February</option>
+                    <option value="3">March</option>
+                    <option value="4">April</option>
+                    <option value="5">May</option>
+                    <option value="6">June</option>
+                    <option value="7">July</option>
+                    <option value="8">August</option>
+                    <option value="9">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                  </select>
                 </div>
-              )}
-
-              {/* Date Wise filters */}
-              {period === "datewise" && (
-                <div className="date-controls visible" id="ctrl-datewise">
-                  <div className="filter-group">
-                    <label className="filter-label">From Date:</label>
-                    <input
-                      type="date"
-                      className="filter-date"
-                      value={dateFrom}
-                      onChange={(e) => setDateFrom(e.target.value)}
-                    />
-                  </div>
-                  <div className="filter-group">
-                    <label className="filter-label">To Date:</label>
-                    <input
-                      type="date"
-                      className="filter-date"
-                      value={dateTo}
-                      onChange={(e) => setDateTo(e.target.value)}
-                    />
-                  </div>
-                  <button className="btn-apply" onClick={() => loadPeriodData("datewise")}>APPLY</button>
+                <div className="filter-group">
+                  <label className="filter-label">Select Year :</label>
+                  <select
+                    className="filter-select"
+                    value={selYearM}
+                    onChange={(e) => setSelYearM(e.target.value)}
+                  >
+                    {yearOptions.map((y) => (
+                      <option key={y} value={String(y)}>
+                        {y}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              )}
+                <button className="btn-apply" onClick={() => loadPeriodData("monthly")}>GET DATA</button>
+                <button className="btn-action btn-export" onClick={exportExcel}>
+                  <svg viewBox="0 0 24 24">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  EXPORT TO EXCEL
+                </button>
+              </div>
+            )}
 
+            {/* Yearly filters */}
+            {period === "yearly" && (
+              <div className="date-controls visible" id="ctrl-yearly">
+                <div className="filter-group">
+                  <label className="filter-label">Select Year :</label>
+                  <select
+                    className="filter-select"
+                    value={selYearY}
+                    onChange={(e) => setSelYearY(e.target.value)}
+                  >
+                    {yearOptions.map((y) => (
+                      <option key={y} value={String(y)}>
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button className="btn-apply" onClick={() => loadPeriodData("yearly")}>GET DATA</button>
+                <button className="btn-action btn-export" onClick={exportExcel}>
+                  <svg viewBox="0 0 24 24">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  EXPORT TO EXCEL
+                </button>
+              </div>
+            )}
+
+            {/* Date Wise filters */}
+            {period === "datewise" && (
+              <div className="date-controls visible" id="ctrl-datewise">
+                <div className="filter-group">
+                  <label className="filter-label">From Date:</label>
+                  <input
+                    type="date"
+                    className="filter-date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                  />
+                </div>
+                <div className="filter-group">
+                  <label className="filter-label">To Date:</label>
+                  <input
+                    type="date"
+                    className="filter-date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                  />
+                </div>
+                <button className="btn-apply" onClick={() => loadPeriodData("datewise")}>GET DATA</button>
+                <button className="btn-action btn-export" onClick={exportExcel}>
+                  <svg viewBox="0 0 24 24">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  EXPORT TO EXCEL
+                </button>
+              </div>
+            )}
+
+            {/* Results Section */}
+            <div className="results-section" style={{ display: "block" }}>
               {/* Summary */}
               <div className="summary-stats">
                 <div className="stat-line">
@@ -312,79 +406,59 @@ export default function PosTotalSalesReportPage() {
                 <div className="table-card-header">
                   <span>Sales Breakdown</span>
                 </div>
-                <div className="table-wrap">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Delivery Method</th>
-                        <th>Total Orders</th>
-                        <th>Total Sales Amount(Rs.)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {loading ? (
-                        <tr><td colSpan={3} className="no-data">Loading...</td></tr>
-                      ) : paginatedRows.length === 0 ? (
-                        <tr className="no-data"><td colSpan={3}>No Record Found</td></tr>
-                      ) : (
-                        paginatedRows.map((r, i) => (
-                          <tr key={i}>
-                            <td>{r.method}</td>
-                            <td>{r.orders}</td>
-                            <td>{r.amount.toFixed(2)}</td>
+                <ReportTableState loading={loading} hasData={paginatedRows.length > 0} columns={3}>
+                  <div className="table-wrap">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Delivery Method</th>
+                          <th>Total Orders</th>
+                          <th>Total Sales Amount(Rs.)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {loading ? (
+                          <tr>
+                            <td colSpan={3} style={{ textAlign: "center", padding: "40px" }}>
+                              Loading data...
+                            </td>
                           </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                  <div className="table-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '13px', color: '#64748b' }}>Show</span>
-                      <select
-                        value={pageSize}
-                        onChange={(e) => {
-                          setPageSize(Number(e.target.value));
-                          setPageNumber(1);
-                        }}
-                        style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                      >
-                        <option value={10}>10</option>
-                        <option value={20}>20</option>
-                        <option value={50}>50</option>
-                      </select>
-                      <span style={{ fontSize: '13px', color: '#64748b' }}>entries</span>
-                    </div>
-                    <div style={{ fontSize: '13px', color: '#64748b' }}>
-                      Showing {rows.length === 0 ? 0 : startIndex + 1} to {endIndex} of {totalRecords} entries
-                    </div>
-                    <ReportPagination
+                        ) : paginatedRows.length === 0 ? (
+                          <tr>
+                            <td colSpan={3} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
+                              No Records Found
+                            </td>
+                          </tr>
+                        ) : (
+                          paginatedRows.map((r, i) => (
+                            <tr key={i}>
+                              <td>{r.method}</td>
+                              <td>{r.orders}</td>
+                              <td>{r.amount.toFixed(2)}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                    <ReportTableFooter
                       currentPage={pageNumber}
                       totalPages={totalPages}
+                      totalRecords={totalRecords}
+                      pageSize={pageSize}
                       onPageChange={(page) => setPageNumber(page)}
+                      onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
                     />
                   </div>
-                </div>
+                </ReportTableState>
               </div>
-            </div>
-
-            {/* STEP FOOTER */}
-            <div className="step-footer">
-              <button className="btn-prev" id="prevBtn">
-                <i className="fas fa-chevron-left"></i> PREVIOUS
-              </button>
-              <div className="step-indicator">
-                <span className="step-label">STEP</span>
-                <span className="step-value" id="stepValue">
-                  17/25
-                </span>
-              </div>
-              <button className="btn-next" id="nextBtn">
-                NEXT <i className="fas fa-chevron-right"></i>
-              </button>
             </div>
           </div>
+
+          {/* STEP FOOTER */}
+          <ReportStepFooter currentStepOverride={17} totalStepsOverride={25} />
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 }

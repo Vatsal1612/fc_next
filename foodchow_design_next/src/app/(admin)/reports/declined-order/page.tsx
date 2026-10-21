@@ -500,7 +500,7 @@
 //                 <button className="tab-btn">Date Wise</button>
 //               </div>
 //               <button className="btn-export">
-//                 <i className="fas fa-file-excel"></i> Export to Excel
+//                 <i className="fas fa-file-excel"></i> EXPORT TO EXCEL
 //               </button>
 //             </div>
 
@@ -627,19 +627,29 @@
 //   );
 // }
 
-
-
-
 "use client";
 
 import { useEffect, useState } from "react";
 import Script from "next/script";
 import "./page.css";
 import { reportsService, VoidOrder, OrderItemDetail } from "@/api/services/report.service";
-import ReportPagination from "@/components/shared/ReportPagination";
+import ReportTableFooter from "@/components/shared/ReportTableFooter";
+import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
 
+interface XlsxLike {
+    utils: {
+        book_new: () => unknown;
+        aoa_to_sheet: (data: unknown[][]) => {
+            "!cols"?: { wch: number }[];
+        };
+        book_append_sheet: (wb: unknown, ws: unknown, name: string) => void;
+    };
+    writeFile: (wb: unknown, filename: string) => void;
+}
+
 type TabKey = "today" | "weekly" | "monthly" | "yearly" | "datewise";
+const tabKeys: TabKey[] = ["today", "weekly", "monthly", "yearly", "datewise"];
 
 interface DisplayOrder {
     date: string;
@@ -661,6 +671,7 @@ export default function DeclinedOrderPage() {
     const [activeTab, setActiveTab] = useState<TabKey>("today");
     const [data, setData] = useState<DisplayOrder[]>([]);
     const [loading, setLoading] = useState(false);
+    const [hasSearched, setHasSearched] = useState(false);
     const [totalAmount, setTotalAmount] = useState(0);
     const [selectedOrder, setSelectedOrder] = useState<DisplayOrder | null>(null);
     const [orderItems, setOrderItems] = useState<OrderItemDetail[]>([]);
@@ -672,6 +683,12 @@ export default function DeclinedOrderPage() {
     const [serverTotalPages, setServerTotalPages] = useState(1);
     const [paymentMethod, setPaymentMethod] = useState("");
 
+    const [monthlyMonth, setMonthlyMonth] = useState<string>(() => String(new Date().getMonth() + 1));
+    const [monthlyYear, setMonthlyYear] = useState<string>(() => String(new Date().getFullYear()));
+    const [yearlyYear, setYearlyYear] = useState<string>(() => String(new Date().getFullYear()));
+    const [fromDate, setFromDate] = useState<string>(() => new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0]);
+    const [toDate, setToDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
+
     const isServerPaginated = true;
     const totalRecords = isServerPaginated ? serverTotalRecords : data.length;
     const totalPages = isServerPaginated ? serverTotalPages : Math.max(1, Math.ceil(data.length / pageSize));
@@ -681,7 +698,7 @@ export default function DeclinedOrderPage() {
     // and whenever pagination or payment method changes.
     useEffect(() => {
         if (shopId) {
-            if (activeTab === "today" || activeTab === "weekly") {
+            if (activeTab === "today" || activeTab === "weekly" || hasSearched) {
                 fetchData(activeTab);
             }
         }
@@ -751,6 +768,7 @@ export default function DeclinedOrderPage() {
     // Fetch data based on tab
     const fetchData = async (tab: TabKey) => {
         if (!shopId) return;
+        setHasSearched(true);
         setLoading(true);
         setData([]);
         setTotalAmount(0);
@@ -771,25 +789,20 @@ export default function DeclinedOrderPage() {
                 setServerTotalRecords(res.totalRecords);
                 setServerTotalPages(res.totalPages || 1);
             } else if (tab === "monthly") {
-                const monthVal = (document.getElementById("monthly-month") as HTMLSelectElement)?.value || String(new Date().getMonth() + 1);
-                const yearVal = (document.getElementById("monthly-year") as HTMLSelectElement)?.value || String(new Date().getFullYear());
-                const res = await reportsService.getVoidOrdersByMonth(shopId, monthVal, yearVal, pageNumber, pageSize);
+                const res = await reportsService.getVoidOrdersByMonth(shopId, monthlyMonth, monthlyYear, pageNumber, pageSize);
                 const transformed = transformVoidOrders(res.items);
                 setData(transformed);
                 setTotalAmount(calculateTotal(transformed));
                 setServerTotalRecords(res.totalRecords);
                 setServerTotalPages(res.totalPages || 1);
             } else if (tab === "yearly") {
-                const yearVal = (document.getElementById("yearly-year") as HTMLSelectElement)?.value || String(new Date().getFullYear());
-                const res = await reportsService.getVoidOrdersByYear(shopId, yearVal, pageNumber, pageSize);
+                const res = await reportsService.getVoidOrdersByYear(shopId, yearlyYear, pageNumber, pageSize);
                 const transformed = transformVoidOrders(res.items);
                 setData(transformed);
                 setTotalAmount(calculateTotal(transformed));
                 setServerTotalRecords(res.totalRecords);
                 setServerTotalPages(res.totalPages || 1);
             } else if (tab === "datewise") {
-                const fromDate = (document.getElementById("from-date") as HTMLInputElement)?.value || "";
-                const toDate = (document.getElementById("to-date") as HTMLInputElement)?.value || "";
                 const res = await reportsService.getVoidOrdersByDateWise(shopId, fromDate, toDate, pageNumber, pageSize);
                 const transformed = transformVoidOrders(res.items);
                 setData(transformed);
@@ -808,28 +821,22 @@ export default function DeclinedOrderPage() {
         }
     };
 
-
     // Switch tab
-    const switchTab = (tab: TabKey, btnEl: HTMLElement | null) => {
+    const switchTab = (tab: TabKey) => {
+        if (activeTab === tab) return;
         setActiveTab(tab);
         setPageNumber(1);
-        document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
-        if (btnEl) btnEl.classList.add("active");
-
-        // Show/hide filters
-        ["filter-weekly", "filter-monthly", "filter-yearly", "filter-datewise"].forEach((id) => {
-            document.getElementById(id)?.classList.remove("show");
-        });
-        if (tab === "weekly") document.getElementById("filter-weekly")?.classList.add("show");
-        if (tab === "monthly") document.getElementById("filter-monthly")?.classList.add("show");
-        if (tab === "yearly") document.getElementById("filter-yearly")?.classList.add("show");
-        if (tab === "datewise") document.getElementById("filter-datewise")?.classList.add("show");
-
-        // Update total label
-        const label = document.getElementById("total-amount-label");
-        if (label) {
-            const total = calculateTotal(data);
-            label.textContent = `Total Amount: Rs. ${total.toFixed(2)}`;
+        setData([]);
+        setTotalAmount(0);
+        setServerTotalRecords(0);
+        setServerTotalPages(1);
+        if (tab === "today" || tab === "weekly") {
+            setHasSearched(true);
+            if (shopId) {
+                fetchData(tab);
+            }
+        } else {
+            setHasSearched(false);
         }
     };
 
@@ -861,16 +868,15 @@ export default function DeclinedOrderPage() {
         document.getElementById("itemsModal")?.classList.remove("open");
     };
 
-    // Export to Excel
+    // EXPORT TO EXCEL
     const exportToExcel = () => {
         if (!data || data.length === 0) {
-            alert("No records to export.");
+            alert("No data available to export");
             return;
         }
 
-        const XLSX = (window as any).XLSX;
+        const XLSX = (window as unknown as { XLSX?: XlsxLike }).XLSX;
         if (!XLSX) {
-            alert("Excel library not loaded yet.");
             return;
         }
 
@@ -919,7 +925,7 @@ export default function DeclinedOrderPage() {
         if (!displayedData || displayedData.length === 0) {
             return (
                 <tr>
-                    <td colSpan={12} className="no-data">No Data Available</td>
+                    <td colSpan={12} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>No Records Found</td>
                 </tr>
             );
         }
@@ -950,118 +956,20 @@ export default function DeclinedOrderPage() {
         ));
     };
 
-    // Populate year dropdowns
+
+
+
+    // Wire modal click
     useEffect(() => {
-        const currentYear = new Date().getFullYear();
-        const populateYears = (selectId: string) => {
-            const el = document.getElementById(selectId) as HTMLSelectElement | null;
-            if (!el) return;
-            el.innerHTML = "";
-            for (let y = currentYear; y >= currentYear - 9; y--) {
-                const opt = document.createElement("option");
-                opt.value = String(y);
-                opt.textContent = String(y);
-                if (y === currentYear) opt.selected = true;
-                el.appendChild(opt);
-            }
-        };
-
-        populateYears("monthly-year");
-        populateYears("yearly-year");
-
-        // Set date defaults
-        const today = new Date();
-        const monthAgo = new Date();
-        monthAgo.setDate(monthAgo.getDate() - 30);
-        const fromDate = document.getElementById("from-date") as HTMLInputElement | null;
-        const toDate = document.getElementById("to-date") as HTMLInputElement | null;
-        if (fromDate) fromDate.value = monthAgo.toISOString().split("T")[0];
-        if (toDate) toDate.value = today.toISOString().split("T")[0];
-
-        // Set current month
-        const monthSelect = document.getElementById("monthly-month") as HTMLSelectElement | null;
-        if (monthSelect) monthSelect.value = String(today.getMonth() + 1);
-    }, []);
-
-    // Wire up event listeners
-    useEffect(() => {
-        // Tab buttons
-        const tabKeys: TabKey[] = ["today", "weekly", "monthly", "yearly", "datewise"];
-        const tabBtns = document.querySelectorAll<HTMLButtonElement>(".tab-btn");
-        const tabHandlers: Array<{ btn: HTMLButtonElement; handler: () => void }> = [];
-
-        tabBtns.forEach((btn, i) => {
-            const handler = () => switchTab(tabKeys[i], btn);
-            btn.addEventListener("click", handler);
-            tabHandlers.push({ btn, handler });
-        });
-
-        // Apply buttons for filters
-        const applyButtons = document.querySelectorAll(".btn-apply");
-        const applyHandlers: Array<{ btn: Element; handler: () => void }> = [];
-        applyButtons.forEach((btn) => {
-            const handler = () => {
-                const panel = btn.closest(".filter-row");
-                let tab: TabKey = "monthly";
-                if (panel?.id === "filter-monthly") tab = "monthly";
-                else if (panel?.id === "filter-yearly") tab = "yearly";
-                else if (panel?.id === "filter-datewise") tab = "datewise";
-                setPageNumber(1);
-                fetchData(tab);
-            };
-            btn.addEventListener("click", handler);
-            applyHandlers.push({ btn, handler });
-        });
-
-        // Export button
-        const exportBtn = document.querySelector<HTMLButtonElement>(".btn-export");
-        exportBtn?.addEventListener("click", exportToExcel);
-
-        // Modal close
-        const closeBtn = document.querySelector<HTMLButtonElement>(".close-btn");
-        closeBtn?.addEventListener("click", closeModal);
-
         const itemsModal = document.getElementById("itemsModal");
         const onModalClick = (e: MouseEvent) => {
             if (e.target === itemsModal) closeModal();
         };
         itemsModal?.addEventListener("click", onModalClick);
-
-        // Step nav
-        let currentStep = 0;
-        const totalSteps = 5;
-        const prevBtn = document.getElementById("prevBtn");
-        const nextBtn = document.getElementById("nextBtn");
-        const stepValue = document.getElementById("stepValue");
-
-        const navigateStep = (dir: number) => {
-            currentStep = Math.max(0, Math.min(totalSteps - 1, currentStep + dir));
-            const tab = tabKeys[currentStep];
-            if (stepValue) stepValue.textContent = `${currentStep + 1}/${totalSteps}`;
-            const tabBtnsList = document.querySelectorAll<HTMLButtonElement>(".tab-btn");
-            switchTab(tab, tabBtnsList[currentStep]);
-        };
-
-        prevBtn?.addEventListener("click", () => navigateStep(-1));
-        nextBtn?.addEventListener("click", () => navigateStep(1));
-
-        // Help button
-        const helpBtn = document.querySelector(".action-btn-help");
-        helpBtn?.addEventListener("click", () => {
-            alert("Help & Support - Declined Orders");
-        });
-
         return () => {
-            tabHandlers.forEach(({ btn, handler }) => btn.removeEventListener("click", handler));
-            applyHandlers.forEach(({ btn, handler }) => btn.removeEventListener("click", handler));
-            exportBtn?.removeEventListener("click", exportToExcel);
-            closeBtn?.removeEventListener("click", closeModal);
             itemsModal?.removeEventListener("click", onModalClick);
-            prevBtn?.removeEventListener("click", () => { });
-            nextBtn?.removeEventListener("click", () => { });
-            helpBtn?.removeEventListener("click", () => { });
         };
-    }, [data]);
+    }, []);
 
     return (
         <div id="pg-reports-declined-order">
@@ -1074,8 +982,11 @@ export default function DeclinedOrderPage() {
                 <div className="main-content">
                     <div className="report-card">
                         <div className="report-header">
-                            <div className="report-title">Total Declined Order Reports {totalAmount > 0 ? `(Total: Rs. ${totalAmount.toFixed(2)})` : ""}</div>
-                            <button className="action-btn action-btn-help">
+                            <div className="typ-page-heading report-title">Total Declined Order Reports {totalAmount > 0 ? `(Total: Rs. ${totalAmount.toFixed(2)})` : ""}</div>
+                            <button
+                                className="action-btn action-btn-help"
+                                onClick={() => alert("Help & Support - Declined Orders")}
+                            >
                                 <svg viewBox="0 0 24 24">
                                     <circle cx="12" cy="12" r="10" />
                                     <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" />
@@ -1088,165 +999,260 @@ export default function DeclinedOrderPage() {
                         {/* Tabs bar */}
                         <div className="tabs-bar">
                             <div className="tabs">
-                                <button className="tab-btn active">Today</button>
-                                <button className="tab-btn">Weekly</button>
-                                <button className="tab-btn">Monthly</button>
-                                <button className="tab-btn">Yearly</button>
-                                <button className="tab-btn">Date Wise</button>
+                                {tabKeys.map((key) => {
+                                    const labels: Record<TabKey, string> = {
+                                        today: "Today",
+                                        weekly: "This Week",
+                                        monthly: "Month Wise",
+                                        yearly: "Year Wise",
+                                        datewise: "Custom",
+                                    };
+                                    return (
+                                        <button
+                                            key={key}
+                                            className={`tab-btn ${activeTab === key ? "active" : ""}`}
+                                            onClick={() => switchTab(key)}
+                                        >
+                                            {labels[key]}
+                                        </button>
+                                    );
+                                })}
                             </div>
-                            <button className="btn-export">
-                                <i className="fas fa-file-excel"></i> Export to Excel
-                            </button>
+
+                            {(activeTab === "today" || activeTab === "weekly") && (
+                                <button
+                                    className="btn-action btn-export"
+                                    onClick={exportToExcel}
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                        <polyline points="7 10 12 15 17 10" />
+                                        <line x1="12" y1="15" x2="12" y2="3" />
+                                    </svg>
+                                    EXPORT TO EXCEL
+                                </button>
+                            )}
                         </div>
 
                         {/* Weekly filter */}
-                        <div className="filter-row" id="filter-weekly">
-                            <div className="filter-group">
-                                <label>Payment Method</label>
-                                <select
-                                    id="weekly-payment-method"
-                                    value={paymentMethod}
-                                    onChange={(e) => {
-                                        setPaymentMethod(e.target.value);
-                                        setPageNumber(1);
-                                    }}
-                                >
-                                    <option value="">All</option>
-                                    <option value="Cash">Cash</option>
-                                    <option value="Card">Card</option>
-                                    <option value="Online">Online</option>
-                                    <option value="COD">COD</option>
-                                </select>
+                        {activeTab === "weekly" && (
+                            <div className="filter-row show" id="filter-weekly">
+                                <div className="filter-group">
+                                    <label>Payment Method</label>
+                                    <select
+                                        id="weekly-payment-method"
+                                        value={paymentMethod}
+                                        onChange={(e) => {
+                                            setPaymentMethod(e.target.value);
+                                            setPageNumber(1);
+                                        }}
+                                    >
+                                        <option value="">All</option>
+                                        <option value="Cash">Cash</option>
+                                        <option value="Card">Card</option>
+                                        <option value="Online">Online</option>
+                                        <option value="COD">COD</option>
+                                    </select>
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* Monthly filter */}
-                        <div className="filter-row" id="filter-monthly">
-                            <div className="filter-group">
-                                <label>Select Month</label>
-                                <select id="monthly-month" defaultValue="6">
-                                    <option value="1">January</option>
-                                    <option value="2">February</option>
-                                    <option value="3">March</option>
-                                    <option value="4">April</option>
-                                    <option value="5">May</option>
-                                    <option value="6">June</option>
-                                    <option value="7">July</option>
-                                    <option value="8">August</option>
-                                    <option value="9">September</option>
-                                    <option value="10">October</option>
-                                    <option value="11">November</option>
-                                    <option value="12">December</option>
-                                </select>
-                            </div>
-                            <div className="filter-group">
-                                <label>Select Year</label>
-                                <select id="monthly-year"></select>
-                            </div>
-                            <button className="btn-apply">APPLY</button>
-                        </div>
-
-                        {/* Yearly filter */}
-                        <div className="filter-row" id="filter-yearly">
-                            <div className="filter-group">
-                                <label>Select Year</label>
-                                <select id="yearly-year"></select>
-                            </div>
-                            <button className="btn-apply">APPLY</button>
-                        </div>
-
-                        {/* Date Wise filter */}
-                        <div className="filter-row" id="filter-datewise">
-                            <div className="filter-group">
-                                <label>From Date:</label>
-                                <input type="date" id="from-date" />
-                            </div>
-                            <div className="filter-group">
-                                <label>To Date:</label>
-                                <input type="date" id="to-date" />
-                            </div>
-                            <button className="btn-apply">APPLY</button>
-                        </div>
-
-                        {/* Total Amount & Pagination Header Controls */}
-                        <div className="total-amount" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span id="total-amount-label">Total Amount: Rs. 0.00</span>
-                            <div style={{ fontSize: "13px", color: "var(--text-secondary, #666)", display: "flex", alignItems: "center", gap: "8px" }}>
-                                <span>Show</span>
-                                <select
-                                    className="input-control"
-                                    style={{ width: "auto", padding: "2px 6px", fontSize: "13px" }}
-                                    value={pageSize}
-                                    onChange={(e) => {
-                                        setPageSize(Number(e.target.value));
+                        {activeTab === "monthly" && (
+                            <div className="filter-row show" id="filter-monthly">
+                                <div className="filter-group">
+                                    <label>Select Month</label>
+                                    <select
+                                        id="monthly-month"
+                                        value={monthlyMonth}
+                                        onChange={(e) => setMonthlyMonth(e.target.value)}
+                                    >
+                                        <option value="1">January</option>
+                                        <option value="2">February</option>
+                                        <option value="3">March</option>
+                                        <option value="4">April</option>
+                                        <option value="5">May</option>
+                                        <option value="6">June</option>
+                                        <option value="7">July</option>
+                                        <option value="8">August</option>
+                                        <option value="9">September</option>
+                                        <option value="10">October</option>
+                                        <option value="11">November</option>
+                                        <option value="12">December</option>
+                                    </select>
+                                </div>
+                                <div className="filter-group">
+                                    <label>Select Year</label>
+                                    <select
+                                        id="monthly-year"
+                                        value={monthlyYear}
+                                        onChange={(e) => setMonthlyYear(e.target.value)}
+                                    >
+                                        {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                                            <option key={y} value={String(y)}>{y}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <button
+                                    className="btn-apply"
+                                    onClick={() => {
                                         setPageNumber(1);
+                                        setHasSearched(true);
+                                        fetchData("monthly");
                                     }}
                                 >
-                                    <option value={10}>10</option>
-                                    <option value={20}>20</option>
-                                    <option value={50}>50</option>
-                                </select>
-                                <span>entries</span>
-                                {totalRecords > 0 && (
-                                    <span style={{ marginLeft: "8px" }}>
-                                        ({(pageNumber - 1) * pageSize + 1} - {Math.min(pageNumber * pageSize, totalRecords)} of {totalRecords})
-                                    </span>
-                                )}
+                                    GET DATA
+                                </button>
+                                <button className="btn-action btn-export" onClick={exportToExcel}>
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                                        <polyline points="7 10 12 15 17 10" />
+                                        <line x1="12" y1="15" x2="12" y2="3" />
+                                    </svg>
+                                    EXPORT TO EXCEL
+                                </button>
                             </div>
-                        </div>
+                        )}
 
-                        {/* Table */}
-                        <div className="table-wrapper">
-                            <table id="report-table">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Order ID</th>
-                                        <th>Customer Name</th>
-                                        <th>Mobile No</th>
-                                        <th>Payment Method</th>
-                                        <th>Order Type</th>
-                                        <th>Total Amount</th>
-                                        <th>Total tax (Rs.)</th>
-                                        <th>Total Discount (Rs.)</th>
-                                        <th>Delivery Charge</th>
-                                        <th>Reason</th>
-                                        <th>Details</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="table-body">
-                                    {renderTable()}
-                                </tbody>
-                            </table>
-                        </div>
+                        {/* Yearly filter */}
+                        {activeTab === "yearly" && (
+                            <div className="filter-row show" id="filter-yearly">
+                                <div className="filter-group">
+                                    <label>Select Year</label>
+                                    <select
+                                        id="yearly-year"
+                                        value={yearlyYear}
+                                        onChange={(e) => setYearlyYear(e.target.value)}
+                                    >
+                                        {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                                            <option key={y} value={String(y)}>{y}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <button
+                                    className="btn-apply"
+                                    onClick={() => {
+                                        setPageNumber(1);
+                                        setHasSearched(true);
+                                        fetchData("yearly");
+                                    }}
+                                >
+                                    GET DATA
+                                </button>
+                                <button className="btn-action btn-export" onClick={exportToExcel}>
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                                        <polyline points="7 10 12 15 17 10" />
+                                        <line x1="12" y1="15" x2="12" y2="3" />
+                                    </svg>
+                                    EXPORT TO EXCEL
+                                </button>
+                            </div>
+                        )}
 
-                        <ReportPagination
-                            currentPage={pageNumber}
-                            totalPages={totalPages}
-                            onPageChange={(page) => setPageNumber(page)}
-                            disabled={loading}
-                        />
+                        {/* Date Wise filter */}
+                        {activeTab === "datewise" && (
+                            <div className="filter-row show" id="filter-datewise">
+                                <div className="filter-group">
+                                    <label>From Date:</label>
+                                    <input
+                                        type="date"
+                                        id="from-date"
+                                        value={fromDate}
+                                        onChange={(e) => setFromDate(e.target.value)}
+                                    />
+                                </div>
+                                <div className="filter-group">
+                                    <label>To Date:</label>
+                                    <input
+                                        type="date"
+                                        id="to-date"
+                                        value={toDate}
+                                        onChange={(e) => setToDate(e.target.value)}
+                                    />
+                                </div>
+                                <button
+                                    className="btn-apply"
+                                    onClick={() => {
+                                        setPageNumber(1);
+                                        setHasSearched(true);
+                                        fetchData("datewise");
+                                    }}
+                                >
+                                    GET DATA
+                                </button>
+                                <button className="btn-action btn-export" onClick={exportToExcel}>
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                                        <polyline points="7 10 12 15 17 10" />
+                                        <line x1="12" y1="15" x2="12" y2="3" />
+                                    </svg>
+                                    EXPORT TO EXCEL
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Results Section */}
+                        {(activeTab === "today" || activeTab === "weekly" || hasSearched) && (
+                            <div
+                                className="results-section"
+                                style={{ display: "block" }}
+                            >
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", marginTop: "10px" }}>
+                                    <div style={{ fontSize: "18px", fontWeight: 600, color: "#0aa89e" }}>Description</div>
+                                </div>
+
+                            {/* Total Amount & Pagination Header Controls */}
+                            <div className="total-amount" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <span id="total-amount-label">Total Amount: Rs. {totalAmount.toFixed(2)}</span>
+                            </div>
+
+                            {/* Table */}
+                            <div className="table-wrapper">
+                                <table id="report-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Order ID</th>
+                                            <th>Customer Name</th>
+                                            <th>Mobile No</th>
+                                            <th>Payment Method</th>
+                                            <th>Order Type</th>
+                                            <th>Total Amount</th>
+                                            <th>Total tax (Rs.)</th>
+                                            <th>Total Discount (Rs.)</th>
+                                            <th>Delivery Charge</th>
+                                            <th>Reason</th>
+                                            <th>Details</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="table-body">
+                                        {renderTable()}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <ReportTableFooter
+                                currentPage={pageNumber}
+                                totalPages={totalPages}
+                                totalRecords={totalRecords}
+                                pageSize={pageSize}
+                                onPageChange={(page) => setPageNumber(page)}
+                                onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
+                                disabled={loading}
+                            />
+                        </div>
+                        )}
                     </div>
 
                     {/* Step Navigation */}
-                    <div className="step-nav">
-                        <button className="nav-btn" id="prevBtn">
-                            <i className="fas fa-chevron-left"></i> PREVIOUS
-                        </button>
-                        <div className="step-badge">
-                            <span className="step-label">STEP</span>
-                            <span className="step-value" id="stepValue">1/5</span>
-                        </div>
-                        <button className="nav-btn" id="nextBtn">
-                            NEXT <i className="fas fa-chevron-right"></i>
-                        </button>
-                    </div>
+                    <ReportStepFooter currentStepOverride={21} totalStepsOverride={25} />
                 </div>
 
                 {/* Modal */}
                 <div id="itemsModal" className="modal">
                     <div className="modal-content">
-                        <button className="close-btn">×</button>
+                        <button className="close-btn" onClick={closeModal}>×</button>
                         <h3 id="modalTitle">Order Details - {selectedOrder?.orderId || ""}</h3>
 
                         {/* {selectedOrder && (

@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { WizardFooter } from "@/components/shared/WizardFooter";
-import { ReportPagination } from "@/components/shared/ReportPagination";
-import { useShopId } from "@/utils/shop";
 import "./page.css";
 import {
   menuService,
@@ -11,67 +9,25 @@ import {
 } from "@/api/services/menu.service";
 import Swal from "sweetalert2";
 export default function ItemCodePage() {
-  const SHOP_ID = useShopId();
+  const SHOP_ID = 3161;
 
   const [items, setItems] = useState<ItemCodeItem[]>([]);
   const [itemCodeType, setItemCodeType] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const loadData = async (targetShopId?: number) => {
+  const loadData = async () => {
     try {
       setLoading(true);
 
-      const effectiveShopId =
-        targetShopId ||
-        SHOP_ID ||
-        (typeof window !== "undefined"
-          ? Number(sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id") || 0)
-          : 0);
-
-      if (!effectiveShopId) return;
-
-      const [itemResponse, typeResponse] = await Promise.allSettled([
-        menuService.getItemNames(effectiveShopId),
-        menuService.getItemCodeTypeSetting(effectiveShopId),
+      const [itemResponse, typeResponse] = await Promise.all([
+        menuService.getItemNames(SHOP_ID),
+        menuService.getItemCodeTypeSetting(SHOP_ID),
       ]);
 
-      if (itemResponse.status === "fulfilled") {
-        const rawItems = itemResponse.value;
-        const allEmpty = rawItems.every(
-          (it) => it.item_code === null || it.item_code === undefined || String(it.item_code).trim() === ""
-        );
-
-        if (allEmpty) {
-          // Pre-populate display with +1 sequence (1, 2, 3...) in browser memory only without saving to API
-          const sequenced = rawItems.map((it, idx) => ({
-            ...it,
-            item_code: String(idx + 1),
-          }));
-          setItems(sequenced);
-        } else {
-          // If some items already have codes, fill missing empty codes starting from max numeric code + 1
-          const numericCodes = rawItems
-            .map((it) => parseInt(String(it.item_code ?? "").trim(), 10))
-            .filter((n) => !isNaN(n) && n > 0);
-          let nextCode = numericCodes.length > 0 ? Math.max(...numericCodes) + 1 : 1;
-
-          const filled = rawItems.map((it) => {
-            const codeStr = String(it.item_code ?? "").trim();
-            if (codeStr === "") {
-              const assigned = String(nextCode);
-              nextCode++;
-              return { ...it, item_code: assigned };
-            }
-            return it;
-          });
-          setItems(filled);
-        }
-      }
-      if (typeResponse.status === "fulfilled" && typeResponse.value) {
-        setItemCodeType(Number(typeResponse.value.item_code_type ?? 0));
-      }
+      setItems(itemResponse);
+      setItemCodeType(typeResponse.item_code_type);
     } catch (error) {
-      console.error("Error loading item codes:", error);
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -125,75 +81,30 @@ export default function ItemCodePage() {
   //     });
   //   }
   // };
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-
-  const filteredItems = items.filter((item) => {
-    const matchesSearch = item.item_name.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    let matchesType = true;
-    const code = item.item_code ? String(item.item_code).trim() : "";
-    
-    if (code !== "") {
-      if (itemCodeType === 0) {
-        matchesType = /^\d+$/.test(code);
-      } else {
-        matchesType = /^[a-zA-Z0-9]+$/.test(code);
-      }
-    }
-    
-    return matchesSearch && matchesType;
-  });
-
-  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
-  const validCurrentPage = Math.min(currentPage, totalPages);
-  const startIndex = (validCurrentPage - 1) * pageSize;
-  const paginatedItems = filteredItems.slice(startIndex, startIndex + pageSize);
-
-  const handleTypeChange = async (newType: number) => {
-    setItemCodeType(newType);
-    setCurrentPage(1);
-
-    try {
-      await menuService.saveItemCodeTypeSetting(SHOP_ID, newType);
-    } catch (e) {
-      console.error("Failed to update item code type setting:", e);
-    }
-  };
-
   const saveChanges = async () => {
-    if (itemCodeType === 0) {
-      for (const item of items) {
-        const code = item.item_code ? String(item.item_code).trim() : "";
-        if (code !== "" && !/^\d+$/.test(code)) {
-          await Swal.fire({
-            icon: "error",
-            title: "Validation Error",
-            text: "Please enter numeric values only.",
-          });
-          return;
-        }
-      }
-    } else if (itemCodeType === 1) {
-      for (const item of items) {
-        const code = item.item_code ? String(item.item_code).trim() : "";
-        if (code !== "" && !/^[a-zA-Z0-9]+$/.test(code)) {
-          await Swal.fire({
-            icon: "error",
-            title: "Validation Error",
-            text: "Please enter alphanumeric values only.",
-          });
-          return;
-        }
-      }
-    }
+    // Check for duplicate item codes
+    // const codes = items
+    //   .map((item) => item.item_code?.trim())
+    //   .filter((code) => code !== "");
 
-    // 2. Check for duplicate item codes
+    // const duplicateCode = codes.find(
+    //   (code, index) => codes.indexOf(code) !== index
+    // );
+
+    // if (duplicateCode) {
+    //   await Swal.fire({
+    //     icon: "error",
+    //     title: "Duplicate Item Found!",
+    //     text: `Item code "${duplicateCode}" is already assigned to another item.`,
+    //   });
+
+    //   return;
+    // }
+
     const codeMap = new Map<string, string>();
 
     for (const item of items) {
-      const code = item.item_code ? String(item.item_code).trim() : "";
+      const code = item.item_code?.trim();
 
       if (!code) continue;
 
@@ -210,18 +121,13 @@ export default function ItemCodePage() {
 
       codeMap.set(code, item.item_name);
     }
-
     try {
-      // Save item code type setting (Numeric = 0, AlphaNumeric = 1)
-      await menuService.saveItemCodeTypeSetting(SHOP_ID, itemCodeType);
-
-      // Save item codes
       await Promise.all(
         items.map((item) =>
           menuService.updateItemCode(
             SHOP_ID,
             item.item_id,
-            item.item_code ? String(item.item_code).trim() : ""
+            item.item_code ?? ""
           )
         )
       );
@@ -245,16 +151,77 @@ export default function ItemCodePage() {
       });
     }
   };
+  // ============================================
+
+
 
   useEffect(() => {
-    if (SHOP_ID) {
-      loadData(SHOP_ID);
-    } else {
-      loadData();
-    }
-  }, [SHOP_ID]);
+    loadData();
+  }, []);
 
-  const [isHelpOpen, setIsHelpOpen] = useState(false);
+
+  useEffect(() => {
+    const helpModal = document.getElementById("helpModal");
+    // const toast = document.getElementById("toast");
+    const helpBtn = document.getElementById("openHelpBtn");
+    const closeBtns = document.querySelectorAll<HTMLButtonElement>(
+      "[data-close-help]"
+    );
+    const searchInput = document.getElementById(
+      "searchInput"
+    ) as HTMLInputElement | null;
+
+    // let toastTimer: ReturnType<typeof setTimeout>;
+
+    function openHelpModal() {
+      if (!helpModal) return;
+      helpModal.style.display = "flex";
+      setTimeout(() => helpModal.classList.add("show"), 10);
+    }
+
+    function closeHelpModal() {
+      if (!helpModal) return;
+      helpModal.classList.remove("show");
+      setTimeout(() => (helpModal.style.display = "none"), 200);
+    }
+
+    function filterItems(query: string) {
+      const rows = document.querySelectorAll<HTMLTableRowElement>(
+        "#items-body tr"
+      );
+      const q = query.toLowerCase();
+      let visible = 0;
+      rows.forEach((row) => {
+        const name = row.cells[0]?.textContent?.toLowerCase() || "";
+        const codeBadge = row.querySelector<HTMLElement>(".code-display-badge");
+        const code = codeBadge ? (codeBadge.textContent || "").toLowerCase() : "";
+        const match = name.includes(q) || code.includes(q);
+        row.style.display = match ? "" : "none";
+        if (match) visible++;
+      });
+      const itemCount = document.getElementById("item-count");
+      if (itemCount) {
+        itemCount.textContent =
+          visible + " item" + (visible !== 1 ? "s" : "");
+      }
+    }
+
+    const onSearch = (e: Event) =>
+      filterItems((e.target as HTMLInputElement).value);
+
+    helpBtn?.addEventListener("click", openHelpModal);
+    // saveBtn?.addEventListener("click", saveChanges);
+    searchInput?.addEventListener("input", onSearch);
+    closeBtns.forEach((b) => b.addEventListener("click", closeHelpModal));
+
+    return () => {
+      // clearTimeout(toastTimer);
+      helpBtn?.removeEventListener("click", openHelpModal);
+      // saveBtn?.removeEventListener("click", saveChanges);
+      searchInput?.removeEventListener("input", onSearch);
+      closeBtns.forEach((b) => b.removeEventListener("click", closeHelpModal));
+    };
+  }, []);
 
   return (
     <div id="pg-menu-item-code">
@@ -264,7 +231,7 @@ export default function ItemCodePage() {
             <div className="card">
               <div className="card-header">
                 <h1 className="card-title typ-page-heading" style={{ margin: 0 }}>Item Code</h1>
-                <button className="btn-help" id="openHelpBtn" onClick={() => window.open('https://vimeo.com/1075945406', '_blank')}>
+                <button className="btn-help" id="openHelpBtn">
                   <svg viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="10" />
                     <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
@@ -283,7 +250,8 @@ export default function ItemCodePage() {
                       id="r-numeric"
                       value="numeric"
                       checked={itemCodeType === 0}
-                      onChange={() => handleTypeChange(0)}
+                      // readOnly
+                      onChange={() => setItemCodeType(0)}
                     />
                     <label htmlFor="r-numeric">
                       <span className="radio-dot"></span> Numeric
@@ -296,7 +264,8 @@ export default function ItemCodePage() {
                       id="r-alpha"
                       value="alpha"
                       checked={itemCodeType === 1}
-                      onChange={() => handleTypeChange(1)}
+                      // readOnly
+                      onChange={() => setItemCodeType(1)}
                     />
                     <label htmlFor="r-alpha">
                       <span className="radio-dot"></span> AlphaNumeric
@@ -314,16 +283,11 @@ export default function ItemCodePage() {
                     className="search-input"
                     placeholder="Search items"
                     id="searchInput"
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                      setCurrentPage(1);
-                    }}
                   />
                 </div>
 
                 <span className="item-count" id="item-count">
-                  {filteredItems.length} {filteredItems.length === 1 ? "item" : "items"}
+                  {items.length} items
                 </span>
 
                 <button className="btn-action btn-save" id="saveBtn" onClick={saveChanges}>
@@ -339,7 +303,7 @@ export default function ItemCodePage() {
                   <thead>
                     <tr>
                       <th>Item Name</th>
-                      <th>Item Code</th>
+                      <th>Item Code</th>  
                     </tr>
                   </thead>
                   <tbody id="items-body">
@@ -349,35 +313,25 @@ export default function ItemCodePage() {
                           Loading items...
                         </td>
                       </tr>
-                    ) : filteredItems.length === 0 ? (
-                      <tr>
-                        <td colSpan={2} style={{ textAlign: "center", padding: "24px", color: "#64748b" }}>
-                          No matching items found.
-                        </td>
-                      </tr>
                     ) : (
-                      paginatedItems.map((item) => (
+                      items.map((item) => (
                         <tr key={item.item_id}>
                           <td>{item.item_name}</td>
                           <td>
+                            {/* <span className="code-display-badge">
+                              {item.item_code ?? "NULL"}
+                            </span> */}
                             <input
                               className="code-input"
                               type="text"
                               value={item.item_code ?? ""}
                               onChange={(e) => {
-                                const rawValue = e.target.value;
-                                let validValue = rawValue;
-
-                                if (itemCodeType === 0) {
-                                  validValue = rawValue.replace(/[^0-9]/g, "");
-                                } else {
-                                  validValue = rawValue.replace(/[^a-zA-Z0-9]/g, "");
-                                }
+                                const value = e.target.value;
 
                                 setItems((prev) =>
                                   prev.map((i) =>
                                     i.item_id === item.item_id
-                                      ? { ...i, item_code: validValue }
+                                      ? { ...i, item_code: value }
                                       : i
                                   )
                                 );
@@ -390,23 +344,6 @@ export default function ItemCodePage() {
                   </tbody>
                 </table>
               </div>
-
-              {filteredItems.length > 0 && (
-                <div className="item-code-pagination-container">
-                  <ReportPagination
-                    currentPage={validCurrentPage}
-                    totalPages={totalPages}
-                    totalRecords={filteredItems.length}
-                    pageSize={pageSize}
-                    pageSizeOptions={[10, 25, 50, 100]}
-                    onPageChange={(page) => setCurrentPage(page)}
-                    onPageSizeChange={(size) => {
-                      setPageSize(size);
-                      setCurrentPage(1);
-                    }}
-                  />
-                </div>
-              )}
             </div>
 
             <WizardFooter />
@@ -414,11 +351,11 @@ export default function ItemCodePage() {
         </div>
       </div>
 
-      <div className={`modal-overlay ${isHelpOpen ? "show" : ""}`} id="helpModal" style={{ display: isHelpOpen ? "flex" : "none" }}>
+      <div className="modal-overlay" id="helpModal">
         <div className="modal-container">
           <div className="modal-title-bar">
             <h3>Item Code Help Guide</h3>
-            <button className="modal-close-btn" type="button" onClick={() => setIsHelpOpen(false)}>
+            <button className="modal-close-btn" data-close-help>
               <svg viewBox="0 0 24 24">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
@@ -447,7 +384,7 @@ export default function ItemCodePage() {
             <button
               className="btn-action btn-cancel"
               type="button"
-              onClick={() => setIsHelpOpen(false)}
+              data-close-help
             >
               Close
             </button>

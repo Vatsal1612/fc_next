@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { WizardFooter } from "@/components/shared/WizardFooter";
+import { getShopId } from "@/utils/shop";
 import "./page.css";
 
 /**
@@ -88,8 +89,9 @@ export default function PaymentGatewayPage() {
       const opt = root.querySelector<HTMLInputElement>('input[name="stripeOpt"]:checked')?.value;
       if (opt === "existing") {
         closeStripeConnectPopup();
+        const activeShopId = getShopId();
         window.open(
-          "https://connect.stripe.com/oauth/v2/authorize?client_id=ca_B1qCzNc7dHkwFvoELfFOE6DIZv8DPBJu&redirect_uri=https%3A%2F%2Fapi.foodchow.com%2Fapi%2FStripe%2FOAuthCallback&response_type=code&scope=read_write&state=3161",
+          `https://connect.stripe.com/oauth/v2/authorize?client_id=ca_B1qCzNc7dHkwFvoELfFOE6DIZv8DPBJu&redirect_uri=https%3A%2F%2Fapi.foodchow.com%2Fapi%2FStripe%2FOAuthCallback&response_type=code&scope=read_write&state=${activeShopId}`,
           "_blank",
         );
       } else {
@@ -204,14 +206,6 @@ export default function PaymentGatewayPage() {
           {/* CARD HEADER */}
           <div className="card-header">
             <h2 className="typ-page-heading">Payment Gateway Integration</h2>
-            <button className="btn-help-hdr">
-              <svg viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
-              HELP
-            </button>
           </div>
 
           {/* GATEWAY GRID */}

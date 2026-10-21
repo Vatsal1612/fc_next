@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import "./page.css";
 import { orderService } from "@/api/services/order.service";
+import { getShopId } from "@/utils/shop";
 
 /**
  * orders/widget-setting.html → React.
@@ -15,12 +16,13 @@ export default function WidgetSettingPage() {
   const [colorHex, setColorHex] = useState("#000000");
   const [colorSaving, setColorSaving] = useState(false);
   const [colorError, setColorError] = useState("");
+  const [showHelpVideo, setShowHelpVideo] = useState(false);
   const handleWidgetSettingUpdate = async (
     status: number,
     flag: number
   ) => {
     try {
-      const shopId = Number(sessionStorage.getItem("shop_id"));
+      const shopId = getShopId();
 
       if (!shopId) {
         console.error("Shop ID not found");
@@ -54,7 +56,7 @@ export default function WidgetSettingPage() {
     setColorError("");
 
     try {
-      const shopId = Number(sessionStorage.getItem("shop_id"));
+      const shopId = getShopId();
 
       if (!shopId) {
         console.error("Shop ID not found");
@@ -98,7 +100,7 @@ export default function WidgetSettingPage() {
     let submitTimer: ReturnType<typeof setTimeout> | undefined;
     const fetchWidgetSettings = async () => {
       try {
-        const shopId = Number(sessionStorage.getItem("shop_id"));
+        const shopId = getShopId();
 
         if (!shopId) {
           console.error("Shop ID not found");
@@ -136,7 +138,7 @@ export default function WidgetSettingPage() {
             <div className="page-card">
               <div className="card-title-row">
                 <div className="typ-page-heading card-title">Ordering Widget Setting</div>
-                <button className="action-btn action-btn-help">
+                <button className="action-btn action-btn-help" onClick={() => setShowHelpVideo(true)}>
                   <svg viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="10" />
                     <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" />
@@ -261,6 +263,42 @@ export default function WidgetSettingPage() {
           </div>
         </div>
       </div>
+
+      {showHelpVideo && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{ position: 'relative', width: '80%', maxWidth: '1000px', aspectRatio: '16/9', backgroundColor: '#000' }}>
+            <button 
+              onClick={() => setShowHelpVideo(false)}
+              style={{
+                position: 'absolute',
+                top: '-40px',
+                right: '0',
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                fontSize: '30px',
+                cursor: 'pointer'
+              }}
+            >
+              &times;
+            </button>
+            <iframe 
+              src="https://player.vimeo.com/video/1075945245?autoplay=1" 
+              style={{ width: '100%', height: '100%', border: 'none' }} 
+              allow="autoplay; fullscreen; picture-in-picture" 
+              allowFullScreen
+            ></iframe>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

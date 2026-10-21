@@ -773,10 +773,10 @@
     }
 
     .data-table tbody td.no-record-cell {
-        text-align: center;
-        color: var(--muted);
-  font-size: var(--text-label); line-height: var(--lh-label);
-  font-weight: var(--weight-semibold);
+        text-align: center !important;
+        font-size: 15px !important;
+        font-weight: 500 !important;
+        color: black !important;
         padding: 40px 0;
         white-space: normal;
     }
@@ -797,9 +797,10 @@
     }
 
     .no-record {
-  font-size: var(--text-body);
-  font-weight: var(--weight-semibold);
-        color: var(--ink);
+        font-size: 15px !important;
+        font-weight: 500 !important;
+        color: black !important;
         padding: 8px 0 4px;
+        text-align: center;
     }
 }

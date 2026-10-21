@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Script from "next/script";
 import "./page.css";
 import { reportsService } from "@/api/services/report.service";
-import ReportPagination from "@/components/shared/ReportPagination";
+import ReportTableFooter from "@/components/shared/ReportTableFooter";
+import ReportTableState from "@/components/shared/ReportTableState";
+import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
 
 type SalesRecord = {
@@ -25,16 +28,23 @@ export default function TotalStripeConnectPage() {
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
 
-  const [activeTab, setActiveTab] = useState<"today" | "weekly">("today");
-  const [selectedMonth, setSelectedMonth] = useState("");
+  const [activeTab, setActiveTab] = useState<"today" | "weekly" | "monthly" | "yearly" | "custom">("today");
+  const [selectedMonth, setSelectedMonth] = useState<string>(() =>
+    String(new Date().getMonth() + 1).padStart(2, "0")
+  );
   const [selectedMonthYear, setSelectedMonthYear] = useState<string>(() =>
     String(new Date().getFullYear())
   );
   const [selectedYear, setSelectedYear] = useState<string>(() =>
     String(new Date().getFullYear())
   );
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const [fromDate, setFromDate] = useState<string>(() =>
+    new Date().toISOString().split("T")[0]
+  );
+  const [toDate, setToDate] = useState<string>(() =>
+    new Date().toISOString().split("T")[0]
+  );
+  const [hasSearched, setHasSearched] = useState<boolean>(false);
 
   const loadMonthData = async (month: string, year: string) => {
     try {
@@ -59,6 +69,7 @@ export default function TotalStripeConnectPage() {
 
       setSalesAmount(response.reduce((sum, item) => sum + Number(item.amount), 0).toFixed(2));
       setRecords(recs);
+      setHasSearched(true);
     } catch (error) {
       console.log(error);
       setSalesAmount("0.00");
@@ -90,6 +101,7 @@ export default function TotalStripeConnectPage() {
 
       setSalesAmount(response.reduce((sum, item) => sum + Number(item.amount), 0).toFixed(2));
       setRecords(recs);
+      setHasSearched(true);
     } catch (error) {
       console.log(error);
       setSalesAmount("0.00");
@@ -122,6 +134,7 @@ export default function TotalStripeConnectPage() {
 
       setSalesAmount(response.reduce((sum, item) => sum + Number(item.amount), 0).toFixed(2));
       setRecords(recs);
+      setHasSearched(true);
     } catch (error) {
       console.log(error);
       setSalesAmount("0.00");
@@ -217,6 +230,7 @@ export default function TotalStripeConnectPage() {
         response.reduce((sum, item) => sum + Number(item.amount), 0).toFixed(2)
       );
       setRecords(recs);
+      setHasSearched(true);
     } catch (error) {
       console.log(error);
       setSalesAmount("0.00");
@@ -247,6 +261,7 @@ export default function TotalStripeConnectPage() {
         response.reduce((sum, item) => sum + Number(item.amount), 0).toFixed(2)
       );
       setRecords(recs);
+      setHasSearched(true);
     } catch (error) {
       console.log(error);
       setSalesAmount("0.00");
@@ -274,6 +289,50 @@ export default function TotalStripeConnectPage() {
     }
   };
 
+  const exportToExcel = () => {
+    if (!records || records.length === 0) {
+      alert("No data available to export");
+      return;
+    }
+
+    const XLSX = (window as any).XLSX;
+    if (!XLSX) {
+      return;
+    }
+
+    const headers = [
+      "Date",
+      "Order ID",
+      "Amount (Rs.)",
+      "Platform Fee (Rs.)",
+      "Commission (Rs.)",
+      "Status",
+      "Shop Received Amount (Rs.)",
+      "Stripe Charge (Rs.)",
+    ];
+
+    const wsData = [
+      ["Total Online Payment Reports"],
+      [],
+      headers,
+      ...records.map((r) => [
+        r.date,
+        r.id,
+        r.amount,
+        r.platformfee,
+        r.commission,
+        r.status,
+        r.shopamount,
+        r.stripecharge,
+      ]),
+    ];
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    XLSX.utils.book_append_sheet(wb, ws, "Stripe Connect");
+    XLSX.writeFile(wb, `Total_Online_Payment_Report.xlsx`);
+  };
+
   useEffect(() => {
     if (shopId) {
       loadTodayData();
@@ -282,6 +341,10 @@ export default function TotalStripeConnectPage() {
 
   return (
     <div id="pg-reports-total-stripe-connect">
+      <Script
+        src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+        strategy="afterInteractive"
+      />
       <div className="app-container">
         <main className="main-content">
           <div className="content-card">
@@ -307,7 +370,9 @@ export default function TotalStripeConnectPage() {
                 <button
                   className={`btn-sales-filter ${activeTab === "today" ? "active" : ""}`}
                   onClick={() => {
+                    if (activeTab === "today") return;
                     setActiveTab("today");
+                    setRecords([]);
                     loadTodayData();
                   }}
                 >
@@ -316,35 +381,68 @@ export default function TotalStripeConnectPage() {
                 <button
                   className={`btn-sales-filter ${activeTab === "weekly" ? "active" : ""}`}
                   onClick={() => {
+                    if (activeTab === "weekly") return;
                     setActiveTab("weekly");
+                    setRecords([]);
                     loadWeekData();
                   }}
                 >
-                  Weekly
+                  This Week
+                </button>
+                <button
+                  className={`btn-sales-filter ${activeTab === "monthly" ? "active" : ""}`}
+                  onClick={() => {
+                    if (activeTab === "monthly") return;
+                    setActiveTab("monthly");
+                    setRecords([]);
+                    setSalesAmount("0.00");
+                    setHasSearched(false);
+                  }}
+                >
+                  Month Wise
+                </button>
+                <button
+                  className={`btn-sales-filter ${activeTab === "yearly" ? "active" : ""}`}
+                  onClick={() => {
+                    if (activeTab === "yearly") return;
+                    setActiveTab("yearly");
+                    setRecords([]);
+                    setSalesAmount("0.00");
+                    setHasSearched(false);
+                  }}
+                >
+                  Year Wise
+                </button>
+                <button
+                  className={`btn-sales-filter ${activeTab === "custom" ? "active" : ""}`}
+                  onClick={() => {
+                    if (activeTab === "custom") return;
+                    setActiveTab("custom");
+                    setRecords([]);
+                    setSalesAmount("0.00");
+                    setHasSearched(false);
+                  }}
+                >
+                  Custom
                 </button>
               </div>
 
-              <button
-                id="default-export-btn"
-                className="btn-action-teal btn-export-excel"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+              {(activeTab === "today" || activeTab === "weekly") && (
+                <button
+                  className="btn-action btn-export"
+                  onClick={exportToExcel}
                 >
-                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13" />
-                </svg>
-                &nbsp;EXPORT TO EXCEL
-              </button>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  EXPORT TO EXCEL
+                </button>
+              )}
             </div>
 
-            <div id="month-filter-panel" className="sub-filter-panel" style={{ display: "none" }}>
+            <div id="month-filter-panel" className="sub-filter-panel" style={{ display: (activeTab as string) === "monthly" ? "flex" : "none" }}>
               <div className="input-group">
                 <label>Select Month :</label>
                 <select
@@ -387,9 +485,17 @@ export default function TotalStripeConnectPage() {
               <button className="btn-action-teal" onClick={applyMonthFilter}>
                 GET DATA
               </button>
+              <button className="btn-action btn-export" onClick={exportToExcel}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                EXPORT TO EXCEL
+              </button>
             </div>
 
-            <div id="year-filter-panel" className="sub-filter-panel" style={{ display: "none" }}>
+            <div id="year-filter-panel" className="sub-filter-panel" style={{ display: (activeTab as string) === "yearly" ? "flex" : "none" }}>
               <div className="input-group">
                 <label>Select Year :</label>
                 <select
@@ -409,9 +515,17 @@ export default function TotalStripeConnectPage() {
               <button className="btn-action-teal" onClick={applyYearlyFilter}>
                 GET DATA
               </button>
+              <button className="btn-action btn-export" onClick={exportToExcel}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                EXPORT TO EXCEL
+              </button>
             </div>
 
-            <div id="custom-filter-panel" className="sub-filter-panel" style={{ display: "none" }}>
+            <div id="custom-filter-panel" className="sub-filter-panel" style={{ display: (activeTab as string) === "custom" ? "flex" : "none" }}>
               <div className="input-group">
                 <label>From</label>
                 <input
@@ -433,96 +547,85 @@ export default function TotalStripeConnectPage() {
               <button className="btn-action-teal" onClick={applyDateFilter}>
                 GET DATA
               </button>
+              <button className="btn-action btn-export" onClick={exportToExcel}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                EXPORT TO EXCEL
+              </button>
             </div>
 
-            <h3
-              style={{
-                fontSize: "17px",
-                color: "var(--text-dark)",
-                margin: "18px 0",
-                fontFamily: "'Poppins', sans-serif",
-                fontWeight: 700,
-              }}
-            >
-              Description (Total: ${salesAmount})
-            </h3>
+            {(activeTab === "today" || activeTab === "weekly" || hasSearched) && (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "18px 0" }}>
+                  <h3
+                    style={{
+                      fontSize: "17px",
+                      color: "#0aa89e",
+                      margin: 0,
+                      fontFamily: "'Poppins', sans-serif",
+                      fontWeight: 700,
+                    }}
+                  >
+                    Description (Total: ${salesAmount})
+                  </h3>
+                </div>
 
-            <div className="table-wrapper">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Order ID</th>
-                    <th>Amount (Rs.)</th>
-                    <th>Platform Fee (Rs.)</th>
-                    <th>Commission (Rs.)</th>
-                    <th>Status</th>
-                    <th>Shop Received Amount (Rs.)</th>
-                    <th>Stripe Charge (Rs.)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={8} style={{ textAlign: "center", padding: "20px" }}>
-                        Loading...
-                      </td>
-                    </tr>
-                  ) : paginatedRecords.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} style={{ textAlign: "center", padding: "20px" }}>
-                        No data found
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedRecords.map((row, idx) => (
-                      <tr key={idx}>
-                        <td>{row.date}</td>
-                        <td>{row.id}</td>
-                        <td>{row.amount}</td>
-                        <td>{row.platformfee}</td>
-                        <td>{row.commission}</td>
-                        <td>{row.status}</td>
-                        <td>{row.shopamount}</td>
-                        <td>{row.stripecharge}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div style={{ marginTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ fontSize: "14px", color: "#666" }}>Show</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setPageNumber(1);
-                  }}
-                  style={{
-                    padding: "4px 8px",
-                    borderRadius: "4px",
-                    border: "1px solid #ccc",
-                  }}
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
-                <span style={{ fontSize: "14px", color: "#666" }}>entries</span>
-              </div>
-
-              <ReportPagination
-                currentPage={pageNumber}
-                totalPages={totalPages}
-                totalRecords={totalRecords}
-                pageSize={pageSize}
-                onPageChange={(page) => setPageNumber(page)}
-              />
-            </div>
+                <ReportTableState loading={loading} hasData={paginatedRecords.length > 0} columns={8}>
+                  <div className="table-wrapper">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Order ID</th>
+                          <th>Amount (Rs.)</th>
+                          <th>Platform Fee (Rs.)</th>
+                          <th>Commission (Rs.)</th>
+                          <th>Status</th>
+                          <th>Shop Received Amount (Rs.)</th>
+                          <th>Stripe Charge (Rs.)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedRecords.length === 0 ? (
+                          <tr>
+                            <td colSpan={8} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
+                              No Records Found
+                            </td>
+                          </tr>
+                        ) : (
+                          paginatedRecords.map((row, idx) => (
+                            <tr key={idx}>
+                              <td>{row.date}</td>
+                              <td>{row.id}</td>
+                              <td>{row.amount}</td>
+                              <td>{row.platformfee}</td>
+                              <td>{row.commission}</td>
+                              <td>{row.status}</td>
+                              <td>{row.shopamount}</td>
+                              <td>{row.stripecharge}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <ReportTableFooter
+                    currentPage={pageNumber}
+                    totalPages={totalPages}
+                    totalRecords={totalRecords}
+                    pageSize={pageSize}
+                    onPageChange={(page) => setPageNumber(page)}
+                    onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
+                    disabled={loading}
+                  />
+                </ReportTableState>
+              </>
+            )}
           </div>
+          <ReportStepFooter currentStepOverride={25} totalStepsOverride={25} />
         </main>
       </div>
     </div>

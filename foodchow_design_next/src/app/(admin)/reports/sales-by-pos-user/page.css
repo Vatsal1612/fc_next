@@ -434,9 +434,10 @@
     margin-top: 24px;
   }
   .no-record {
-  font-size: var(--text-body);
-  font-weight: var(--weight-semibold);
-    color: var(--text);
+    font-size: 15px !important;
+    font-weight: 500 !important;
+    color: black !important;
+    text-align: center;
   }
   .summary {
     margin-bottom: 20px;

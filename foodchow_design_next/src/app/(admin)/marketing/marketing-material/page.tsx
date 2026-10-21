@@ -1,6 +1,9 @@
 "use client";
 
 import { WizardFooter } from "@/components/shared/WizardFooter";
+import React from 'react';
+import html2canvas from "html2canvas";
+import Swal from "sweetalert2";
 import "./page.css";
 
 /**
@@ -10,6 +13,100 @@ import "./page.css";
  * sidebar).
  */
 export default function MarketingMaterialPage() {
+  const [data] = React.useState({
+    logo: "FOOD CHOW",
+    heading1: "Our Trusted Online",
+    heading2: "Food Ordering",
+    heading3: "Partner",
+    appStore: "App Store",
+    googlePlay: "Google Play",
+    promoHeading1: "GET YOUR OWN",
+    promoHeading2: "FOOD ORDERING APP",
+    promoHeading3: "for just $1",
+    promoBtn: "GET STARTED!"
+  });
+
+  const getFormattedDate = () => {
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(-2);
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    return `${yy}-${mm}-${dd}_${hh}-${min}-${ss}`;
+  };
+
+  const handlePreviewClick = async (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    try {
+      const canvas = await html2canvas(el, { useCORS: true, allowTaint: true, scale: 2 });
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          window.location.href = url;
+        }
+      }, 'image/png');
+    } catch (err) {
+      console.error('Preview failed', err);
+    }
+  };
+
+  const performDownload = async (index: number, suffix: string = '') => {
+    const el = document.querySelectorAll('.material-preview')[index] as HTMLElement;
+    if (el) {
+      try {
+        const canvas = await html2canvas(el, { useCORS: true, allowTaint: true, scale: 2 });
+        const dataUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = `__MarketingMaterialPosterIn${getFormattedDate()}${suffix}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (err) {
+        console.error('Download failed', err);
+      }
+    }
+  };
+
+  const downloadCard = (index: number) => {
+    Swal.fire({
+      text: "Are you sure that you want to download this Document?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#2ab5e1",
+      cancelButtonColor: "#333333",
+      confirmButtonText: "Yes",
+      cancelButtonText: "Cancel"
+    }).then((result) => {
+      if (result.isConfirmed) {
+        performDownload(index);
+      }
+    });
+  };
+
+  const downloadAll = () => {
+    Swal.fire({
+      text: "Are you sure that you want to download this all Documents?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#2ab5e1",
+      cancelButtonColor: "#333333",
+      confirmButtonText: "Yes",
+      cancelButtonText: "Cancel"
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        const totalCards = 6;
+        for (let i = 0; i < totalCards; i++) {
+          await performDownload(i, `_${i + 1}`);
+          // Wait slightly to ensure browser processes each file
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      }
+    });
+  };
+
   return (
     <div id="pg-marketing-marketing-material">
       <div className="layout">
@@ -19,16 +116,8 @@ export default function MarketingMaterialPage() {
               <div className="report-header">
                 <h1 className="typ-page-heading report-title">Marketing Material</h1>
                 <div className="report-header-actions">
-                  <button className="btn-download-all">
+                  <button className="btn-download-all" onClick={downloadAll}>
                     <i className="fas fa-download" /> DOWNLOAD
-                  </button>
-                  <button className="btn-help">
-                    <svg viewBox="0 0 24 24">
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                      <line x1="12" y1="17" x2="12.01" y2="17" />
-                    </svg>
-                    HELP
                   </button>
                 </div>
               </div>
@@ -37,14 +126,15 @@ export default function MarketingMaterialPage() {
                 {/* Card 1: Table Top */}
                 <div className="material-card">
                   <div className="card-top-action">
-                    <button className="btn-icon-circle">
+                    <button className="btn-icon-circle" onClick={() => downloadCard(0)}>
                       <i className="fas fa-download" />
                     </button>
                   </div>
-                  <div className="material-preview">
+                  <div className="material-preview" style={{ cursor: "pointer" }} onClick={handlePreviewClick}>
                     <div className="bg-table-top" />
                     <div
                       style={{
+                        position: "relative",
                         zIndex: 2,
                         width: "140px",
                         height: "190px",
@@ -58,10 +148,10 @@ export default function MarketingMaterialPage() {
                       }}
                     >
                       <div className="mockup-logo" style={{ marginTop: "10px", fontSize: "12px" }}>
-                        <i className="fas fa-utensils" /> FOOD CHOW
+                        <i className="fas fa-utensils" /> {data.logo}
                       </div>
                       <div className="mockup-heading" style={{ marginTop: "16px", fontSize: "8px" }}>
-                        Our Trusted Online<br />Food Ordering<br />Partner
+                        {data.heading1}<br />{data.heading2}<br />{data.heading3}
                       </div>
                       <div
                         style={{
@@ -101,7 +191,7 @@ export default function MarketingMaterialPage() {
                             fontSize: "6px",
                           }}
                         >
-                          <i className="fab fa-google-play" style={{ marginRight: "2px" }} /> Google Play
+                          <i className="fab fa-google-play" style={{ marginRight: "2px" }} /> {data.googlePlay}
                         </div>
                       </div>
                     </div>
@@ -111,20 +201,18 @@ export default function MarketingMaterialPage() {
                       <div className="material-title">Table Top</div>
                       <div className="material-subtitle">Table Top</div>
                     </div>
-                    <button className="btn-icon-circle">
-                      <i className="fas fa-share-alt" />
-                    </button>
+
                   </div>
                 </div>
 
                 {/* Card 2: Facebook Ad */}
                 <div className="material-card">
                   <div className="card-top-action">
-                    <button className="btn-icon-circle">
+                    <button className="btn-icon-circle" onClick={() => downloadCard(1)}>
                       <i className="fas fa-download" />
                     </button>
                   </div>
-                  <div className="material-preview">
+                  <div className="material-preview" style={{ cursor: "pointer" }} onClick={handlePreviewClick}>
                     <div className="bg-diagonal" />
                     <div
                       className="real-phone"
@@ -188,12 +276,12 @@ export default function MarketingMaterialPage() {
                     </div>
                     <div className="mockup-text">
                       <div className="mockup-logo">
-                        <i className="fas fa-utensils" /> FOOD CHOW
+                        <i className="fas fa-utensils" /> {data.logo}
                       </div>
                       <div className="mockup-heading">
-                        GET YOUR OWN<br />FOOD ORDERING APP<br />for just $1
+                        {data.promoHeading1}<br />{data.promoHeading2}<br />{data.promoHeading3}
                       </div>
-                      <div className="mockup-btn">GET STARTED!</div>
+                      <div className="mockup-btn">{data.promoBtn}</div>
                     </div>
                   </div>
                   <div className="material-footer">
@@ -201,19 +289,16 @@ export default function MarketingMaterialPage() {
                       <div className="material-title">Own food ordering app - Facebook AD</div>
                       <div className="material-subtitle">Facebook AD_810 x 450</div>
                     </div>
-                    <button className="btn-icon-circle">
-                      <i className="fas fa-share-alt" />
-                    </button>
                   </div>
                 </div>
 
                 <div className="material-card">
                   <div className="card-top-action">
-                    <button className="btn-icon-circle">
+                    <button className="btn-icon-circle" onClick={() => downloadCard(2)}>
                       <i className="fas fa-download" />
                     </button>
                   </div>
-                  <div className="material-preview">
+                  <div className="material-preview" style={{ cursor: "pointer" }} onClick={handlePreviewClick}>
                     <div
                       className="bg-diagonal"
                       style={{ background: "linear-gradient(115deg, var(--teal) 50%, #f0fdfa 50%)" }}
@@ -257,11 +342,11 @@ export default function MarketingMaterialPage() {
                       </div>
                     </div>
                     <div className="mockup-text">
-                      <div className="mockup-logo"> FOOD CHOW</div>
+                      <div className="mockup-logo"> {data.logo}</div>
                       <div className="mockup-heading">
-                        GET YOUR OWN<br />FOOD ORDERING APP<br />for just $1
+                        {data.promoHeading1}<br />{data.promoHeading2}<br />{data.promoHeading3}
                       </div>
-                      <div className="mockup-btn">GET STARTED!</div>
+                      <div className="mockup-btn">{data.promoBtn}</div>
                     </div>
                   </div>
                   <div className="material-footer">
@@ -269,20 +354,17 @@ export default function MarketingMaterialPage() {
                       <div className="material-title">Own food ordering app - Youtube</div>
                       <div className="material-subtitle">Youtube Thumbnail_1280 x 720</div>
                     </div>
-                    <button className="btn-icon-circle">
-                      <i className="fas fa-share-alt" />
-                    </button>
                   </div>
                 </div>
 
                 {/* Card 4: Youtube Thumbnail */}
                 <div className="material-card">
                   <div className="card-top-action">
-                    <button className="btn-icon-circle">
+                    <button className="btn-icon-circle" onClick={() => downloadCard(3)}>
                       <i className="fas fa-download" />
                     </button>
                   </div>
-                  <div className="material-preview">
+                  <div className="material-preview" style={{ cursor: "pointer" }} onClick={handlePreviewClick}>
                     <div
                       className="bg-diagonal"
                       style={{ background: "linear-gradient(105deg, var(--teal) 45%, #f0fdfa 45%)" }}
@@ -339,12 +421,12 @@ export default function MarketingMaterialPage() {
                     </div>
                     <div className="mockup-text">
                       <div className="mockup-logo">
-                        <i className="fas fa-utensils" /> FOOD CHOW
+                        <i className="fas fa-utensils" /> {data.logo}
                       </div>
                       <div className="mockup-heading">
-                        GET YOUR OWN<br />FOOD ORDERING APP<br />for just $1
+                        {data.promoHeading1}<br />{data.promoHeading2}<br />{data.promoHeading3}
                       </div>
-                      <div className="mockup-btn">GET STARTED!</div>
+                      <div className="mockup-btn">{data.promoBtn}</div>
                     </div>
                   </div>
                   <div className="material-footer">
@@ -352,20 +434,17 @@ export default function MarketingMaterialPage() {
                       <div className="material-title">Own food ordering app - Youtube</div>
                       <div className="material-subtitle">Youtube Thumbnail_1280 x 720</div>
                     </div>
-                    <button className="btn-icon-circle">
-                      <i className="fas fa-share-alt" />
-                    </button>
                   </div>
                 </div>
 
                 {/* Card 5: Twitter Post */}
                 <div className="material-card">
                   <div className="card-top-action">
-                    <button className="btn-icon-circle">
+                    <button className="btn-icon-circle" onClick={() => downloadCard(4)}>
                       <i className="fas fa-download" />
                     </button>
                   </div>
-                  <div className="material-preview">
+                  <div className="material-preview" style={{ cursor: "pointer" }} onClick={handlePreviewClick}>
                     <div
                       className="bg-diagonal"
                       style={{ background: "linear-gradient(115deg, var(--teal) 50%, #f0fdfa 50%)" }}
@@ -422,12 +501,12 @@ export default function MarketingMaterialPage() {
                     </div>
                     <div className="mockup-text">
                       <div className="mockup-logo">
-                        <i className="fas fa-utensils" /> FOOD CHOW
+                        <i className="fas fa-utensils" /> {data.logo}
                       </div>
                       <div className="mockup-heading">
-                        GET YOUR OWN<br />FOOD ORDERING APP<br />for just $1
+                        {data.promoHeading1}<br />{data.promoHeading2}<br />{data.promoHeading3}
                       </div>
-                      <div className="mockup-btn">GET STARTED!</div>
+                      <div className="mockup-btn">{data.promoBtn}</div>
                     </div>
                   </div>
                   <div className="material-footer">
@@ -435,19 +514,16 @@ export default function MarketingMaterialPage() {
                       <div className="material-title">Own food ordering app - Twitter</div>
                       <div className="material-subtitle">Twitter post_1024 x 512</div>
                     </div>
-                    <button className="btn-icon-circle">
-                      <i className="fas fa-share-alt" />
-                    </button>
                   </div>
                 </div>
 
                 <div className="material-card">
                   <div className="card-top-action">
-                    <button className="btn-icon-circle">
+                    <button className="btn-icon-circle" onClick={() => downloadCard(5)}>
                       <i className="fas fa-download" />
                     </button>
                   </div>
-                  <div className="material-preview">
+                  <div className="material-preview" style={{ cursor: "pointer" }} onClick={handlePreviewClick}>
                     <div
                       className="bg-diagonal"
                       style={{ background: "linear-gradient(115deg, var(--teal) 50%, #f0fdfa 50%)" }}
@@ -492,12 +568,12 @@ export default function MarketingMaterialPage() {
                     </div>
                     <div className="mockup-text">
                       <div className="mockup-logo">
-                        <i className="fas fa-utensils" /> FOOD CHOW
+                        <i className="fas fa-utensils" /> {data.logo}
                       </div>
                       <div className="mockup-heading">
-                        GET YOUR OWN<br />FOOD ORDERING APP<br />for just $1
+                        {data.promoHeading1}<br />{data.promoHeading2}<br />{data.promoHeading3}
                       </div>
-                      <div className="mockup-btn">GET STARTED!</div>
+                      <div className="mockup-btn">{data.promoBtn}</div>
                     </div>
                   </div>
                   <div className="material-footer">
@@ -505,15 +581,12 @@ export default function MarketingMaterialPage() {
                       <div className="material-title">Own food ordering app - Youtube</div>
                       <div className="material-subtitle">Youtube Thumbnail_1280 x 720</div>
                     </div>
-                    <button className="btn-icon-circle">
-                      <i className="fas fa-share-alt" />
-                    </button>
                   </div>
                 </div>
               </div>
             </div>
 
-            <WizardFooter />
+            <WizardFooter currentStepOverride={31} totalStepsOverride={35} />
           </div>
         </div>
       </div>

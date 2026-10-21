@@ -819,9 +819,9 @@
   }
 
   .no-record {
-  font-size: var(--text-label); line-height: var(--lh-label);
-  font-weight: var(--weight-semibold);
-    color: var(--muted);
+    font-size: 15px !important;
+    font-weight: 500 !important;
+    color: black !important;
     padding: 40px 0;
     text-align: center;
   }

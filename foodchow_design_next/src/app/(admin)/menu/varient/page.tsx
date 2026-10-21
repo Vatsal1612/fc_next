@@ -4,11 +4,10 @@ import { useEffect, useState } from "react";
 import { menuService, type MenuVariant } from "@/api/services/menu.service";
 import Swal from "sweetalert2";
 import { WizardFooter } from "@/components/shared/WizardFooter";
-import { useShopId } from "@/utils/shop";
 import "./page.css";
 
 export default function VarientPage() {
-  const SHOP_ID = useShopId();
+  const SHOP_ID = 7691;
 
   const [variants, setVariants] = useState<MenuVariant[]>([]);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
@@ -34,7 +33,7 @@ export default function VarientPage() {
 
         setLoading(false);
       });
-  }, [SHOP_ID]);
+  }, []);
 
   useEffect(() => {
     const cleanups: Array<() => void> = [];

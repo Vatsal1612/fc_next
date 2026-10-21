@@ -35,15 +35,12 @@
     padding: 0;
   }
 
-  /* ═══ APP CONTAINER ═══ */
-  .app-container {
+  .layout {
     display: flex;
-    width: 100%;
     height: calc(100vh - 60px);
     overflow: hidden;
   }
 
-  /* ═══ MAIN ═══ */
   .main {
     flex: 1;
     display: flex;
@@ -52,27 +49,28 @@
     min-width: 0;
   }
 
-  .page-content {
+  .content-area {
     flex: 1;
     overflow-y: auto;
-    padding: 22px 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+    padding: 32px;
+    display: block;
   }
 
-  /* ═══ PAGE CARD ═══ */
-  .page-card {
-    background: #ffffff;
-    border-radius: 12px;
+  .card {
+    background: var(--white);
     border: 1px solid var(--line);
-    padding: 32px 36px;
+    border-radius: var(--radius);
+    padding: 40px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
     width: 100%;
-    box-sizing: border-box;
+    max-width: 900px;
+    margin: 0 auto;
   }
 
   .page-title {
     text-align: center;
+
+
     color: var(--ink);
     margin-bottom: 20px;
   }
@@ -128,8 +126,7 @@
   }
 
   .store-btn i {
-    font-size: var(--text-page-heading);
-    line-height: var(--lh-page-heading);
+  font-size: var(--text-page-heading); line-height: var(--lh-page-heading);
   }
 
   .store-btn .btn-text {
@@ -140,15 +137,13 @@
   }
 
   .store-btn .btn-small {
-    font-size: var(--text-button);
-    line-height: var(--lh-button);
-    font-weight: var(--weight-semibold);
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
   }
 
   .store-btn .btn-large {
-    font-size: var(--text-button);
-    line-height: var(--lh-button);
-    font-weight: var(--weight-semibold);
+  font-size: var(--text-button); line-height: var(--lh-button);
+  font-weight: var(--weight-semibold);
   }
 
   .windows-btn {
@@ -160,9 +155,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: var(--text-subheading);
-    line-height: var(--lh-subheading);
-    font-weight: var(--weight-semibold);
+  font-size: var(--text-subheading); line-height: var(--lh-subheading);
+  font-weight: var(--weight-semibold);
     text-decoration: none;
     transition: transform 0.2s;
     border: none;
@@ -173,161 +167,6 @@
     background: var(--teal-dark);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(10, 168, 158, 0.25);
-  }
-
-  /* ── Live Ask/tableReservation Card Styles (1:1 with other setup cards) ── */
-  .ask-table-card {
-    background: #ffffff;
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 32px 36px;
-    width: 100%;
-    min-height: 240px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-    animation: fadeInAsk 0.2s ease-out;
-  }
-
-  @keyframes fadeInAsk {
-    from {
-      opacity: 0;
-      transform: translateY(6px);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .ask-table-title {
-    font-size: 1.45rem;
-    font-weight: 700;
-    color: #2b3445;
-    margin-bottom: 24px;
-    font-family: inherit;
-    letter-spacing: -0.2px;
-  }
-
-  .ask-table-question {
-    font-size: 1.05rem;
-    font-weight: 500;
-    color: #4a5568;
-    margin-bottom: 24px;
-    line-height: 1.5;
-  }
-
-  .ask-choice-buttons {
-    display: flex;
-    gap: 14px;
-    align-items: center;
-    margin-bottom: 32px;
-  }
-
-  .btn-choice-yes,
-  .btn-choice-no {
-    min-width: 96px;
-    height: 38px;
-    border-radius: 4px;
-    border: none;
-    font-size: 0.88rem;
-    font-weight: 700;
-    cursor: pointer;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    transition: all 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 24px;
-  }
-
-  /* YES button: Teal when active, gray when inactive */
-  .btn-choice-yes.active {
-    background: #0aa89e;
-    color: #ffffff;
-  }
-
-  .btn-choice-yes.inactive {
-    background: #0aa89e;
-    color: #ffffff;
-  }
-
-  /* NO button: Active darker charcoal/gray (#52575c) or #7e8284, inactive #7e8284 */
-  .btn-choice-no.active {
-    background: #52575c;
-    color: #ffffff;
-  }
-
-  .btn-choice-no.inactive {
-    background: #7e8284;
-    color: #ffffff;
-  }
-
-  .btn-choice-yes:hover,
-  .btn-choice-no:hover {
-    filter: brightness(0.92);
-  }
-
-  .ask-action-row {
-    margin-top: 10px;
-  }
-
-  /* SETUP and PROCEED button */
-  .btn-ask-submit {
-    min-width: 100px;
-    height: 40px;
-    padding: 0 30px;
-    border-radius: 4px;
-    border: none;
-    background: #0aa89e;
-    color: #ffffff;
-    font-size: 0.88rem;
-    font-weight: 700;
-    cursor: pointer;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    transition: background 0.2s ease, transform 0.15s ease;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .btn-ask-submit:hover {
-    background: #088c83;
-  }
-
-  .btn-ask-submit:disabled {
-    opacity: 0.65;
-    cursor: not-allowed;
-  }
-
-  .preference-reset-wrap {
-    margin-top: 32px;
-    padding-top: 20px;
-    border-top: 1px dashed #e2e8f0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    font-size: 0.85rem;
-    color: #64748b;
-  }
-
-  .btn-reconfigure {
-    background: none;
-    border: none;
-    color: #0aa89e;
-    font-weight: 600;
-    cursor: pointer;
-    text-decoration: underline;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.85rem;
-  }
-
-  .btn-reconfigure:hover {
-    color: #088c83;
   }
 
   @media (max-width: 768px) {
@@ -355,25 +194,6 @@
 
     .hero-container {
       padding: 24px 16px;
-    }
-
-    .table-reservation-ask-card {
-      padding: 28px 18px;
-    }
-
-    .ask-title {
-      font-size: 1.45rem;
-    }
-
-    .ask-actions {
-      flex-direction: column;
-      width: 100%;
-    }
-
-    .btn-continue,
-    .btn-skip {
-      width: 100%;
-      justify-content: center;
     }
   }
 }

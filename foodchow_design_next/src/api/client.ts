@@ -79,22 +79,16 @@ export const foodchowReportsClient: AxiosInstance = axios.create({
 });
 
 /* ── Request interceptor: attach JWT bearer token ── */
-const authInterceptor = (config: InternalAxiosRequestConfig) => {
-  const token = tokenStorage.getAccessToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-};
-
-const authInterceptorError = (error: AxiosError) => Promise.reject(error);
-
-apiClient.interceptors.request.use(authInterceptor, authInterceptorError);
-adminFoodchowClient.interceptors.request.use(authInterceptor, authInterceptorError);
-foodchowClient.interceptors.request.use(authInterceptor, authInterceptorError);
-foodchowRMSClient.interceptors.request.use(authInterceptor, authInterceptorError);
-foodchowWDClient.interceptors.request.use(authInterceptor, authInterceptorError);
-foodchowReportsClient.interceptors.request.use(authInterceptor, authInterceptorError);
+apiClient.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    const token = tokenStorage.getAccessToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error: AxiosError) => Promise.reject(error)
+);
 
 /* ── Response interceptor: normalise errors + refresh-token flow ── */
 let isRefreshing = false;

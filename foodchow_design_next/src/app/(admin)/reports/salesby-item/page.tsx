@@ -1,13 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Script from "next/script";
 import "./page.css";
 import {
   reportsService,
   SalesByItem,
 } from "@/api/services/report.service";
 import { useShopId } from "@/utils/shop";
-import ReportPagination from "@/components/shared/ReportPagination";
+import ReportTableFooter from "@/components/shared/ReportTableFooter";
+import ReportTableState from "@/components/shared/ReportTableState";
+import ReportStepFooter from "@/components/shared/ReportStepFooter";
+
+
 
 // Helper to get today's date formatted as YYYY-MM-DD
 const getTodayDateString = (): string => {
@@ -41,6 +46,7 @@ export default function SalesbyItemPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("today");
+  const [hasSearched, setHasSearched] = useState<boolean>(false);
 
   // Format date helper supporting all trans_date structures
   const formatDate = (transDate: any): string => {
@@ -61,6 +67,7 @@ export default function SalesbyItemPage() {
   };
 
   async function triggerFilterDataFetch(type: string): Promise<void> {
+    setHasSearched(true);
     if (type === "day-wise") {
       if (!selectedDate) {
         alert("Please select a date.");
@@ -246,15 +253,55 @@ export default function SalesbyItemPage() {
     });
 
     if (filterKey === "day-wise") {
+      setHasSearched(false);
       const p = document.getElementById("day-wise-panel");
       if (p) p.style.display = "flex";
     } else if (filterKey === "month") {
+      setHasSearched(false);
       const p = document.getElementById("month-wise-panel");
       if (p) p.style.display = "flex";
     } else if (filterKey === "year") {
+      setHasSearched(false);
       const p = document.getElementById("year-wise-panel");
       if (p) p.style.display = "flex";
+    } else {
+      setHasSearched(true);
     }
+  };
+
+  const exportToExcel = () => {
+    if (!todaySales || todaySales.length === 0) {
+      alert("No data available to export");
+      return;
+    }
+
+    const XLSX = (window as any).XLSX;
+    if (!XLSX) {
+      return;
+    }
+
+    const headers = ["Date", "Item Name", "Quantity", "Total Amount (Rs.)"];
+    const rows = todaySales.map((item) => [
+      formatDate(item.trans_date),
+      item.item_name || "-",
+      Number(item.total_quantity || 0),
+      Number(item.total_amount || 0),
+    ]);
+
+    const reportTitle = `Sales By Items — ${activeTab.toUpperCase()}`;
+    const wsData = [
+      [reportTitle],
+      [`Exported On: ${new Date().toLocaleString()}`],
+      [],
+      headers,
+      ...rows,
+    ];
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!cols"] = [{ wch: 18 }, { wch: 32 }, { wch: 15 }, { wch: 22 }];
+    XLSX.utils.book_append_sheet(wb, ws, "Sales By Items");
+    XLSX.writeFile(wb, `sales_by_items_${activeTab}_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
   return (
@@ -266,6 +313,10 @@ export default function SalesbyItemPage() {
       <link
         href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Unbounded:wght@700;800&display=swap"
         rel="stylesheet"
+      />
+      <Script
+        src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+        strategy="afterInteractive"
       />
 
       <div className="app-container">
@@ -316,28 +367,24 @@ export default function SalesbyItemPage() {
                   Year Wise
                 </button>
               </div>
-              <div style={{ display: "flex", gap: "10px" }}>
 
-                <button className="btn-action-teal btn-export-excel">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13" />
+              {(activeTab === "today" || activeTab === "this-week") && (
+                <button
+                  className="btn-action"
+                  onClick={exportToExcel}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
                   EXPORT TO EXCEL
                 </button>
-              </div>
+              )}
             </div>
 
             {activeTab === "day-wise" && (
-              <div id="day-wise-panel" className="sub-filter-panel" style={{ display: "flex" }}>
+              <div id="day-wise-panel" className="sub-filter-panel" style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
                 <div className="input-group">
                   <label>Date:</label>
                   <input
@@ -362,11 +409,19 @@ export default function SalesbyItemPage() {
                 >
                   GET DATA
                 </button>
+                <button className="btn-action" onClick={exportToExcel}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  EXPORT TO EXCEL
+                </button>
               </div>
             )}
 
             {activeTab === "month" && (
-              <div id="month-wise-panel" className="sub-filter-panel" style={{ display: "flex" }}>
+              <div id="month-wise-panel" className="sub-filter-panel" style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
                 <div className="input-group">
                   <label>Select Month:</label>
                   <select
@@ -414,11 +469,19 @@ export default function SalesbyItemPage() {
                 >
                   GET DATA
                 </button>
+                <button className="btn-action" onClick={exportToExcel}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  EXPORT TO EXCEL
+                </button>
               </div>
             )}
 
             {activeTab === "year" && (
-              <div id="year-wise-panel" className="sub-filter-panel" style={{ display: "flex" }}>
+              <div id="year-wise-panel" className="sub-filter-panel" style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
                 <div className="input-group">
                   <label>Select Year:</label>
                   <select
@@ -442,132 +505,93 @@ export default function SalesbyItemPage() {
                 >
                   GET DATA
                 </button>
+                <button className="btn-action" onClick={exportToExcel}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  EXPORT TO EXCEL
+                </button>
               </div>
             )}
 
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
-              <h3
-                style={{
-                  fontSize: "17px",
-                  color: "var(--text-dark)",
-                  margin: 0,
-                  fontWeight: 700,
-                }}
-              >
-                Details
-              </h3>
-              {(activeTab === "today" || activeTab === "day-wise" || activeTab === "this-week" || activeTab === "month" || activeTab === "year") && (
-                <div style={{ fontSize: "13px", color: "var(--text-secondary, #666)", display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span>Show</span>
-                  <select
-                    className="input-control"
-                    style={{ width: "auto", padding: "2px 6px", fontSize: "13px" }}
-                    value={pageSize}
-                    onChange={(e) => {
-                      setPageSize(Number(e.target.value));
-                      setPageNumber(1);
+            {(activeTab === "today" || activeTab === "this-week" || hasSearched) && (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", marginTop: "10px" }}>
+                  <h3
+                    style={{
+                      fontSize: "17px",
+                      color: "#0aa89e",
+                      margin: 0,
+                      fontWeight: 700,
                     }}
                   >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                  </select>
-                  <span>entries</span>
-                  {totalRecords > 0 && (
-                    <span style={{ marginLeft: "8px" }}>
-                      ({(pageNumber - 1) * pageSize + 1} - {Math.min(pageNumber * pageSize, totalRecords)} of {totalRecords})
-                    </span>
-                  )}
+                    Description
+                  </h3>
                 </div>
-              )}
-            </div>
 
-            <div className="items-table-wrapper">
-              <table className="items-table">
-                <thead id="table-header-root">
-                  <tr>
-                    <th>Date</th>
-                    <th>Item Name</th>
-                    <th>Quantity</th>
-                    <th>Total Amount (Rs.)</th>
-                  </tr>
-                </thead>
+                <ReportTableState
+                  loading={loading}
+                  hasData={!error && todaySales.length > 0}
+                  emptyMessage={error || "No Record Found"}
+                  columns={4}
+                >
+                  <div className="items-table-wrapper">
+                    <table className="items-table">
+                      <thead id="table-header-root">
+                        <tr>
+                          <th>Date</th>
+                          <th>Item Name</th>
+                          <th>Quantity</th>
+                          <th>Total Amount (Rs.)</th>
+                        </tr>
+                      </thead>
+                      <tbody id="table-body-root">
+                        {loading ? (
+                          <tr>
+                            <td colSpan={4} style={{ textAlign: "center", padding: "40px" }}>
+                              Loading data...
+                            </td>
+                          </tr>
+                        ) : todaySales.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
+                              No Records Found
+                            </td>
+                          </tr>
+                        ) : (
+                          todaySales.map((item, index) => (
+                            <tr key={index}>
+                              <td>{formatDate(item.trans_date)}</td>
+                              <td>{item.item_name || "-"}</td>
+                              <td>{item.total_quantity ?? 0}</td>
+                              <td>{item.total_amount ?? 0}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
 
-                <tbody id="table-body-root">
-                  {loading ? (
-                    <tr>
-                      <td
-                        colSpan={4}
-                        style={{
-                          textAlign: "center",
-                          padding: "24px",
-                          fontWeight: "600",
-                          color: "var(--text-secondary, #666)",
-                        }}
-                      >
-                        <i className="fas fa-spinner fa-spin me-2" /> Loading Sales Data...
-                      </td>
-                    </tr>
-                  ) : error ? (
-                    <tr>
-                      <td
-                        colSpan={4}
-                        style={{
-                          textAlign: "center",
-                          padding: "24px",
-                          fontWeight: "600",
-                          color: "#dc3545",
-                        }}
-                      >
-                        {error}
-                      </td>
-                    </tr>
-                  ) : todaySales.length > 0 ? (
-                    todaySales.map((item, index) => (
-                      <tr key={index}>
-                        <td>{formatDate(item.trans_date)}</td>
-                        <td>{item.item_name || "-"}</td>
-                        <td>{item.total_quantity ?? 0}</td>
-                        <td>{item.total_amount ?? 0}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan={4}
-                        style={{
-                          textAlign: "center",
-                          padding: "20px",
-                          fontWeight: "600",
-                          color: "#888",
-                        }}
-                      >
-                        No Record Found
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <ReportPagination
-              currentPage={pageNumber}
-              totalPages={totalPages}
-              onPageChange={(page) => setPageNumber(page)}
-              disabled={loading}
-            />
+                  <ReportTableFooter
+                    currentPage={pageNumber}
+                    totalPages={totalPages}
+                    totalRecords={totalRecords}
+                    pageSize={pageSize}
+                    onPageChange={(page) => setPageNumber(page)}
+                    onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
+                    disabled={loading}
+                  />
+                </ReportTableState>
+              </>
+            )}
           </div>
 
-          <div className="wizard-navigation-footer">
-            <button className="btn-wizard-prev">
-              <i className="fas fa-chevron-left" /> PREVIOUS
-            </button>
-            <button className="btn-wizard-next">
-              NEXT <i className="fas fa-chevron-right" />
-            </button>
-          </div>
+          <ReportStepFooter currentStepOverride={2} totalStepsOverride={25} />
         </main>
       </div>
     </div>
   );
 }
+

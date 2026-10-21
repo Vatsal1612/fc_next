@@ -34,25 +34,33 @@ export const WIZARD_STEPS: WizardStep[] = [
   { step: 23, title: "My Plan", path: "/menu/my-plan", category: "menu" },
 
   // Orders (Steps 24-29)
-  { step: 24, title: "Order Setting", path: "/orders/ordersetting", category: "orders" },
-  { step: 25, title: "Category Mapper", path: "/orders/category-mapper", category: "orders" },
-  { step: 26, title: "Ordering Widget", path: "/orders/ordering-widget", category: "orders" },
-  { step: 27, title: "Widget Setting", path: "/orders/widget-setting", category: "orders" },
-  { step: 28, title: "Payment Gateway", path: "/orders/payment-gateway", category: "orders" },
-  { step: 29, title: "Delivery Integration", path: "/orders/delivery-integration", category: "orders" },
+  { step: 24, title: "Order Setting", path: "/orders/OrderSetting", category: "orders" },
+  { step: 25, title: "Category Mapper", path: "/orders/CategoryMapper", category: "orders" },
+  { step: 26, title: "Ordering Widget", path: "/orders/OrderingWidget", category: "orders" },
+  { step: 27, title: "Widget Setting", path: "/orders/WidgetSetting", category: "orders" },
+  { step: 28, title: "Payment Gateway", path: "/orders/PaymentGateway", category: "orders" },
+  { step: 29, title: "Delivery Integration", path: "/orders/DeliveryIntegration", category: "orders" },
 
   // Marketing (Steps 30-35)
-  { step: 30, title: "Coupon", path: "/marketing/coupon", category: "marketing" },
-  { step: 31, title: "Marketing Material", path: "/marketing/marketing-material", category: "marketing" },
-  { step: 32, title: "WhatsApp Marketing", path: "/marketing/whatsapp-marketing", category: "marketing" },
-  { step: 33, title: "WhatsApp Notification Setting", path: "/marketing/whatsapp-notification-setting", category: "marketing" },
-  { step: 34, title: "QR Binding", path: "/marketing/qr-binding", category: "marketing" },
-  { step: 35, title: "Real Time Offer", path: "/marketing/real-time-offer", category: "marketing" },
+  { step: 30, title: "Coupon", path: "/marketing/Coupon", category: "marketing" },
+  { step: 31, title: "Marketing Material", path: "/marketing/MarketingMaterial", category: "marketing" },
+  { step: 32, title: "WhatsApp Marketing", path: "/marketing/WhatsAppMarketing", category: "marketing" },
+  { step: 33, title: "WhatsApp Notification Setting", path: "/marketing/WhatsappNotificationSetting", category: "marketing" },
+  { step: 34, title: "QR Binding", path: "/marketing/QrBinding", category: "marketing" },
+  { step: 35, title: "Real Time Offer", path: "/marketing/RealTimeOffer", category: "marketing" },
 ];
 
 export function getStepInfo(pathname: string) {
-  const normalized = (pathname || "").replace(/\/$/, "");
-  const index = WIZARD_STEPS.findIndex((s) => s.path === normalized);
+  const clean = (pathname || "").replace(/\/$/, "");
+  // Match either exact path or path after stripping restaurant prefix
+  const parts = clean.split("/").filter(Boolean);
+  const adminModules = ["reports", "orders", "marketing", "menu", "setup"];
+  const subpath = parts.length > 0 && !adminModules.includes(parts[0].toLowerCase())
+    ? "/" + parts.slice(1).join("/")
+    : clean;
+
+  const normalized = subpath.toLowerCase();
+  const index = WIZARD_STEPS.findIndex((s) => s.path.toLowerCase() === normalized);
 
   if (index === -1) {
     return {

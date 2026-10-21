@@ -11,8 +11,6 @@ export interface ReportPaginationProps {
   className?: string;
   totalRecords?: number;
   pageSize?: number;
-  onPageSizeChange?: (size: number) => void;
-  pageSizeOptions?: number[];
 }
 
 export const ReportPagination: React.FC<ReportPaginationProps> = ({
@@ -21,53 +19,14 @@ export const ReportPagination: React.FC<ReportPaginationProps> = ({
   onPageChange,
   disabled = false,
   className = "",
-  totalRecords,
-  pageSize,
-  onPageSizeChange,
-  pageSizeOptions = [10, 25, 50, 100],
 }) => {
-  // If there are no records, or only 1 page and no size change needed, we might still want to show "Show 10 entries" if implemented.
-  // But generally hide if no pages and no totalRecords.
-  if (totalPages <= 1 && !totalRecords) return null;
+  if (totalPages <= 0) return null;
 
   const validCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
 
-  // Generates page numbers array with sliding window
+  // Generates only the current page number for the minimal pagination style
   const getPageNumbers = (): (number | string)[] => {
-    if (totalPages <= 9) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-    }
-
-    const pages: (number | string)[] = [];
-    const maxVisible = 7;
-    let start = Math.max(1, validCurrentPage - Math.floor(maxVisible / 2));
-    let end = Math.min(totalPages, start + maxVisible - 1);
-
-    if (end - start + 1 < maxVisible) {
-      start = Math.max(1, end - maxVisible + 1);
-    }
-
-    if (start > 1) {
-      pages.push(1);
-      if (start > 2) pages.push("...");
-    }
-
-    for (let i = start; i <= end; i++) {
-      if (i > 1 && i < totalPages) {
-        pages.push(i);
-      } else if (start === 1 && i === 1) {
-        pages.push(1);
-      } else if (end === totalPages && i === totalPages) {
-        pages.push(totalPages);
-      }
-    }
-
-    if (end < totalPages) {
-      if (end < totalPages - 1) pages.push("...");
-      pages.push(totalPages);
-    }
-
-    return Array.from(new Set(pages));
+    return [validCurrentPage];
   };
 
   const handlePrev = () => {
@@ -85,82 +44,58 @@ export const ReportPagination: React.FC<ReportPaginationProps> = ({
   const pageNumbers = getPageNumbers();
 
   return (
-    <div className={`report-pagination-wrapper ${className}`.trim()}>
-      <div className="report-pagination-left">
-        {onPageSizeChange && pageSize ? (
-          <>
-            Show 
-            <select
-              className="report-pagination-select"
-              value={pageSize}
-              onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              disabled={disabled}
-            >
-              {pageSizeOptions.map((opt) => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
-            entries
-          </>
-        ) : (
-          totalRecords && pageSize ? (
-            <span>Showing {Math.min((validCurrentPage - 1) * pageSize + 1, totalRecords)} to {Math.min(validCurrentPage * pageSize, totalRecords)} of {totalRecords} entries</span>
-          ) : null
-        )}
-      </div>
+    <nav
+      className={`report-pagination-container ${className}`.trim()}
+      aria-label="Report table pagination"
+    >
+      <button
+        type="button"
+        className="report-pagination-btn prev-btn"
+        disabled={validCurrentPage <= 1 || disabled}
+        onClick={handlePrev}
+      >
+        <span style={{ marginRight: "4px", fontSize: "14px", fontWeight: "600" }}>&lt;</span>
+        Back
+      </button>
 
-      {totalPages > 1 && (
-        <div className="report-pagination-right">
+      {pageNumbers.map((item, index) => {
+        if (typeof item === "string") {
+          return (
+            <span key={`ellipsis-${index}`} className="report-pagination-ellipsis">
+              &hellip;
+            </span>
+          );
+        }
+
+        const isSelected = item === validCurrentPage;
+        return (
           <button
+            key={`page-${item}`}
             type="button"
-            className="report-nav-text-btn"
-            disabled={validCurrentPage <= 1 || disabled}
-            onClick={handlePrev}
-          >
-            &lt; Back
-          </button>
-
-          <div className="report-page-numbers">
-            {pageNumbers.map((item, index) => {
-              if (typeof item === "string") {
-                return (
-                  <span key={`ellipsis-${index}`} className="report-ellipsis">
-                    &hellip;
-                  </span>
-                );
+            className={`report-pagination-btn ${isSelected ? "active" : ""}`}
+            disabled={disabled}
+            aria-current={isSelected ? "page" : undefined}
+            onClick={() => {
+              if (item !== validCurrentPage && !disabled) {
+                onPageChange(item);
               }
-
-              const isSelected = item === validCurrentPage;
-              return (
-                <button
-                  key={`page-${item}`}
-                  type="button"
-                  className={`report-num-btn ${isSelected ? "active" : ""}`}
-                  disabled={disabled}
-                  aria-current={isSelected ? "page" : undefined}
-                  onClick={() => {
-                    if (item !== validCurrentPage && !disabled) {
-                      onPageChange(item);
-                    }
-                  }}
-                >
-                  {item}
-                </button>
-              );
-            })}
-          </div>
-
-          <button
-            type="button"
-            className="report-nav-text-btn"
-            disabled={validCurrentPage >= totalPages || disabled}
-            onClick={handleNext}
+            }}
           >
-            Next &gt;
+            {item}
           </button>
-        </div>
-      )}
-    </div>
+        );
+      })}
+
+      <button
+        type="button"
+        className="report-pagination-btn next-btn"
+        disabled={validCurrentPage >= totalPages || disabled}
+        onClick={handleNext}
+      >
+        Next
+        <span style={{ marginLeft: "4px", fontSize: "14px", fontWeight: "600" }}>&gt;</span>
+      </button>
+    </nav>
   );
 };
 

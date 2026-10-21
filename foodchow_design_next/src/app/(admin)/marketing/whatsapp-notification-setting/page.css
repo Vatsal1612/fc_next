@@ -90,14 +90,16 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-  font-size: var(--text-helper); line-height: var(--lh-helper);
-  font-weight: var(--weight-bold);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
+    font-weight: var(--weight-bold);
     color: var(--muted);
   }
 
   .free-message-badge i {
     color: var(--teal);
-  font-size: var(--text-subheading); line-height: var(--lh-subheading);
+    font-size: var(--text-subheading);
+    line-height: var(--lh-subheading);
   }
 
   .free-message-count {
@@ -108,8 +110,9 @@
     padding: 5px 14px;
     border: 1.5px dashed #9dd4d0;
     border-radius: 6px;
-  font-size: var(--text-helper); line-height: var(--lh-helper);
-  font-weight: var(--weight-bold);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
+    font-weight: var(--weight-bold);
     color: var(--teal-dark);
     background: var(--teal-tint);
     font-family: 'Courier New', monospace;
@@ -126,15 +129,16 @@
   }
 
   .info-box p {
-  font-size: var(--text-helper); line-height: var(--lh-helper);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
     color: var(--muted);
     margin-bottom: 16px;
-  font-weight: var(--weight-medium);
+    font-weight: var(--weight-medium);
   }
 
   .info-box p strong {
     color: var(--ink);
-  font-weight: var(--weight-bold);
+    font-weight: var(--weight-bold);
   }
 
   .checkbox-label input[type="checkbox"] {
@@ -172,9 +176,9 @@
     display: flex;
     align-items: center;
     gap: 8px;
-  font-size: var(--text-body);
+    font-size: var(--text-body);
     color: var(--ink);
-  font-weight: var(--weight-medium);
+    font-weight: var(--weight-medium);
     cursor: pointer;
     user-select: none;
   }
@@ -185,8 +189,9 @@
 
   .form-label {
     display: block;
-  font-size: var(--text-label); line-height: var(--lh-label);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-label);
+    line-height: var(--lh-label);
+    font-weight: var(--weight-semibold);
     color: var(--ink);
     margin-bottom: 7px;
   }
@@ -222,19 +227,23 @@
     border: none;
     border-right: 1.5px solid var(--line);
     background: #f8fafb;
-  font-size: var(--text-input); line-height: var(--lh-input);
-  font-weight: var(--weight-regular);
+    font-size: var(--text-input);
+    line-height: var(--lh-input);
+    font-weight: var(--weight-regular);
     color: var(--muted);
     outline: none;
     cursor: pointer;
     border-radius: 8px 0 0 8px;
+    width: auto;
+    flex-shrink: 0;
   }
 
   .input-with-select input {
     padding: 10px 14px;
     border: none;
     flex: 1;
-  font-size: var(--text-input); line-height: var(--lh-input);
+    font-size: var(--text-input);
+    line-height: var(--lh-input);
     color: var(--ink);
     outline: none;
     background: transparent;
@@ -249,10 +258,11 @@
     background: var(--teal);
     color: #fff;
     padding: 10px 32px;
-  font-size: var(--text-button); line-height: var(--lh-button);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
     border-radius: 6px;
     border: none;
-  font-weight: var(--weight-semibold);
+    font-weight: var(--weight-semibold);
     cursor: pointer;
     transition: all 0.2s;
   }
@@ -262,8 +272,8 @@
   }
 
   .table-title {
-  font-size: var(--text-body);
-  font-weight: var(--weight-bold);
+    font-size: var(--text-body);
+    font-weight: var(--weight-bold);
     color: var(--ink);
     margin-bottom: 14px;
     margin-top: 16px;
@@ -272,7 +282,8 @@
   .events-table {
     width: 100%;
     border-collapse: collapse;
-  font-size: var(--text-helper); line-height: var(--lh-helper);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
     background: var(--white);
     border-radius: var(--radius);
     border-style: hidden;
@@ -289,8 +300,9 @@
   .events-table th {
     padding: 13px 16px;
     text-align: left;
-  font-size: var(--text-table);
-  font-weight: var(--weight-semibold); line-height: var(--lh-table);
+    font-size: var(--text-table);
+    font-weight: var(--weight-semibold);
+    line-height: var(--lh-table);
     color: var(--teal-dark);
     white-space: nowrap;
     letter-spacing: .04em;
@@ -313,7 +325,7 @@
 
   .events-table td {
     padding: 14px 16px;
-  font-size: var(--text-table);
+    font-size: var(--text-table);
     color: var(--ink);
     vertical-align: middle;
     border: none;
@@ -328,7 +340,7 @@
   .event-item {
     margin-bottom: 0;
     padding: 4px 0;
-  font-weight: var(--weight-semibold);
+    font-weight: var(--weight-semibold);
     color: var(--ink);
   }
 
@@ -347,8 +359,9 @@
     border: 1.5px solid var(--border-color);
     border-radius: 6px;
     color: var(--text-light);
-  font-size: var(--text-button); line-height: var(--lh-button);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
+    font-weight: var(--weight-semibold);
     cursor: pointer;
     transition: all 0.2s ease;
     outline: none;
@@ -384,8 +397,9 @@
   }
 
   .btn-wizard-prev {
-  font-size: var(--text-button); line-height: var(--lh-button);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
+    font-weight: var(--weight-semibold);
     color: #ffffff;
     background: var(--teal, #0AA89E);
     border: none;
@@ -408,8 +422,9 @@
   }
 
   .btn-wizard-next {
-  font-size: var(--text-button); line-height: var(--lh-button);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
+    font-weight: var(--weight-semibold);
     color: #ffffff;
     background: var(--teal, #0AA89E);
     border: none;

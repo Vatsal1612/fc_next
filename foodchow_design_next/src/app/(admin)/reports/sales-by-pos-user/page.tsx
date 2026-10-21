@@ -776,13 +776,15 @@
 //   );
 // }
 
-
 "use client";
 
 import { useEffect, useState } from "react";
+import Script from "next/script";
 import "./page.css";
 import { reportsService, PosUser, SalesByPosUser } from "@/api/services/report.service";
-import ReportPagination from "@/components/shared/ReportPagination";
+import ReportTableFooter from "@/components/shared/ReportTableFooter";
+import ReportTableState from "@/components/shared/ReportTableState";
+import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
 
 interface RowData {
@@ -798,11 +800,13 @@ interface RowData {
 
 export default function SalesByPosUserPage() {
     const shopId = useShopId();
+    const activeShopId = shopId || (typeof window !== "undefined" ? parseInt(sessionStorage.getItem("shop_id") || "0", 10) : 0);
     const [users, setUsers] = useState<PosUser[]>([]);
     const [selectedUser, setSelectedUser] = useState("");
     const [activeTab, setActiveTab] = useState("today");
     const [reportData, setReportData] = useState<RowData[]>([]);
     const [loading, setLoading] = useState(false);
+    const [hasSearched, setHasSearched] = useState(false);
     const [summary, setSummary] = useState<{ label: string; count: string } | null>(null);
     const [pageNumber, setPageNumber] = useState(1);
     const [pageSize, setPageSize] = useState(10);
@@ -812,8 +816,9 @@ export default function SalesByPosUserPage() {
     // Fetch users on mount
     useEffect(() => {
         const fetchUsers = async () => {
+            if (!activeShopId) return;
             try {
-                const data = await reportsService.fetchPosUsers(shopId);
+                const data = await reportsService.fetchPosUsers(activeShopId);
                 setUsers(data || []);
                 // Select admin user by default
                 const adminUser = data?.find(
@@ -825,19 +830,17 @@ export default function SalesByPosUserPage() {
             }
         };
         fetchUsers();
-    }, [shopId]);
+    }, [activeShopId]);
 
     // Fetch data automatically for tabs without secondary filters (today, week)
     // and whenever pagination changes.
     useEffect(() => {
-        if (selectedUser && shopId) {
+        if (selectedUser && activeShopId) {
             if (activeTab === "today" || activeTab === "week") {
                 fetchData(activeTab);
             }
         }
-    }, [shopId, selectedUser, activeTab, pageNumber, pageSize]);
-
-
+    }, [activeShopId, selectedUser, activeTab, pageNumber, pageSize]);
 
     // Transform API data to display format
     // const transformData = (data: SalesByPosUser[]): RowData[] => {
@@ -879,15 +882,16 @@ export default function SalesByPosUserPage() {
 
     // Fetch data based on tab
     const fetchData = async (tab: string) => {
-        if (!selectedUser || !shopId) return;
+        if (!selectedUser || !activeShopId) return;
 
+        setHasSearched(true);
         setLoading(true);
         setReportData([]);
         setSummary(null);
 
         try {
             if (tab === "today") {
-                const res = await reportsService.getSalesByPosUserToday(shopId, selectedUser, pageNumber, pageSize);
+                const res = await reportsService.getSalesByPosUserToday(activeShopId, selectedUser, pageNumber, pageSize);
                 const transformedData = transformData(res.items);
                 setReportData(transformedData);
                 setServerTotalRecords(res.totalRecords);
@@ -896,7 +900,7 @@ export default function SalesByPosUserPage() {
                     setSummary(calculateSummary(transformedData, res.totalRecords));
                 }
             } else if (tab === "week") {
-                const res = await reportsService.getSalesByPosUserWeek(shopId, selectedUser, pageNumber, pageSize);
+                const res = await reportsService.getSalesByPosUserWeek(activeShopId, selectedUser, pageNumber, pageSize);
                 const transformedData = transformData(res.items);
                 setReportData(transformedData);
                 setServerTotalRecords(res.totalRecords);
@@ -909,7 +913,7 @@ export default function SalesByPosUserPage() {
                 const currentYear = new Date().getFullYear();
                 const monthVal = (document.getElementById("selMonth") as HTMLSelectElement)?.value || String(currentMonth).padStart(2, "0");
                 const yearVal = (document.getElementById("selYear") as HTMLSelectElement)?.value || String(currentYear);
-                const res = await reportsService.getSalesByPosUserMonth(shopId, monthVal, yearVal, selectedUser, pageNumber, pageSize);
+                const res = await reportsService.getSalesByPosUserMonth(activeShopId, monthVal, yearVal, selectedUser, pageNumber, pageSize);
                 const transformedData = transformData(res.items);
                 setReportData(transformedData);
                 setServerTotalRecords(res.totalRecords);
@@ -920,7 +924,7 @@ export default function SalesByPosUserPage() {
             } else if (tab === "year") {
                 const currentYear = new Date().getFullYear();
                 const yearVal = (document.getElementById("selYearOnly") as HTMLSelectElement)?.value || String(currentYear);
-                const res = await reportsService.getSalesByPosUserYear(shopId, yearVal, selectedUser, pageNumber, pageSize);
+                const res = await reportsService.getSalesByPosUserYear(activeShopId, yearVal, selectedUser, pageNumber, pageSize);
                 const transformedData = transformData(res.items);
                 setReportData(transformedData);
                 setServerTotalRecords(res.totalRecords);
@@ -936,7 +940,7 @@ export default function SalesByPosUserPage() {
                 const toDate = (document.getElementById("toDate") as HTMLInputElement)?.value || today;
 
                 const res = await reportsService.getSalesByPosUserDateWise(
-                    shopId,
+                    activeShopId,
                     fromDate,
                     toDate,
                     selectedUser,
@@ -982,6 +986,7 @@ export default function SalesByPosUserPage() {
     // Switch tab
     const switchTab = (tab: string) => {
         setActiveTab(tab);
+        setHasSearched(false);
         setPageNumber(1);
         // Update button styles
         ["today", "week", "month", "year", "custom"].forEach((t) => {
@@ -990,62 +995,56 @@ export default function SalesByPosUserPage() {
         });
     };
 
-    // Export to CSV
-    const exportToCSV = () => {
+    // EXPORT TO EXCEL
+    const exportToExcel = () => {
         if (!reportData || reportData.length === 0) {
-            alert("No data to export");
+            alert("No data available to export");
+            return;
+        }
+
+        const XLSX = (window as any).XLSX;
+        if (!XLSX) {
             return;
         }
 
         const headers = ["Date", "Order ID", "Customer Name", "Mobile No", "Payment Method", "Split Payment", "Order Type", "Total Amount (Rs.)"];
         const rows = reportData.map((row) => [
-            row.date,
-            row.order_id,
-            row.customer,
-            row.mobile,
-            row.payment,
-            row.split,
-            row.type,
-            row.amount,
+            row.date || "-",
+            row.order_id || "-",
+            row.customer || "Guest",
+            row.mobile || "-",
+            row.payment || "-",
+            row.split || "-",
+            row.type || "-",
+            parseFloat(row.amount || "0") || 0,
         ]);
 
-        const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
-        const blob = new Blob([csvContent], { type: "text/csv" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `sales_by_pos_user_${activeTab}_${new Date().toISOString().split("T")[0]}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
+        const reportTitle = `Sales By POS User (${selectedUser}) — ${activeTab.toUpperCase()}`;
+        const wsData = [
+            [reportTitle],
+            [`Exported On: ${new Date().toLocaleString()}`],
+            [],
+            headers,
+            ...rows,
+        ];
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        ws["!cols"] = [{ wch: 18 }, { wch: 15 }, { wch: 22 }, { wch: 15 }, { wch: 16 }, { wch: 15 }, { wch: 15 }, { wch: 20 }];
+        XLSX.utils.book_append_sheet(wb, ws, "Sales By POS User");
+        XLSX.writeFile(wb, `sales_by_pos_user_${activeTab}_${new Date().toISOString().split("T")[0]}.xlsx`);
     };
 
     // Render the report table
     const renderTable = () => {
-        if (loading) {
-            return (
-                <div className="no-record-wrap">
-                    <p className="no-record">Loading data...</p>
-                </div>
-            );
-        }
-
-        if (!reportData || reportData.length === 0) {
-            return (
-                <div className="no-record-wrap">
-                    <p className="no-record">No Record Found</p>
-                </div>
-            );
-        }
-
         const isServerPaginated = true;
-        const totalRecords = isServerPaginated ? serverTotalRecords : reportData.length;
+        const totalRecords = isServerPaginated ? serverTotalRecords : (reportData ? reportData.length : 0);
         const totalPages = isServerPaginated ? serverTotalPages : Math.max(1, Math.ceil(totalRecords / pageSize));
         const startIndex = (pageNumber - 1) * pageSize;
-        const paginatedRows = isServerPaginated ? reportData : reportData.slice(startIndex, startIndex + pageSize);
-        const endIndex = isServerPaginated ? Math.min(pageNumber * pageSize, totalRecords) : Math.min(startIndex + pageSize, totalRecords);
+        const paginatedRows = isServerPaginated ? (reportData || []) : (reportData || []).slice(startIndex, startIndex + pageSize);
 
         return (
-            <>
+            <ReportTableState loading={loading} hasData={Boolean(reportData && reportData.length > 0)} columns={8}>
                 {summary && (
                     <div className="summary">
                         <p>{summary.label}</p>
@@ -1068,74 +1067,78 @@ export default function SalesByPosUserPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {paginatedRows.map((row, index) => (
-                                <tr key={index}>
-                                    <td style={{ color: "var(--muted)", fontSize: "12.5px" }}>{row.date}</td>
-                                    <td>
-                                        <span className="order-pill">
-                                            {row.order_id} <a href="#" className="pos-link">pos</a>
-                                        </span>
+                            {paginatedRows.length === 0 ? (
+                                <tr>
+                                    <td colSpan={8} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
+                                        No Records Found
                                     </td>
-                                    <td style={{ fontWeight: "600" }}>{row.customer || "Guest"}</td>
-                                    <td style={{ color: "var(--muted)" }}>{row.mobile}</td>
-                                    <td>
-                                        <span className={
-                                            row.payment === "Cash" ? "pay-cash" :
-                                                row.payment === "Card" ? "pay-card" :
-                                                    row.payment === "Online" ? "pay-online" :
-                                                        "pay-split"
-                                        }>
-                                            {row.payment || "-"}
-                                        </span>
-                                    </td>
-                                    <td style={{ color: "var(--muted)" }}>{row.split}</td>
-                                    <td><span className="type-pill">{row.type || "-"}</span></td>
-                                    <td className="amount-cell">₹{row.amount}</td>
                                 </tr>
-                            ))}
+                            ) : (
+                                paginatedRows.map((row, index) => (
+                                    <tr key={index}>
+                                        <td style={{ color: "var(--muted)", fontSize: "12.5px" }}>{row.date}</td>
+                                        <td>
+                                            <span className="order-pill">
+                                                {row.order_id} <a href="#" className="pos-link">pos</a>
+                                            </span>
+                                        </td>
+                                        <td style={{ fontWeight: "600" }}>{row.customer || "Guest"}</td>
+                                        <td style={{ color: "var(--muted)" }}>{row.mobile}</td>
+                                        <td>
+                                            <span className={
+                                                row.payment === "Cash" ? "pay-cash" :
+                                                    row.payment === "Card" ? "pay-card" :
+                                                        row.payment === "Online" ? "pay-online" :
+                                                            "pay-split"
+                                            }>
+                                                {row.payment || "-"}
+                                            </span>
+                                        </td>
+                                        <td style={{ color: "var(--muted)" }}>{row.split}</td>
+                                        <td><span className="type-pill">{row.type || "-"}</span></td>
+                                        <td className="amount-cell">₹{row.amount}</td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
-                    <div className="table-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '12px 16px', marginTop: '12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '13px', color: '#64748b' }}>Show</span>
-                            <select
-                                value={pageSize}
-                                onChange={(e) => {
-                                    setPageSize(Number(e.target.value));
-                                    setPageNumber(1);
-                                }}
-                                style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                            >
-                                <option value={10}>10</option>
-                                <option value={20}>20</option>
-                                <option value={50}>50</option>
-                            </select>
-                            <span style={{ fontSize: '13px', color: '#64748b' }}>entries</span>
-                        </div>
-                        <div style={{ fontSize: '13px', color: '#64748b' }}>
-                            Showing {startIndex + 1} to {endIndex} of {totalRecords} entries
-                        </div>
-                        <ReportPagination
+                    {reportData && reportData.length > 0 && (
+                        <ReportTableFooter
                             currentPage={pageNumber}
                             totalPages={totalPages}
+                            totalRecords={totalRecords}
+                            pageSize={pageSize}
                             onPageChange={(page) => setPageNumber(page)}
+                            onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
+                            disabled={loading}
                         />
-                    </div>
+                    )}
                 </div>
-            </>
+            </ReportTableState>
         );
     };
 
     // Render second row (filters) based on active tab
     const renderSecondRow = () => {
         if (activeTab === "today") {
-            return null;
+            return (
+                <div className="second-row" style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <button className="btn-teal" onClick={exportToExcel}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        EXPORT TO EXCEL
+                    </button>
+                </div>
+            );
         }
 
         if (activeTab === "week") {
             return (
-                <div className="second-row" style={{ display: "flex" }}>
-                    <button className="btn-teal" onClick={exportToCSV}>
+                <div className="second-row" style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <button className="btn-teal" onClick={exportToExcel}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                             <polyline points="7 10 12 15 17 10" />
@@ -1191,7 +1194,7 @@ export default function SalesByPosUserPage() {
                         setPageNumber(1);
                         fetchData("month");
                     }}>GETDATA</button>
-                    <button className="btn-teal" onClick={exportToCSV}>
+                    <button className="btn-teal" onClick={exportToExcel}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                             <polyline points="7 10 12 15 17 10" />
@@ -1224,7 +1227,7 @@ export default function SalesByPosUserPage() {
                         setPageNumber(1);
                         fetchData("year");
                     }}>GETDATA</button>
-                    <button className="btn-teal" onClick={exportToCSV}>
+                    <button className="btn-teal" onClick={exportToExcel}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                             <polyline points="7 10 12 15 17 10" />
@@ -1252,7 +1255,7 @@ export default function SalesByPosUserPage() {
                         <input type="date" id="toDate" defaultValue={today} />
                     </div>
                     <button className="btn-teal" onClick={fetchCustomData}>GETDATA</button>
-                    <button className="btn-teal" onClick={exportToCSV}>
+                    <button className="btn-teal" onClick={exportToExcel}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                             <polyline points="7 10 12 15 17 10" />
@@ -1291,41 +1294,19 @@ export default function SalesByPosUserPage() {
         };
         modalCloseBtn?.addEventListener("click", onModalClose);
 
-        // Step footer
-        let currentStep = 16;
-        const totalSteps = 26;
-        const prevBtn = document.getElementById("prevBtn");
-        const nextBtn = document.getElementById("nextBtn");
-        const stepValue = document.getElementById("stepValue");
-
-        const onPrev = () => {
-            if (currentStep > 1) {
-                currentStep--;
-                if (stepValue) stepValue.textContent = `${currentStep}/${totalSteps}`;
-            }
-        };
-
-        const onNext = () => {
-            if (currentStep < totalSteps) {
-                currentStep++;
-                if (stepValue) stepValue.textContent = `${currentStep}/${totalSteps}`;
-            }
-        };
-
-        prevBtn?.addEventListener("click", onPrev);
-        nextBtn?.addEventListener("click", onNext);
-
         return () => {
             tabHandlers.forEach(({ btn, handler }) => btn?.removeEventListener("click", handler));
             helpBtn?.removeEventListener("click", onHelp);
             modalCloseBtn?.removeEventListener("click", onModalClose);
-            prevBtn?.removeEventListener("click", onPrev);
-            nextBtn?.removeEventListener("click", onNext);
         };
     }, []);
 
     return (
         <div id="pg-reports-sales-by-pos-user">
+            <Script
+                src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+                strategy="afterInteractive"
+            />
             <div className="app">
                 <div className="main">
                     <div className="page-card">
@@ -1344,7 +1325,7 @@ export default function SalesByPosUserPage() {
                         {/* Top Row: user dropdown + tabs */}
                         <div className="top-row">
                             <select
-                                className="user-select"
+                                className="input-control user-select"
                                 id="userSelect"
                                 value={selectedUser}
                                 onChange={(e) => {
@@ -1369,22 +1350,22 @@ export default function SalesByPosUserPage() {
                         {renderSecondRow()}
 
                         {/* Result */}
-                        <div className="result-area" id="result-area">
+                        <div
+                            className="result-area results-section"
+                            id="result-area"
+                            style={{
+                                display:
+                                    activeTab === "today" || activeTab === "week"
+                                        ? "block"
+                                        : hasSearched
+                                            ? "block"
+                                            : "none",
+                            }}
+                        >
                             {renderTable()}
                         </div>
                     </div>
-                    <div className="step-footer">
-                        <button className="btn-prev" id="prevBtn">
-                            <i className="fas fa-chevron-left"></i> PREVIOUS
-                        </button>
-                        <div className="step-indicator">
-                            <span className="step-label">STEP</span>
-                            <span className="step-value" id="stepValue">16/26</span>
-                        </div>
-                        <button className="btn-next" id="nextBtn">
-                            NEXT <i className="fas fa-chevron-right"></i>
-                        </button>
-                    </div>
+                    <ReportStepFooter currentStepOverride={16} totalStepsOverride={25} />
                 </div>
             </div>
 

@@ -2,8 +2,6 @@
 
 import { useEffect } from "react";
 import { WizardFooter } from "@/components/shared/WizardFooter";
-import { setupService } from "@/api/services/setup.service";
-import Swal from "sweetalert2";
 import "./page.css";
 
 /**
@@ -185,7 +183,7 @@ export default function RestaurantImgaePage() {
       if (cropImg) cropImg.style.transform = `scale(${cs.zoom})`;
     };
 
-    const applyCrop = async (): Promise<void> => {
+    const applyCrop = (): void => {
       if (!cropImg || !cropWrapper || !cropCanvas || !imagePreview) return;
       const sx2 = cropImg.naturalWidth / cropWrapper.offsetWidth;
       const sy2 = cropImg.naturalHeight / cropWrapper.offsetHeight;
@@ -205,78 +203,18 @@ export default function RestaurantImgaePage() {
           cropCanvas.height,
         );
       const src = cropCanvas.toDataURL("image/jpeg", 0.92);
+      imagePreview.src = src;
+      imagePreview.style.display = "block";
+      if (placeholderText) placeholderText.style.display = "none";
+      const placeholder = document.getElementById("placeholder");
+      if (placeholder) {
+        placeholder.style.background = "transparent";
+        placeholder.style.border = "none";
+      }
+      if (btnChooseImage) (btnChooseImage as HTMLElement).style.display = "none";
+      if (btnDelete) btnDelete.style.display = "block";
       closeCropModal();
-
-      Swal.fire({
-        title: "Uploading Image...",
-        allowOutsideClick: false,
-        didOpen: () => {
-          Swal.showLoading();
-        },
-      });
-
-      try {
-        const shopId = sessionStorage.getItem("shop_id");
-        if (!shopId) throw new Error("No Shop ID");
-
-        // Convert base64 to Blob
-        const res = await fetch(src);
-        const blob = await res.blob();
-        
-        await setupService.saveShopOverviewImage(Number(shopId), blob, "restaurant_image.jpg");
-        
-        // Refresh the image
-        await fetchRestaurantImage();
-
-        Swal.fire({
-          icon: "success",
-          title: "Saved Successfully!",
-          text: "Restaurant image added successfully.",
-          confirmButtonColor: "#00a896",
-        });
-      } catch (err) {
-        console.error(err);
-        Swal.fire("Error", "Failed to upload image", "error");
-      }
     };
-
-    const fetchRestaurantImage = async () => {
-      try {
-        const shopId = sessionStorage.getItem("shop_id");
-        if (!shopId) return;
-
-        const res = await setupService.getShopOverview(Number(shopId));
-        // The API returns the data array inside the `result` property, not `data`
-        const responseData = res?.result || res?.data;
-        if (responseData) {
-          const parsedData = typeof responseData === "string" ? JSON.parse(responseData) : responseData;
-          // Could be array or object
-          const imageObj = Array.isArray(parsedData) ? parsedData[0] : parsedData;
-          
-          const imageName = imageObj?.Image || imageObj?.image;
-
-          if (imageName) {
-            if (imagePreview) {
-              imagePreview.src = `https://admin.foodchow.com/ShopDescriptionImage/${shopId}/${imageName}`;
-              imagePreview.style.display = "block";
-            }
-            if (placeholderText) placeholderText.style.display = "none";
-            const placeholder = document.getElementById("placeholder");
-            if (placeholder) {
-              placeholder.style.background = "transparent";
-              placeholder.style.border = "none";
-            }
-            if (btnChooseImage) (btnChooseImage as HTMLElement).style.display = "none";
-            if (btnDelete) btnDelete.style.display = "block";
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load restaurant image:", err);
-      }
-    };
-
-    // Load initial image
-    fetchRestaurantImage();
 
     // ── Wire handlers ──
     const onChoose = (): void => fileInput?.click();
@@ -311,46 +249,22 @@ export default function RestaurantImgaePage() {
     };
     btnCancel?.addEventListener("click", onCancelDelete);
 
-    const onConfirmDelete = async (): Promise<void> => {
+    const onConfirmDelete = (): void => {
+      if (imagePreview) {
+        imagePreview.src = "#";
+        imagePreview.style.display = "none";
+      }
+      if (placeholderText) placeholderText.style.display = "block";
+      const placeholder = document.getElementById("placeholder");
+      if (placeholder) {
+        placeholder.style.background = "";
+        placeholder.style.border = "";
+      }
+      if (btnChooseImage) (btnChooseImage as HTMLElement).style.display = "block";
+      if (btnDelete) btnDelete.style.display = "none";
+      if (fileInput) fileInput.value = "";
+      originalImageSrc = "";
       if (deleteModal) deleteModal.style.display = "none";
-
-      const shopId = sessionStorage.getItem("shop_id");
-      if (!shopId) {
-        Swal.fire("Error", "No shop ID found to delete image.", "error");
-        return;
-      }
-
-      Swal.fire({
-        title: "Removing...",
-        allowOutsideClick: false,
-        didOpen: () => {
-          Swal.showLoading();
-        },
-      });
-
-      try {
-        await setupService.deleteShopOverviewImage(Number(shopId));
-
-        if (imagePreview) {
-          imagePreview.src = "#";
-          imagePreview.style.display = "none";
-        }
-        if (placeholderText) placeholderText.style.display = "block";
-        const placeholder = document.getElementById("placeholder");
-        if (placeholder) {
-          placeholder.style.background = "";
-          placeholder.style.border = "";
-        }
-        if (btnChooseImage) (btnChooseImage as HTMLElement).style.display = "block";
-        if (btnDelete) btnDelete.style.display = "none";
-        if (fileInput) fileInput.value = "";
-        originalImageSrc = "";
-        
-        Swal.fire("Deleted!", "Restaurant image removed.", "success");
-      } catch (err) {
-        console.error(err);
-        Swal.fire("Error", "Failed to remove image.", "error");
-      }
     };
     btnConfirmDelete?.addEventListener("click", onConfirmDelete);
 
@@ -417,32 +331,7 @@ export default function RestaurantImgaePage() {
               <div className="report-header">
                 <h1 className="report-title typ-page-heading" style={{ margin: 0 }}>Restaurant Image</h1>
                 <div className="report-header-actions">
-                  <button
-                    type="button"
-                    className="btn-help"
-                    onClick={() =>
-                      Swal.fire({
-                        title: "How to set up Restaurant Images",
-                        html: `
-                          <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px;">
-                            <iframe 
-                              src="https://player.vimeo.com/video/1075943559?autoplay=1" 
-                              style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
-                              frameborder="0" 
-                              allow="autoplay; fullscreen; picture-in-picture" 
-                              allowfullscreen>
-                            </iframe>
-                          </div>
-                          <p style="margin-top: 15px; font-size: 14px; color: #475569;">
-                            Follow these steps to upload and adjust your restaurant images.
-                          </p>
-                        `,
-                        width: 700,
-                        showCloseButton: true,
-                        showConfirmButton: false,
-                      })
-                    }
-                  >
+                  <button className="btn-help">
                     <svg viewBox="0 0 24 24">
                       <circle cx="12" cy="12" r="10" />
                       <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />

@@ -392,4 +392,132 @@
     transform: none;
     box-shadow: none;
   }
+
+  /* ── STEP FOOTER (Matching Top Selling Items) ── */
+  .report-step-footer,
+  .step-footer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 24px 0 32px !important;
+    margin-top: 28px !important;
+    margin-bottom: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    background: transparent !important;
+    flex-shrink: 0 !important;
+    clear: both !important;
+    position: relative !important;
+    z-index: 2 !important;
+  }
+
+  .report-step-footer .btn-prev,
+  .report-step-footer .btn-next,
+  .step-footer .btn-prev,
+  .step-footer .btn-next {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    background: #00a896 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 10px 24px !important;
+    margin: 0 !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.06em !important;
+    text-transform: uppercase !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease-in-out !important;
+    box-shadow: 0 2px 6px rgba(0, 168, 150, 0.2) !important;
+    user-select: none !important;
+    line-height: 1.4 !important;
+    height: auto !important;
+    min-height: 40px !important;
+    outline: none !important;
+  }
+
+  .report-step-footer .btn-prev svg,
+  .report-step-footer .btn-next svg,
+  .step-footer .btn-prev svg,
+  .step-footer .btn-next svg {
+    display: inline-block !important;
+    vertical-align: middle !important;
+    stroke: #ffffff !important;
+    fill: none !important;
+    flex-shrink: 0 !important;
+  }
+
+  .report-step-footer .btn-prev:hover:not(:disabled),
+  .report-step-footer .btn-next:hover:not(:disabled),
+  .step-footer .btn-prev:hover:not(:disabled),
+  .step-footer .btn-next:hover:not(:disabled) {
+    background: #008f7f !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(0, 168, 150, 0.32) !important;
+  }
+
+  .report-step-footer .btn-prev:active:not(:disabled),
+  .report-step-footer .btn-next:active:not(:disabled),
+  .step-footer .btn-prev:active:not(:disabled),
+  .step-footer .btn-next:active:not(:disabled) {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 4px rgba(0, 168, 150, 0.2) !important;
+  }
+
+  .report-step-footer .btn-prev:disabled,
+  .report-step-footer .btn-next:disabled,
+  .step-footer .btn-prev:disabled,
+  .step-footer .btn-next:disabled {
+    background: #d1d5db !important;
+    color: #9ca3af !important;
+    cursor: not-allowed !important;
+    opacity: 0.7 !important;
+    transform: none !important;
+    box-shadow: none !important;
+    pointer-events: none !important;
+  }
+
+  .report-step-footer .step-indicator,
+  .step-footer .step-indicator {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 2px !important;
+    border: 1.5px dashed #ccc !important;
+    border-radius: 10px !important;
+    padding: 6px 26px !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    user-select: none !important;
+    box-sizing: border-box !important;
+    box-shadow: none !important;
+    min-width: 80px !important;
+  }
+
+  .report-step-footer .step-label,
+  .step-footer .step-label {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: #aaa !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
+    line-height: 1.2 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .report-step-footer .step-value,
+  .step-footer .step-value {
+    font-size: 17px !important;
+    font-weight: 700 !important;
+    color: #0aa89e !important;
+    line-height: 1.2 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
 }

@@ -1,231 +1,219 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { WizardFooter } from "@/components/shared/WizardFooter";
-import { useShopId } from "@/utils/shop";
-import { restaurantService, setupService } from "@/api/services/setup.service";
 import "./page.css";
 
-interface InvoiceItem {
-    desc: string;
-    detail: string;
-    qty: number;
-    amount: number;
-}
-
-interface InvoiceData {
-    number: string;
-    date: string;
-    plan: string;
-    amount: number;
-    items: InvoiceItem[];
-}
-
 export default function MyPlanPage() {
-    const SHOP_ID = useShopId();
-    const [currentPlans, setCurrentPlans] = useState<any[]>([]);
-    const [restaurantInfo, setRestaurantInfo] = useState<any>(null);
-    const [invoices, setInvoices] = useState<any[]>([]);
-    const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
-    const [activeInvoice, setActiveInvoice] = useState<InvoiceData | null>(null);
-
-    const [currency, setCurrency] = useState<string>("INR");
-    const [currencySymbol, setCurrencySymbol] = useState<string>("₹");
-
-    const getSymbolForCurrency = (curr: string) => {
-        const trimmed = (curr || "").trim();
-        if (trimmed === "INR" || trimmed === "Rs." || trimmed === "Rs" || trimmed === "₹") {
-            return "₹";
-        } else if (trimmed === "USD" || trimmed === "$") {
-            return "$";
-        } else if (trimmed === "AUD") {
-            return "A$";
-        } else if (trimmed === "CAD") {
-            return "C$";
-        } else if (trimmed === "EUR" || trimmed === "€") {
-            return "€";
-        } else if (trimmed === "GBP" || trimmed === "£") {
-            return "£";
-        }
-        return trimmed || "₹";
-    };
-
-    const displayPrice = (price: number | string | undefined) => {
-        if (price === undefined || price === null || price === "") {
-            return "";
-        }
-        const numericPrice = Number(price);
-        if (Number.isNaN(numericPrice)) {
-            return "";
-        }
-        const isIndian = currency === "Rs." || currency === "INR" || currency === "₹";
-        return `${currencySymbol}${numericPrice.toLocaleString(
-            isIndian ? "en-IN" : "en-US",
-            {
-                minimumFractionDigits: isIndian ? 0 : 2,
-                maximumFractionDigits: isIndian ? 0 : 2,
-            }
-        )}`;
-    };
-
     useEffect(() => {
-        const initCurrency = async () => {
-            let sessionCurr =
-                sessionStorage.getItem("shopcurrency") ||
-                sessionStorage.getItem("currency") ||
-                localStorage.getItem("shopcurrency") ||
-                localStorage.getItem("currency") ||
-                "";
-            const shopId = SHOP_ID || sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id");
+        interface InvoiceItem {
+            desc: string;
+            detail: string;
+            qty: number;
+            amount: number;
+        }
+        interface InvoiceEntry {
+            number: string;
+            date: string;
+            plan: string;
+            items: InvoiceItem[];
+        }
 
-            if (!sessionCurr && shopId) {
-                try {
-                    const info = await setupService.getRestaurantInformation(Number(shopId));
-                    if (info?.currency) {
-                        sessionCurr = info.currency;
-                        sessionStorage.setItem("currency", sessionCurr);
-                        sessionStorage.setItem("shopcurrency", sessionCurr);
-                    }
-                } catch (e) {
-                    console.error("Error fetching restaurant currency:", e);
-                }
-            }
+        const onWindowClick = () =>
+            document
+                .querySelectorAll<HTMLElement>(".dropdown-menu")
+                .forEach((m) => m.classList.remove("show"));
+        window.addEventListener("click", onWindowClick);
 
-            if (sessionCurr) {
-                setCurrency(sessionCurr.trim());
-                setCurrencySymbol(getSymbolForCurrency(sessionCurr));
-            }
+        const helpBtn = document.getElementById("helpBtn");
+        const onHelp = () => alert("Help & Support - My Plan");
+        helpBtn?.addEventListener("click", onHelp);
+
+        const supportTicketBtn = document.getElementById("supportTicketBtn");
+        const onSupport = () => alert("Create support ticket");
+        supportTicketBtn?.addEventListener("click", onSupport);
+
+        function handleCancel(): void {
+            if (confirm("Cancel Lite (MONTH) plan?")) alert("Cancellation requested.");
+        }
+
+        const invoiceData: Record<string, InvoiceEntry> = {
+            lifetime: {
+                number: "#FC-2026-0001",
+                date: "03 Jun 2026",
+                plan: "Commission Plan (LIFETIME)",
+                items: [
+                    {
+                        desc: "Commission Plan — Lifetime Access",
+                        detail: "One-time payment · No renewal",
+                        qty: 1,
+                        amount: 299.0,
+                    },
+                ],
+            },
+            monthly: {
+                number: "#FC-2026-0002",
+                date: "03 Jun 2026",
+                plan: "Lite (MONTH)",
+                items: [
+                    {
+                        desc: "Lite Plan — Monthly Subscription",
+                        detail: "Billing period: 03 Jun 2026 – 03 Jul 2026",
+                        qty: 1,
+                        amount: 19.0,
+                    },
+                ],
+            },
         };
-        initCurrency();
-    }, [SHOP_ID]);
 
-    useEffect(() => {
-        const fetchInfo = async () => {
-            if (!SHOP_ID) return;
-            try {
-                const [info, invList] = await Promise.allSettled([
-                    setupService.getRestaurantInformation(Number(SHOP_ID)),
-                    setupService.getShopInvoices(SHOP_ID)
-                ]);
-                if (info.status === "fulfilled" && info.value) {
-                    setRestaurantInfo(info.value);
-                    if (info.value.currency) {
-                        setCurrency(info.value.currency.trim());
-                        setCurrencySymbol(getSymbolForCurrency(info.value.currency));
-                    }
-                }
-                if (invList.status === "fulfilled" && invList.value) {
-                    const data = (invList.value as any)?.data || invList.value;
-                    if (Array.isArray(data)) {
-                        setInvoices(data);
-                    }
-                }
-            } catch (err) {
-                console.error("Failed to load restaurant / invoice info:", err);
-            }
+        function openInvoice(type: string): void {
+            const d = invoiceData[type];
+            if (!d) return;
+            const num = document.getElementById("inv-number");
+            const date = document.getElementById("inv-date");
+            const planName = document.getElementById("inv-plan-name");
+            if (num) num.textContent = d.number;
+            if (date) date.textContent = d.date;
+            if (planName) planName.textContent = d.plan;
+            let rows = "",
+                subtotal = 0;
+            d.items.forEach((i) => {
+                subtotal += i.amount * i.qty;
+                rows += `<tr><td><div class="item-name">${i.desc}</div><div class="item-desc">${i.detail}</div></td><td style="text-align:center">${i.qty}</td><td style="text-align:right">$${(
+                    i.amount * i.qty
+                ).toFixed(2)}</td></tr>`;
+            });
+            const items = document.getElementById("inv-items");
+            const subtotalEl = document.getElementById("inv-subtotal");
+            const totalEl = document.getElementById("inv-total");
+            if (items) items.innerHTML = rows;
+            if (subtotalEl) subtotalEl.textContent = "$" + subtotal.toFixed(2);
+            if (totalEl) totalEl.textContent = "$" + subtotal.toFixed(2);
+            document.getElementById("invoiceModal")?.classList.add("show");
+            document.body.style.overflow = "hidden";
+        }
+
+        function closeInvoice(): void {
+            document.getElementById("invoiceModal")?.classList.remove("show");
+            document.body.style.overflow = "";
+        }
+
+        function downloadInvoice(): void {
+            alert("PDF download would be triggered here.");
+        }
+
+        const onKeydown = (e: KeyboardEvent) => {
+            if (e.key === "Escape") closeInvoice();
         };
-        fetchInfo();
-    }, [SHOP_ID]);
+        document.addEventListener("keydown", onKeydown);
 
-    useEffect(() => {
-        const fetchPlans = async () => {
-            const shopIdToUse = SHOP_ID || "7872";
-            try {
-                // Fetch plan details exclusively using https://www.foodchow.com/api/FoodChowWD/GetPlanDetails?id=...
-                const res = await restaurantService.getPointPlanDetails(shopIdToUse);
-                const rawData = res?.data ?? res?.planDetails?.data ?? res;
-                if (rawData) {
-                    const parsedData = typeof rawData === "string" ? JSON.parse(rawData) : rawData;
-                    if (Array.isArray(parsedData) && parsedData.length > 0) {
-                        const formatted = parsedData.map((item: any) => ({
-                            plan_id: item.id || item.plan_id || "FreePlan",
-                            plan_name: item.plan_type || item.plan_name || "Subscription Plan",
-                            billing_cycle: item.billing_cycle || (item.plan_type === "month" ? "MONTH" : item.plan_type === "year" ? "YEAR" : ""),
-                            purchase_date: item.starting_date || item.created_date || item.creation_date || item.start_date,
-                            start_date: item.starting_date || item.created_date || item.creation_date || item.start_date,
-                            expiry_date: item.ending_date || item.end_date,
-                            end_date: item.ending_date || item.end_date,
-                            status: item.status || "ACTIVE",
-                            subscription_id: item.subscription_id || "",
-                            record_type: "Plan",
-                            amount: item.amount ?? 0,
-                            commision: item.commision ?? item.commission ?? "0%",
-                            coins: item.coins ?? 0,
-                            invoice_no: item.invoice_no,
-                            currencyORpercentage: item.currencyORpercentage,
-                        }));
-
-                        // Only fallback to currencyORpercentage if no shopcurrency is set yet
-                        const existingShopCurrency =
-                            sessionStorage.getItem("shopcurrency") ||
-                            localStorage.getItem("shopcurrency") ||
-                            sessionStorage.getItem("currency") ||
-                            localStorage.getItem("currency");
-
-                        if (!existingShopCurrency && formatted[0]?.currencyORpercentage) {
-                            setCurrency(formatted[0].currencyORpercentage);
-                            setCurrencySymbol(getSymbolForCurrency(formatted[0].currencyORpercentage));
-                        }
-
-                        setCurrentPlans(formatted);
-                        return;
-                    }
-                }
-                setCurrentPlans([]);
-            } catch (err) {
-                console.error("Failed to fetch plan details from GetPlanDetails API:", err);
-                setCurrentPlans([]);
-            }
+        // Wire invoice modal overlay click
+        const invoiceModal = document.getElementById("invoiceModal");
+        const onOverlayClick = (e: MouseEvent) => {
+            if (e.target === invoiceModal) closeInvoice();
         };
-        fetchPlans();
-    }, [SHOP_ID]);
+        invoiceModal?.addEventListener("click", onOverlayClick);
 
-    const formatDate = (dateVal: any) => {
-        if (!dateVal) return new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-        try {
-            if (typeof dateVal === "object" && dateVal?.Value) {
-                return new Date(parseInt(dateVal.Value.replace(/\/Date\((.*?)\)\//, '$1'))).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-            }
-            if (typeof dateVal === "string" && dateVal.includes("/Date(")) {
-                return new Date(parseInt(dateVal.replace(/\/Date\((.*?)\)\//, '$1'))).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-            }
-            const d = new Date(dateVal);
-            if (!isNaN(d.getTime())) {
-                return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-            }
-        } catch { }
-        return String(dateVal);
-    };
+        // Wire close / print / download
+        const closeBtn = document.getElementById("invoiceCloseBtn");
+        const onClose = () => closeInvoice();
+        closeBtn?.addEventListener("click", onClose);
 
-    const openInvoiceModal = (plan: any) => {
-        const dateStr = formatDate(plan.start_date || plan.created_date || plan.purchase_date);
-        const amt = parseFloat(plan.amount) || 0;
-        const matchingInv = invoices.find((inv: any) => inv.plan_id === plan.plan_id || inv.plan_name === plan.plan_name) || invoices[0];
-        const invoiceNum = plan.invoice_no || matchingInv?.invoice_no || matchingInv?.invoice_number || `#FC-${new Date().getFullYear()}-${plan.plan_id || "0001"}`;
+        const printBtn = document.getElementById("invoicePrintBtn");
+        const onPrint = () => window.print();
+        printBtn?.addEventListener("click", onPrint);
 
-        setActiveInvoice({
-            number: invoiceNum,
-            date: dateStr,
-            plan: plan.plan_name || "Subscription Plan",
-            amount: amt,
-            items: [
-                {
-                    desc: plan.plan_name || "FoodChow Subscription",
-                    detail: amt === 0 ? "Free Plan · No renewal needed" : `Billing plan · Commission: ${plan.commision ?? "0%"}`,
-                    qty: 1,
-                    amount: amt,
-                },
-            ],
+        const downloadBtn = document.getElementById("invoiceDownloadBtn");
+        const onDownload = () => downloadInvoice();
+        downloadBtn?.addEventListener("click", onDownload);
+
+        // Wire invoice open links
+        const invLifetime = document.getElementById("inv-link-lifetime");
+        const onInvLifetime = (e: Event) => {
+            e.preventDefault();
+            openInvoice("lifetime");
+        };
+        invLifetime?.addEventListener("click", onInvLifetime);
+
+        const invMonthly = document.getElementById("inv-link-monthly");
+        const onInvMonthly = (e: Event) => {
+            e.preventDefault();
+            openInvoice("monthly");
+        };
+        invMonthly?.addEventListener("click", onInvMonthly);
+
+        // Wire cancel button
+        const cancelBtn = document.getElementById("cancelBtn");
+        const onCancel = () => handleCancel();
+        cancelBtn?.addEventListener("click", onCancel);
+
+        // sidebar active & submenu active for My Plan
+        const sideItems = document.querySelectorAll<HTMLElement>(".sidebar .nav-item");
+        const subGroups = document.querySelectorAll<HTMLElement>(".submenu-group");
+        const sideHandlers: Array<{ el: HTMLElement; fn: () => void }> = [];
+        sideItems.forEach((item) => {
+            const fn = function (this: HTMLElement) {
+                sideItems.forEach((m) => m.classList.remove("active"));
+                item.classList.add("active");
+                subGroups.forEach((g) => g.classList.remove("active"));
+                const target = item.getAttribute("data-target");
+                if (target) document.getElementById(target)?.classList.add("active");
+            };
+            item.addEventListener("click", fn);
+            sideHandlers.push({ el: item, fn });
         });
-        setIsInvoiceOpen(true);
-    };
+        // ensure my plan submenu is active by default
+        document
+            .querySelectorAll<HTMLElement>(".submenu-item")
+            .forEach((s) => s.classList.remove("active"));
+        document.getElementById("myPlanSubmenu")?.classList.add("active");
 
-    const handlePrintInvoice = () => {
-        window.print();
-    };
+        // step nav
+        let currentStep = 6;
+        const totalSteps = 25;
+        const prevBtn = document.getElementById("prevBtn");
+        const nextBtn = document.getElementById("nextBtn");
+        const stepValue = document.getElementById("stepValue");
+        const onPrev = () => {
+            if (currentStep > 1) {
+                currentStep--;
+                if (stepValue) stepValue.textContent = currentStep + "/" + totalSteps;
+            }
+        };
+        const onNext = () => {
+            if (currentStep < totalSteps) {
+                currentStep++;
+                if (stepValue) stepValue.textContent = currentStep + "/" + totalSteps;
+            }
+        };
+        prevBtn?.addEventListener("click", onPrev);
+        nextBtn?.addEventListener("click", onNext);
+
+        return () => {
+            window.removeEventListener("click", onWindowClick);
+            helpBtn?.removeEventListener("click", onHelp);
+            supportTicketBtn?.removeEventListener("click", onSupport);
+            document.removeEventListener("keydown", onKeydown);
+            invoiceModal?.removeEventListener("click", onOverlayClick);
+            closeBtn?.removeEventListener("click", onClose);
+            printBtn?.removeEventListener("click", onPrint);
+            downloadBtn?.removeEventListener("click", onDownload);
+            invLifetime?.removeEventListener("click", onInvLifetime);
+            invMonthly?.removeEventListener("click", onInvMonthly);
+            cancelBtn?.removeEventListener("click", onCancel);
+            sideHandlers.forEach(({ el, fn }) => el.removeEventListener("click", fn));
+            prevBtn?.removeEventListener("click", onPrev);
+            nextBtn?.removeEventListener("click", onNext);
+        };
+    }, []);
 
     return (
         <div id="pg-menu-my-plan">
+            <link
+                rel="stylesheet"
+                href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+            />
+
             <div className="layout">
                 <div className="main">
                     <div className="content-area">
@@ -234,90 +222,92 @@ export default function MyPlanPage() {
                             <div className="card-sub">
                                 Manage your active subscriptions and billing details
                             </div>
-
                             <div className="plans-list">
-                                {currentPlans.length > 0 ? (
-                                    currentPlans.map((plan: any, index: number) => {
-                                        const purchaseDateStr = formatDate(plan.purchase_date || plan.start_date || plan.created_date);
-                                        const expiryDateStr = formatDate(plan.expiry_date || plan.end_date);
-
-                                        const amt = parseFloat(plan.amount) || 0;
-                                        const rawName = String(plan.plan_name || plan.plan_type || "Subscription Plan");
-                                        let displayName = rawName;
-                                        if (rawName.toLowerCase() === "monthly plan") displayName = "Online Monthly Plan";
-                                        else if (rawName.toLowerCase() === "yearly plan") displayName = "Online Yearly Plan";
-
-                                        const billingCycle = (plan.billing_cycle || "").trim();
-                                        const isLifetime = billingCycle.toUpperCase() === "ONETIME" ||
-                                            billingCycle.toUpperCase() === "LIFETIME" ||
-                                            displayName.toLowerCase().includes("lifetime") ||
-                                            displayName.toLowerCase().includes("life time");
-                                        const isFree = (amt === 0 && !billingCycle) || displayName.toLowerCase().includes("free");
-                                        const canCancel = !isFree && !isLifetime;
-
-                                        return (
-                                            <div className="plan-card" key={index}>
-                                                <div className="plan-card-left">
-                                                    <div className="plan-name-row">
-                                                        <span className="plan-name">
-                                                            {displayName} {billingCycle ? `(${billingCycle})` : ""}
-                                                        </span>
-                                                        <span className="plan-badge active">
-                                                            {plan.status || "ACTIVE"}
-                                                        </span>
-                                                    </div>
-                                                    <div className="plan-meta">
-                                                        Purchase Date: <b>{purchaseDateStr}</b>
-                                                    </div>
-                                                    <div className="plan-renewal" style={{ color: "#0ca678", fontWeight: 500, marginTop: "4px" }}>
-                                                        {isLifetime || isFree
-                                                            ? "Lifetime Access • No Renewal Needed"
-                                                            : (plan.expiry_date || plan.end_date)
-                                                                ? `Your plan will renew on ${expiryDateStr}`
-                                                                : `Amount: ${displayPrice(amt)} • Commission: ${plan.commision ?? "0%"}`}
-                                                    </div>
-                                                </div>
-                                                <div className="plan-card-actions">
-                                                    {canCancel && (
-                                                        <button
-                                                            type="button"
-                                                            className="btn-cancel"
-                                                            onClick={() => {
-                                                                if (window.confirm(`Are you sure you want to cancel your ${displayName} subscription?`)) {
-                                                                    alert("Your cancellation request has been submitted. Our support team will process it shortly.");
-                                                                }
-                                                            }}
-                                                        >
-                                                            <i className="fa-regular fa-circle-xmark" style={{ marginRight: "4px" }}></i>
-                                                            Cancel
-                                                        </button>
-                                                    )}
-                                                    <a href="/menu/pricing-plan" className="btn-manage">
-                                                        Manage Plan
-                                                    </a>
-                                                    {Boolean(plan.invoice_no || plan.id || plan.plan_id) && (
-                                                        <button
-                                                            type="button"
-                                                            className="btn-invoice"
-                                                            onClick={() => openInvoiceModal(plan)}
-                                                        >
-                                                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                                                                <polyline points="14 2 14 8 20 8" />
-                                                                <line x1="16" y1="13" x2="8" y2="13" />
-                                                                <line x1="16" y1="17" x2="8" y2="17" />
-                                                                <polyline points="10 9 9 9 8 9" />
-                                                            </svg>
-                                                            Invoice
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })
-                                ) : (
-                                    <div style={{ padding: "20px", textAlign: "center", color: "#666" }}>No active plans found.</div>
-                                )}
+                                <div className="plan-card">
+                                    <div className="plan-card-left">
+                                        <div className="plan-name-row">
+                                            <span className="plan-name">
+                                                Commission Plan (LIFETIME)
+                                            </span>
+                                            <span className="plan-badge active">ACTIVE</span>
+                                        </div>
+                                        <div className="plan-meta">Purchase Date: 03 Jun 2026</div>
+                                        <div className="plan-renewal">
+                                            Lifetime Access • No Renewal Needed
+                                        </div>
+                                    </div>
+                                    <div className="plan-card-actions">
+                                        <a href="#" className="btn-invoice" id="inv-link-lifetime">
+                                            <svg viewBox="0 0 24 24">
+                                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                                                <polyline points="14 2 14 8 20 8" />
+                                                <line x1="16" y1="13" x2="8" y2="13" />
+                                                <line x1="16" y1="17" x2="8" y2="17" />
+                                                <polyline points="10 9 9 9 8 9" />
+                                            </svg>
+                                            Invoice
+                                        </a>
+                                        <a href="#" className="btn-manage">
+                                            Manage Plan
+                                        </a>
+                                    </div>
+                                </div>
+                                <div className="plan-card">
+                                    <div className="plan-card-left">
+                                        <div className="plan-name-row">
+                                            <span className="plan-name">Lite (MONTH)</span>
+                                            <span className="plan-badge active">ACTIVE</span>
+                                        </div>
+                                        <div className="plan-meta">Purchase Date: 03 Jun 2026</div>
+                                        <div className="plan-renewal">
+                                            Your plan will renew on 03 Jul 2026
+                                        </div>
+                                    </div>
+                                    <div className="plan-card-actions">
+                                        <a href="#" className="btn-invoice" id="inv-link-monthly">
+                                            <svg viewBox="0 0 24 24">
+                                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                                                <polyline points="14 2 14 8 20 8" />
+                                                <line x1="16" y1="13" x2="8" y2="13" />
+                                                <line x1="16" y1="17" x2="8" y2="17" />
+                                                <polyline points="10 9 9 9 8 9" />
+                                            </svg>
+                                            Invoice
+                                        </a>
+                                        <button className="btn-cancel" id="cancelBtn">
+                                            <svg viewBox="0 0 24 24" fill="none">
+                                                <circle
+                                                    cx="12"
+                                                    cy="12"
+                                                    r="10"
+                                                    fill="#fee2e2"
+                                                    stroke="#ef4444"
+                                                    strokeWidth="1.5"
+                                                />
+                                                <line
+                                                    x1="15"
+                                                    y1="9"
+                                                    x2="9"
+                                                    y2="15"
+                                                    stroke="#ef4444"
+                                                    strokeWidth="2"
+                                                />
+                                                <line
+                                                    x1="9"
+                                                    y1="9"
+                                                    x2="15"
+                                                    y2="15"
+                                                    stroke="#ef4444"
+                                                    strokeWidth="2"
+                                                />
+                                            </svg>
+                                            Cancel
+                                        </button>
+                                        <a href="#" className="btn-manage">
+                                            Manage Plan
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -326,10 +316,9 @@ export default function MyPlanPage() {
                 </div>
             </div>
 
-            {/* Dynamic Invoice Modal */}
-            <div className={`modal-overlay ${isInvoiceOpen ? "show" : ""}`} id="invoiceModal" onClick={(e) => { if (e.target === e.currentTarget) setIsInvoiceOpen(false); }}>
+            <div className="modal-overlay" id="invoiceModal">
                 <div className="invoice-modal" id="invoiceModalBox">
-                    <button className="invoice-close-btn" id="invoiceCloseBtn" onClick={() => setIsInvoiceOpen(false)}>
+                    <button className="invoice-close-btn" id="invoiceCloseBtn">
                         ×
                     </button>
                     <div className="invoice-modal-header">
@@ -342,7 +331,7 @@ export default function MyPlanPage() {
                         <div className="invoice-number-block">
                             <div className="invoice-label">Invoice</div>
                             <div className="invoice-number" id="inv-number">
-                                {activeInvoice?.number || "#FC-2026-0001"}
+                                #FC-2026-0001
                             </div>
                         </div>
                     </div>
@@ -350,19 +339,13 @@ export default function MyPlanPage() {
                         <div className="invoice-meta-row">
                             <div>
                                 <div className="invoice-meta-title">Billed To</div>
-                                <div className="invoice-meta-value">
-                                    {restaurantInfo?.first_name
-                                        ? `${restaurantInfo.first_name} ${restaurantInfo.last_name || ""}`.trim()
-                                        : (restaurantInfo?.shop_name || "Restaurant Owner")}
-                                </div>
-                                <div style={{ fontSize: "12px", color: "#666" }}>
-                                    {restaurantInfo?.email_id || restaurantInfo?.owner_eamil || "owner@restaurant.com"}
-                                </div>
+                                <div className="invoice-meta-value">Dimpal Patel</div>
+                                <div style={{ fontSize: "12px" }}>owner@myrestaurant.com</div>
                             </div>
                             <div>
                                 <div className="invoice-meta-title">Invoice Date</div>
                                 <div className="invoice-meta-value" id="inv-date">
-                                    {activeInvoice?.date || "—"}
+                                    03 Jun 2026
                                 </div>
                             </div>
                         </div>
@@ -370,7 +353,7 @@ export default function MyPlanPage() {
                             <div>
                                 <div className="invoice-meta-title">Plan</div>
                                 <div className="invoice-meta-value teal" id="inv-plan-name">
-                                    {activeInvoice?.plan || "—"}
+                                    —
                                 </div>
                             </div>
                             <div>
@@ -387,31 +370,20 @@ export default function MyPlanPage() {
                                     <th style={{ textAlign: "right" }}>Amount</th>
                                 </tr>
                             </thead>
-                            <tbody id="inv-items">
-                                {activeInvoice?.items.map((item, i) => (
-                                    <tr key={i}>
-                                        <td>
-                                            <div className="item-name">{item.desc}</div>
-                                            <div className="item-desc">{item.detail}</div>
-                                        </td>
-                                        <td style={{ textAlign: "center" }}>{item.qty}</td>
-                                        <td style={{ textAlign: "right" }}>{displayPrice(item.amount * item.qty)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
+                            <tbody id="inv-items"></tbody>
                         </table>
                         <div className="invoice-totals">
                             <div className="invoice-total-row">
                                 <span>Subtotal</span>
-                                <span id="inv-subtotal">{displayPrice(activeInvoice?.amount || 0)}</span>
+                                <span id="inv-subtotal">$0.00</span>
                             </div>
                             <div className="invoice-total-row">
                                 <span>Tax (0%)</span>
-                                <span>{displayPrice(0)}</span>
+                                <span>$0.00</span>
                             </div>
                             <div className="invoice-grand-total">
                                 <span>Total Paid</span>
-                                <span id="inv-total">{displayPrice(activeInvoice?.amount || 0)}</span>
+                                <span id="inv-total">$0.00</span>
                             </div>
                         </div>
                         <div className="invoice-divider"></div>
@@ -423,9 +395,21 @@ export default function MyPlanPage() {
                         </div>
                     </div>
                     <div className="invoice-actions">
-                        <button className="btn-print" id="invoicePrintBtn" onClick={handlePrintInvoice}>
-                            <i className="fa-solid fa-print"></i>
+                        <button className="btn-print" id="invoicePrintBtn">
+                            <svg viewBox="0 0 24 24">
+                                <polyline points="6 9 6 2 18 2 18 9" />
+                                <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" />
+                                <rect x="6" y="14" width="12" height="8" />
+                            </svg>
                             Print
+                        </button>
+                        <button className="btn-download" id="invoiceDownloadBtn">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                            Download PDF
                         </button>
                     </div>
                 </div>

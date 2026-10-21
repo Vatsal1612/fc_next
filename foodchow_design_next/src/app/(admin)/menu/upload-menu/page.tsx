@@ -1,84 +1,162 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
-import Swal from "sweetalert2";
-import { menuService } from "@/api/services/menu.service";
-import { getShopId } from "@/utils/shop";
+import { useEffect } from "react";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import "./page.css";
 
 export default function UploadMenuPage() {
-  const router = useRouter();
-  const [screen, setScreen] = useState<"choose" | "upload">("choose");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [downloading, setDownloading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const cleanups: Array<() => void> = [];
 
-  const handleDownloadSample = async () => {
-    setDownloading(true);
-    try {
-      const link = document.createElement("a");
-      link.href = "/SampleMenu.xlsx";
-      link.setAttribute("download", "SampleMenu.xlsx");
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (err) {
-      console.error("Failed to download sample:", err);
-      Swal.fire({
-        icon: "error",
-        title: "Download Failed",
-        text: "Failed to download sample file. Please try again.",
-      });
-    } finally {
-      setDownloading(false);
+    function openHelpModal() {
+      alert("Help & Support");
     }
-  };
 
-  const handleUploadAndSave = async () => {
-    if (!selectedFile) {
-      Swal.fire({
-        icon: "warning",
-        title: "No File Selected",
-        text: "Please select an Excel (.xls / .xlsx) file to upload.",
+    // Close dropdowns on any window click
+    const onWindowClick = () =>
+      document
+        .querySelectorAll<HTMLElement>(".dropdown-menu")
+        .forEach((m) => m.classList.remove("show"));
+    window.addEventListener("click", onWindowClick);
+    cleanups.push(() => window.removeEventListener("click", onWindowClick));
+
+    // Sidebar nav toggle (sidebar markup is supplied by the shell, so these
+    // selectors may match nothing; the handlers are kept faithfully).
+    const sideMenuItems =
+      document.querySelectorAll<HTMLElement>(".sidebar .nav-item");
+    const subGroups =
+      document.querySelectorAll<HTMLElement>(".submenu-group");
+    sideMenuItems.forEach((item) => {
+      const handler = function (this: HTMLElement) {
+        sideMenuItems.forEach((m) => m.classList.remove("active"));
+        this.classList.add("active");
+        subGroups.forEach((g) => g.classList.remove("active"));
+        const target = this.getAttribute("data-target");
+        if (target) {
+          const t = document.getElementById(target);
+          if (t) {
+            t.classList.add("active");
+            const first = t.querySelector<HTMLElement>(".submenu-item");
+            if (first) {
+              document
+                .querySelectorAll<HTMLElement>(".submenu-item")
+                .forEach((s) => s.classList.remove("active"));
+              first.classList.add("active");
+            }
+          }
+        }
+      };
+      item.addEventListener("click", handler);
+      cleanups.push(() => item.removeEventListener("click", handler));
+    });
+
+    document
+      .querySelectorAll<HTMLElement>(".submenu-item")
+      .forEach((item) => {
+        const handler = function (this: HTMLElement, e: MouseEvent) {
+          e.preventDefault();
+          document
+            .querySelectorAll<HTMLElement>(".submenu-item")
+            .forEach((s) => s.classList.remove("active"));
+          this.classList.add("active");
+        };
+        item.addEventListener("click", handler);
+        cleanups.push(() => item.removeEventListener("click", handler));
       });
-      return;
+
+    // Screen toggles
+    function showUpload() {
+      document.getElementById("screen-choose")?.classList.add("hidden");
+      document.getElementById("screen-upload")?.classList.remove("hidden");
     }
-    const shopId = getShopId();
-    if (!shopId) {
-      Swal.fire({
-        icon: "error",
-        title: "Shop Not Found",
-        text: "Shop ID not found. Please log in again.",
-      });
-      return;
+    function showChoose() {
+      document.getElementById("screen-upload")?.classList.add("hidden");
+      document.getElementById("screen-choose")?.classList.remove("hidden");
     }
-    setUploading(true);
-    try {
-      await menuService.uploadMenuExcel(String(shopId), selectedFile);
-      setSelectedFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      await Swal.fire({
-        icon: "success",
-        title: "Success!",
-        text: "Menu uploaded successfully! Redirecting to categories...",
-        timer: 2000,
-        showConfirmButton: true,
-      });
-      router.push("/menu/category");
-    } catch (err: any) {
-      console.error("Failed to upload menu:", err);
-      Swal.fire({
-        icon: "error",
-        title: "Upload Failed",
-        text: err?.message || "Failed to upload menu. Please verify file format and try again.",
-      });
-    } finally {
-      setUploading(false);
+    function updateFileName(input: HTMLInputElement) {
+      const fileName = document.getElementById("fileName");
+      if (fileName) {
+        fileName.textContent =
+          input.files && input.files.length
+            ? input.files[0].name
+            : "No file chosen";
+      }
     }
-  };
+
+    // Wire help buttons (onclick="openHelpModal()")
+    const helpBtns =
+      document.querySelectorAll<HTMLButtonElement>(".btn-help-new");
+    helpBtns.forEach((b) => b.addEventListener("click", openHelpModal));
+    cleanups.push(() =>
+      helpBtns.forEach((b) => b.removeEventListener("click", openHelpModal))
+    );
+
+    // WITH EXCEL → showUpload()
+    const withExcelBtn = document.getElementById("with-excel-btn");
+    const onWithExcel = () => showUpload();
+    if (withExcelBtn) {
+      withExcelBtn.addEventListener("click", onWithExcel);
+      cleanups.push(() =>
+        withExcelBtn.removeEventListener("click", onWithExcel)
+      );
+    }
+
+    // ← Back → showChoose()
+    const backBtn = document.getElementById("back-to-choose-btn");
+    const onBack = () => showChoose();
+    if (backBtn) {
+      backBtn.addEventListener("click", onBack);
+      cleanups.push(() => backBtn.removeEventListener("click", onBack));
+    }
+
+    // File input change → updateFileName(this)
+    const excelFile = document.getElementById(
+      "excelFile"
+    ) as HTMLInputElement | null;
+    const onFileChange = function (this: HTMLInputElement) {
+      updateFileName(this);
+    };
+    if (excelFile) {
+      excelFile.addEventListener("change", onFileChange);
+      cleanups.push(() =>
+        excelFile.removeEventListener("change", onFileChange)
+      );
+    }
+
+    // Step nav
+    let currentStep = 10;
+    const totalSteps = 25;
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const stepValue = document.getElementById("stepValue");
+
+    const onPrev = () => {
+      if (currentStep > 1) {
+        currentStep--;
+        if (stepValue)
+          stepValue.textContent = currentStep + "/" + totalSteps;
+      }
+    };
+    const onNext = () => {
+      if (currentStep < totalSteps) {
+        currentStep++;
+        if (stepValue)
+          stepValue.textContent = currentStep + "/" + totalSteps;
+      }
+    };
+    if (prevBtn) {
+      prevBtn.addEventListener("click", onPrev);
+      cleanups.push(() => prevBtn.removeEventListener("click", onPrev));
+    }
+    if (nextBtn) {
+      nextBtn.addEventListener("click", onNext);
+      cleanups.push(() => nextBtn.removeEventListener("click", onNext));
+    }
+
+    return () => {
+      cleanups.forEach((fn) => fn());
+    };
+  }, []);
 
   return (
     <div id="pg-menu-upload-menu">
@@ -91,110 +169,84 @@ export default function UploadMenuPage() {
         <div className="main">
           <div className="content-area">
             {/* SCREEN 1: Choose method */}
-            {screen === "choose" && (
-              <div id="screen-choose">
-                <div className="card">
-                  <div className="card-actions">
-                    <button className="btn-help-new">
-                      <i className="far fa-question-circle"></i> HELP
-                    </button>
-                  </div>
-                  <h1 className="card-title typ-page-heading" style={{ margin: 0 }}>Upload Excel</h1>
-                  <div className="card-sub">
-                    Do you want to upload your menu with an excel sheet or enter it
-                    manually item wise?
-                  </div>
-                  <div className="actions-row">
-                    <button className="btn btn-primary" onClick={() => setScreen("upload")}>
-                      WITH EXCEL
-                    </button>
-                    <button
-                      className="btn btn-secondary"
-                      onClick={() => router.push("/menu/category")}
-                    >
-                      MANUALLY
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* SCREEN 2: Upload Menus */}
-            {screen === "upload" && (
-              <div id="screen-upload" className="card">
+            <div id="screen-choose">
+              <div className="card">
                 <div className="card-actions">
                   <button className="btn-help-new">
                     <i className="far fa-question-circle"></i> HELP
                   </button>
                 </div>
-                <h1 className="card-title typ-page-heading" style={{ margin: 0, marginBottom: "20px" }}>
-                  Upload Menus
-                </h1>
-                <div className="step-badge">Step 1:</div>
-                <div className="info-box">
-                  <p>
-                    Ensure that your file is formatted properly.
-                    <br />
-                    Please review the sample file to be sure that your file is
-                    formatted properly.
-                  </p>
-                </div>
-                <div style={{ marginBottom: "24px" }}>
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleDownloadSample}
-                    disabled={downloading}
-                  >
-                    {downloading ? "DOWNLOADING..." : "DOWNLOAD SAMPLE"}
-                  </button>
-                </div>
-                <div className="step-badge">Step 2:</div>
-                <div className="upload-box">
-                  <div className="upload-label">
-                    Select &amp; Upload Excel sheet<span>*</span>
-                  </div>
-                  <div className="file-row">
-                    <label className="file-choose" htmlFor="excelFile">
-                      Choose File
-                    </label>
-                    <span className="file-name">
-                      {selectedFile ? selectedFile.name : "No file chosen"}
-                    </span>
-                    <input
-                      type="file"
-                      id="excelFile"
-                      accept=".xls,.xlsx"
-                      ref={fileInputRef}
-                      onChange={(e) => {
-                        setSelectedFile(e.target.files?.[0] || null);
-                      }}
-                    />
-                  </div>
-                </div>
-                <div className="note-text">
-                  Note:-** Import .xls or .xlsx file only.
-                  <br />
-                  ** Item Price must be greater than zero.
+                <h1 className="card-title typ-page-heading" style={{ margin: 0 }}>Upload Excel</h1>
+                <div className="card-sub">
+                  Do you want to upload your menu with an excel sheet or enter it
+                  manually item wise?
                 </div>
                 <div className="actions-row">
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleUploadAndSave}
-                    disabled={uploading}
-                  >
-                    {uploading ? "UPLOADING..." : "UPLOAD EXCEL"}
+                  <button className="btn btn-primary" id="with-excel-btn">
+                    WITH EXCEL
                   </button>
-                  <button className="btn btn-ghost" onClick={() => setScreen("choose")}>
-                    ← Back
-                  </button>
+                  <button className="btn btn-secondary">MANUALLY</button>
                 </div>
               </div>
-            )}
+            </div>
+
+            {/* SCREEN 2: Upload Menus */}
+            <div id="screen-upload" className="card hidden">
+              <div className="card-actions">
+                <button className="btn-help-new">
+                  <i className="far fa-question-circle"></i> HELP
+                </button>
+              </div>
+              <h1 className="card-title typ-page-heading" style={{ margin: 0, marginBottom: "20px" }}>
+                Upload Menus
+              </h1>
+              <div className="step-badge">Step 1:</div>
+              <div className="info-box">
+                <p>
+                  Ensure that your file is formatted properly.
+                  <br />
+                  Please review the sample file to be sure that your file is
+                  formatted properly.
+                </p>
+              </div>
+              <div style={{ marginBottom: "24px" }}>
+                <button className="btn btn-primary">DOWNLOAD SAMPLE</button>
+              </div>
+              <div className="step-badge">Step 2:</div>
+              <div className="upload-box">
+                <div className="upload-label">
+                  Select &amp; Upload Excel sheet<span>*</span>
+                </div>
+                <div className="file-row">
+                  <label className="file-choose" htmlFor="excelFile">
+                    Choose File
+                  </label>
+                  <span className="file-name" id="fileName">
+                    No file chosen
+                  </span>
+                  <input type="file" id="excelFile" accept=".xls,.xlsx" />
+                </div>
+              </div>
+              <div className="note-text">
+                Note:-** Import .xls or .xlsx file only.
+                <br />
+                ** Item Price must be greater than zero.
+              </div>
+              <div className="actions-row">
+                <button className="btn btn-primary">UPLOAD &amp; SAVE</button>
+                <button className="btn btn-ghost" id="back-to-choose-btn">
+                  ← Back
+                </button>
+              </div>
+            </div>
 
             <WizardFooter />
           </div>
+          {/* /content-area */}
         </div>
+        {/* /main */}
       </div>
+      {/* /layout */}
     </div>
   );
 }

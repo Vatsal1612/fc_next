@@ -1022,7 +1022,7 @@ export const reportsService = {
         shopId: number
     ): Promise<WeekComparison[]> {
 
-        const { data } = await adminFoodchowClient.get(
+        const { data } = await foodchowClient.get(
             ENDPOINTS.reports.weekComparison,
             {
                 params: {
@@ -1227,13 +1227,16 @@ export const reportsService = {
     async fetchTradingSessionToday(
         shopId: number,
         pageNumber = 1,
-        pageSize = 10
+        pageSize = 10,
+        serverTime?: string
     ): Promise<PaginatedTradingSessionResult> {
+        const date = serverTime || new Date().toISOString().split("T")[0];
         const { data } = await foodchowClient.get(
             ENDPOINTS.reports.tradingSessionToday,
             {
                 params: {
                     shop_id: shopId,
+                    server_time: date,
                     pageNumber,
                     pageSize,
                 },
@@ -1319,7 +1322,7 @@ export const reportsService = {
             {
                 params: {
                     shop_id: shopId,
-                    month: month,
+                    months: month,
                     year: year,
                     pageNumber,
                     pageSize,
@@ -1425,10 +1428,19 @@ export const reportsService = {
     ): Promise<any> {
         let data;
         try {
-            const response = await fetch(
-                `/api/pos-end-day?shop_id=${shopId}&posUser=${encodeURIComponent(posUser)}&open_date=${openDate}&pageNumber=${pageNumber}&pageSize=${pageSize}`
+            const res = await foodchowClient.get(
+                ENDPOINTS.reports.posEndDayReport,
+                {
+                    params: {
+                        posUser,
+                        shop_id: shopId,
+                        open_date: openDate,
+                        pageNumber,
+                        pageSize,
+                    },
+                }
             );
-            data = await response.json();
+            data = res.data;
         } catch (error) {
             console.warn("API Error in fetchPosEndDayReport:", error);
             return null;
@@ -1436,10 +1448,7 @@ export const reportsService = {
 
         console.log("POS End Day Report:", data);
 
-        // Based on your old code, result.data is returned directly
-        // and it can be an array or an object
         if (data && data.data) {
-            // If data.data is a string, parse it
             if (typeof data.data === "string") {
                 try {
                     return JSON.parse(data.data);
@@ -1448,11 +1457,14 @@ export const reportsService = {
                     return [];
                 }
             }
-            // If data.data is already an array or object, return it
             return data.data;
         }
 
-        return [];
+        if (Array.isArray(data)) {
+            return data;
+        }
+
+        return data || [];
     },
 
     // Update all fetchSalesByPosUser methods with proper error handling
@@ -2488,17 +2500,143 @@ export const reportsService = {
     async getTotalSalesByDateWise(
         shopId: number | string,
         startDate: string,
-        endDate: string,
-        pageNumber: number = 1,
-        pageSize: number = 10
+        endDate: string
     ): Promise<TotalSalesDateWiseResponse> {
         const { data } = await foodchowClient.get(
-            ENDPOINTS.reports.totalSalesDateWise || "/SalesReports/TotalSalesByDateWise",
+            ENDPOINTS.reports.totalSalesDateWise || "/SalesReportsWithoutPagination/TotalSalesByDateWise",
             {
                 params: {
                     shop_id: shopId,
                     start_date: startDate,
                     end_date: endDate,
+                },
+            }
+        );
+
+        const resData = data?.data || data;
+        const rawItems = Array.isArray(resData?.items)
+            ? resData.items
+            : Array.isArray(resData)
+                ? resData
+                : Array.isArray(data)
+                    ? data
+                    : [];
+        return {
+            items: rawItems,
+            totalRecords: typeof resData?.totalRecords === "number" ? resData.totalRecords : rawItems.length,
+            totalPages: 1,
+            currentPage: 1,
+            pageSize: rawItems.length,
+            dateformat: resData?.dateformat,
+        };
+    },
+
+    async getTotalSalesByToday(
+        shopId: number | string
+    ): Promise<TotalSalesDateWiseResponse> {
+        const { data } = await foodchowClient.get(
+            ENDPOINTS.reports.totalSalesToday || "/SalesReportsWithoutPagination/TotalSalesByToday",
+            {
+                params: {
+                    shop_id: shopId,
+                },
+            }
+        );
+
+        const resData = data?.data || data;
+        const rawItems = Array.isArray(resData?.items)
+            ? resData.items
+            : Array.isArray(resData)
+                ? resData
+                : Array.isArray(data)
+                    ? data
+                    : [];
+        return {
+            items: rawItems,
+            totalRecords: typeof resData?.totalRecords === "number" ? resData.totalRecords : rawItems.length,
+            totalPages: 1,
+            currentPage: 1,
+            pageSize: rawItems.length,
+            dateformat: resData?.dateformat,
+        };
+    },
+
+    async getTotalSalesByWeek(
+        shopId: number | string
+    ): Promise<TotalSalesDateWiseResponse> {
+        const { data } = await foodchowClient.get(
+            ENDPOINTS.reports.totalSalesWeek || "/SalesReportsWithoutPagination/TotalSalesByWeek",
+            {
+                params: {
+                    shop_id: shopId,
+                },
+            }
+        );
+
+        const resData = data?.data || data;
+        const rawItems = Array.isArray(resData?.items)
+            ? resData.items
+            : Array.isArray(resData)
+                ? resData
+                : Array.isArray(data)
+                    ? data
+                    : [];
+        return {
+            items: rawItems,
+            totalRecords: typeof resData?.totalRecords === "number" ? resData.totalRecords : rawItems.length,
+            totalPages: 1,
+            currentPage: 1,
+            pageSize: rawItems.length,
+            dateformat: resData?.dateformat,
+        };
+    },
+
+    async getTotalSalesByMonth(
+        shopId: number | string,
+        month: string | number,
+        year: string | number
+    ): Promise<TotalSalesDateWiseResponse> {
+        const { data } = await foodchowClient.get(
+            ENDPOINTS.reports.totalSalesMonth || "/SalesReportsWithoutPagination/TotalSalesByMonth",
+            {
+                params: {
+                    shop_id: shopId,
+                    month,
+                    year,
+                },
+            }
+        );
+
+        const resData = data?.data || data;
+        const rawItems = Array.isArray(resData?.items)
+            ? resData.items
+            : Array.isArray(resData)
+                ? resData
+                : Array.isArray(data)
+                    ? data
+                    : [];
+        return {
+            items: rawItems,
+            totalRecords: typeof resData?.totalRecords === "number" ? resData.totalRecords : rawItems.length,
+            totalPages: 1,
+            currentPage: 1,
+            pageSize: rawItems.length,
+            dateformat: resData?.dateformat,
+        };
+    },
+
+    async getTotalSalesByYear(
+        shopId: number | string,
+        year: string | number,
+        pageNumber: number = 1,
+        pageSize: number = 10
+    ): Promise<TotalSalesDateWiseResponse> {
+        const { data } = await foodchowClient.get(
+            ENDPOINTS.reports.totalSalesYear || "/SalesReports/TotalSalesByYear",
+            {
+                params: {
+                    shop_id: shopId,
+                    year,
                     pageNumber,
                     pageSize,
                 },
@@ -2514,6 +2652,108 @@ export const reportsService = {
             pageSize: typeof resData?.pageSize === "number" ? resData.pageSize : pageSize,
             dateformat: resData?.dateformat,
         };
+    },
+
+    // ---------------- EXPENSE TRANSACTIONS ----------------
+    async getExpenseTransToday(shopId: number | string, date?: string) {
+        const d = date || new Date().toISOString().split("T")[0];
+        const { data } = await foodchowClient.get(
+            ENDPOINTS.reports.getAllExpenseTransToday,
+            { params: { shop_id: shopId, dates: d } }
+        );
+        return data?.data ?? data;
+    },
+
+    async getExpenseTransWeekly(shopId: number | string, date?: string) {
+        const d = date || new Date().toISOString().split("T")[0];
+        const { data } = await foodchowClient.get(
+            ENDPOINTS.reports.getAllExpenseTransWeekly,
+            { params: { shop_id: shopId, date: d } }
+        );
+        return data?.data ?? data;
+    },
+
+    async getExpenseTransMonthly(shopId: number | string, month: string | number, year: string | number) {
+        const { data } = await foodchowClient.get(
+            ENDPOINTS.reports.getAllExpenseTransMonthly,
+            { params: { shop_id: shopId, month, year } }
+        );
+        return data?.data ?? data;
+    },
+
+    async getExpenseTransDateWise(shopId: number | string, fromDate: string, toDate: string) {
+        const { data } = await foodchowClient.get(
+            ENDPOINTS.reports.getAllExpenseTransDateWise,
+            { params: { shop_id: shopId, from: fromDate, to: toDate } }
+        );
+        return data?.data ?? data;
+    },
+
+    // ---------------- DISCOUNT ORDERS ----------------
+    async getDiscountOrdersToday(shopId: number | string, date?: string) {
+        const d = date || new Date().toISOString().split("T")[0];
+        const { data } = await foodchowClient.get(
+            ENDPOINTS.reports.discountOrdersToday,
+            { params: { shop_id: shopId, server_time: d } }
+        );
+        return data?.data ?? data;
+    },
+
+    async getDiscountOrdersWeek(shopId: number | string) {
+        const { data } = await foodchowClient.get(
+            ENDPOINTS.reports.discountOrdersWeek,
+            { params: { shop_id: shopId } }
+        );
+        return data?.data ?? data;
+    },
+
+    async getDiscountOrdersMonth(shopId: number | string, month: string | number, year: string | number) {
+        const { data } = await foodchowClient.get(
+            ENDPOINTS.reports.discountOrdersMonth,
+            { params: { shop_id: shopId, months: month, year } }
+        );
+        return data?.data ?? data;
+    },
+
+    async getDiscountOrdersDateWise(shopId: number | string, startDate: string, endDate: string) {
+        const { data } = await foodchowClient.get(
+            ENDPOINTS.reports.discountOrdersDateWise,
+            { params: { shop_id: shopId, start_date: startDate, end_date: endDate } }
+        );
+        return data?.data ?? data;
+    },
+
+    // ---------------- RAZORPAY ORDERS ----------------
+    async getRazorpayOrdersToday(shopId: number | string) {
+        const { data } = await foodchowClient.get(
+            ENDPOINTS.reports.razorpayOrdersToday,
+            { params: { shop_id: shopId } }
+        );
+        return data?.data ?? data;
+    },
+
+    async getRazorpayOrdersWeek(shopId: number | string) {
+        const { data } = await foodchowClient.get(
+            ENDPOINTS.reports.razorpayOrdersWeek,
+            { params: { shop_id: shopId } }
+        );
+        return data?.data ?? data;
+    },
+
+    async getRazorpayOrdersMonth(shopId: number | string, month: string | number, year: string | number) {
+        const { data } = await foodchowClient.get(
+            ENDPOINTS.reports.razorpayOrdersMonth,
+            { params: { shop_id: shopId, month, year } }
+        );
+        return data?.data ?? data;
+    },
+
+    async getRazorpayOrdersDateWise(shopId: number | string, startDate: string, endDate: string) {
+        const { data } = await foodchowClient.get(
+            ENDPOINTS.reports.razorpayOrdersDateWise,
+            { params: { shop_id: shopId, start_date: startDate, end_date: endDate } }
+        );
+        return data?.data ?? data;
     },
     // ---------------- ORDER ITEMS (ITEMS modal) ----------------
 
@@ -2577,7 +2817,7 @@ export const reportsService = {
     ): Promise<MonthComparisonItem[]> {
         console.log("currDate =", currDate);
 
-        const { data } = await adminFoodchowClient.get(
+        const { data } = await foodchowClient.get(
             ENDPOINTS.reports.monthWiseComparison,
             {
                 params: {
@@ -2647,13 +2887,16 @@ export const reportsService = {
     async getVoidOrdersByToday(
         shopId: number,
         pageNumber: number = 1,
-        pageSize: number = 10
+        pageSize: number = 10,
+        serverTime?: string
     ): Promise<VoidOrdersResponse> {
+        const date = serverTime || new Date().toISOString().split("T")[0];
         const { data } = await foodchowClient.get(
             ENDPOINTS.reports.voidOrdersToday,
             {
                 params: {
                     shop_id: shopId,
+                    server_time: date,
                     pageNumber,
                     pageSize,
                 },
@@ -2868,10 +3111,10 @@ export const reportsService = {
     },
 
     async getTodaySalesByCategory(
-        shopId: number,
+        shopId: number | string,
         pageNumber: number = 1,
         pageSize: number = 10
-    ): Promise<SalesByCategoryPagination | null> {
+    ): Promise<SalesByCategoryPagination> {
         const { data } = await foodchowClient.get<ApiResponse<any>>(
             ENDPOINTS.reports.salesByCategoryToday,
             {
@@ -2882,37 +3125,76 @@ export const reportsService = {
                 },
             }
         );
-        if (!data.data || typeof data.data !== "object") {
-            return null;
+        const resData = data?.data ?? data;
+        let itemsList: SalesByCategory[] = [];
+        if (typeof resData?.items === "string") {
+            try {
+                itemsList = JSON.parse(resData.items);
+            } catch {
+                itemsList = [];
+            }
+        } else if (Array.isArray(resData?.items)) {
+            itemsList = resData.items;
+        } else if (Array.isArray(resData)) {
+            itemsList = resData;
         }
-        return data.data;
+
+        return {
+            items: itemsList,
+            totalRecords: typeof resData?.totalRecords === "number" ? resData.totalRecords : itemsList.length,
+            totalPages: typeof resData?.totalPages === "number" ? resData.totalPages : 1,
+            currentPage: typeof resData?.currentPage === "number" ? resData.currentPage : pageNumber,
+            pageSize: typeof resData?.pageSize === "number" ? resData.pageSize : pageSize,
+            dateformat: resData?.dateformat || "",
+        };
     },
 
     async getDayWiseSalesByCategory(
-        shopId: number,
+        shopId: number | string,
         selectedDate: string,
         pageNumber: number = 1,
         pageSize: number = 10
-    ): Promise<SalesByCategoryPagination | null> {
+    ): Promise<SalesByCategoryPagination> {
         const { data } = await foodchowClient.get<ApiResponse<any>>(
             ENDPOINTS.reports.salesByCategoryDayWise,
             {
                 params: {
                     shop_id: shopId,
-                    search_date: selectedDate,
+                    ssearch_date: selectedDate,
                     pageNumber,
                     pageSize,
                 },
             }
         );
-        return data.data ?? null;
+        const resData = data?.data ?? data;
+        let itemsList: SalesByCategory[] = [];
+        if (typeof resData?.items === "string") {
+            try {
+                itemsList = JSON.parse(resData.items);
+            } catch {
+                itemsList = [];
+            }
+        } else if (Array.isArray(resData?.items)) {
+            itemsList = resData.items;
+        } else if (Array.isArray(resData)) {
+            itemsList = resData;
+        }
+
+        return {
+            items: itemsList,
+            totalRecords: typeof resData?.totalRecords === "number" ? resData.totalRecords : itemsList.length,
+            totalPages: typeof resData?.totalPages === "number" ? resData.totalPages : 1,
+            currentPage: typeof resData?.currentPage === "number" ? resData.currentPage : pageNumber,
+            pageSize: typeof resData?.pageSize === "number" ? resData.pageSize : pageSize,
+            dateformat: resData?.dateformat || "",
+        };
     },
 
     async getWeekSalesByCategory(
-        shopId: number,
+        shopId: number | string,
         pageNumber: number = 1,
         pageSize: number = 10
-    ): Promise<SalesByCategoryPagination | null> {
+    ): Promise<SalesByCategoryPagination> {
         const { data } = await foodchowClient.get<ApiResponse<any>>(
             ENDPOINTS.reports.salesByCategoryWeek,
             {
@@ -2923,19 +3205,37 @@ export const reportsService = {
                 },
             }
         );
-        if (!data.data || typeof data.data !== "object") {
-            return null;
+        const resData = data?.data ?? data;
+        let itemsList: SalesByCategory[] = [];
+        if (typeof resData?.items === "string") {
+            try {
+                itemsList = JSON.parse(resData.items);
+            } catch {
+                itemsList = [];
+            }
+        } else if (Array.isArray(resData?.items)) {
+            itemsList = resData.items;
+        } else if (Array.isArray(resData)) {
+            itemsList = resData;
         }
-        return data.data;
+
+        return {
+            items: itemsList,
+            totalRecords: typeof resData?.totalRecords === "number" ? resData.totalRecords : itemsList.length,
+            totalPages: typeof resData?.totalPages === "number" ? resData.totalPages : 1,
+            currentPage: typeof resData?.currentPage === "number" ? resData.currentPage : pageNumber,
+            pageSize: typeof resData?.pageSize === "number" ? resData.pageSize : pageSize,
+            dateformat: resData?.dateformat || "",
+        };
     },
 
     async getMonthSalesByCategory(
-        shopId: number,
+        shopId: number | string,
         month: string,
         year: string,
         pageNumber: number = 1,
         pageSize: number = 10
-    ): Promise<SalesByCategoryPagination | null> {
+    ): Promise<SalesByCategoryPagination> {
         const { data } = await foodchowClient.get<ApiResponse<any>>(
             ENDPOINTS.reports.salesByCategoryMonth,
             {
@@ -2948,15 +3248,36 @@ export const reportsService = {
                 },
             }
         );
-        return data.data ?? null;
+        const resData = data?.data ?? data;
+        let itemsList: SalesByCategory[] = [];
+        if (typeof resData?.items === "string") {
+            try {
+                itemsList = JSON.parse(resData.items);
+            } catch {
+                itemsList = [];
+            }
+        } else if (Array.isArray(resData?.items)) {
+            itemsList = resData.items;
+        } else if (Array.isArray(resData)) {
+            itemsList = resData;
+        }
+
+        return {
+            items: itemsList,
+            totalRecords: typeof resData?.totalRecords === "number" ? resData.totalRecords : itemsList.length,
+            totalPages: typeof resData?.totalPages === "number" ? resData.totalPages : 1,
+            currentPage: typeof resData?.currentPage === "number" ? resData.currentPage : pageNumber,
+            pageSize: typeof resData?.pageSize === "number" ? resData.pageSize : pageSize,
+            dateformat: resData?.dateformat || "",
+        };
     },
 
     async getYearSalesByCategory(
-        shopId: number,
+        shopId: number | string,
         year: string,
         pageNumber: number = 1,
         pageSize: number = 10
-    ): Promise<SalesByCategoryPagination | null> {
+    ): Promise<SalesByCategoryPagination> {
         const { data } = await foodchowClient.get<ApiResponse<any>>(
             ENDPOINTS.reports.salesByCategoryYear,
             {
@@ -2968,7 +3289,28 @@ export const reportsService = {
                 },
             }
         );
-        return data.data ?? null;
+        const resData = data?.data ?? data;
+        let itemsList: SalesByCategory[] = [];
+        if (typeof resData?.items === "string") {
+            try {
+                itemsList = JSON.parse(resData.items);
+            } catch {
+                itemsList = [];
+            }
+        } else if (Array.isArray(resData?.items)) {
+            itemsList = resData.items;
+        } else if (Array.isArray(resData)) {
+            itemsList = resData;
+        }
+
+        return {
+            items: itemsList,
+            totalRecords: typeof resData?.totalRecords === "number" ? resData.totalRecords : itemsList.length,
+            totalPages: typeof resData?.totalPages === "number" ? resData.totalPages : 1,
+            currentPage: typeof resData?.currentPage === "number" ? resData.currentPage : pageNumber,
+            pageSize: typeof resData?.pageSize === "number" ? resData.pageSize : pageSize,
+            dateformat: resData?.dateformat || "",
+        };
     },
 
     async getDailyClosingReport(
@@ -3691,43 +4033,66 @@ export const reportsService = {
         pageNumber: number = 1,
         pageSize: number = 10
     ): Promise<TaxSummaryResponse> {
-        const { data } = await foodchowClient.get(
+        const endpoints = [
             ENDPOINTS.reports.taxSummaryMonthlySalesReport,
-            {
-                params: {
-                    shop_id: shopId,
-                    month,
-                    year,
-                    pageNumber,
-                    pageSize,
-                },
-            }
-        );
+            "/SalesReports/TotalSalesTaxMonthly",
+            "/FoodChowRMS/TotalSalesTaxMonthly",
+            "/SalesReportsWithoutPagination/TotalSalesTaxMonthly",
+        ];
 
-        console.log("Tax Summary Monthly API Response:", data);
-
-        const responseObj = data?.data ?? data;
-        let itemsList: TaxSummaryItem[] = [];
-
-        if (typeof responseObj?.items === "string") {
+        let lastData: any = null;
+        for (const ep of endpoints) {
             try {
-                itemsList = JSON.parse(responseObj.items);
+                const { data } = await foodchowClient.get(ep, {
+                    params: {
+                        shop_id: shopId,
+                        month,
+                        year,
+                        pageNumber,
+                        pageSize,
+                    },
+                });
+                if (data) {
+                    lastData = data;
+                    break;
+                }
             } catch {
-                itemsList = [];
+                // Try next endpoint fallback
             }
-        } else if (Array.isArray(responseObj?.items)) {
-            itemsList = responseObj.items;
-        } else if (Array.isArray(responseObj)) {
-            itemsList = responseObj;
         }
 
-        return {
-            items: itemsList,
-            totalRecords: responseObj?.totalRecords ?? itemsList.length,
-            totalPages: responseObj?.totalPages ?? (itemsList.length > 0 ? Math.ceil(itemsList.length / pageSize) : 1),
-            currentPage: responseObj?.currentPage ?? pageNumber,
-            pageSize: responseObj?.pageSize ?? pageSize,
-        };
+        try {
+            const responseObj = lastData?.data ?? lastData;
+            let itemsList: TaxSummaryItem[] = [];
+
+            if (typeof responseObj?.items === "string") {
+                try {
+                    itemsList = JSON.parse(responseObj.items);
+                } catch {
+                    itemsList = [];
+                }
+            } else if (Array.isArray(responseObj?.items)) {
+                itemsList = responseObj.items;
+            } else if (Array.isArray(responseObj)) {
+                itemsList = responseObj;
+            }
+
+            return {
+                items: itemsList,
+                totalRecords: responseObj?.totalRecords ?? itemsList.length,
+                totalPages: responseObj?.totalPages ?? (itemsList.length > 0 ? Math.ceil(itemsList.length / pageSize) : 1),
+                currentPage: responseObj?.currentPage ?? pageNumber,
+                pageSize: responseObj?.pageSize ?? pageSize,
+            };
+        } catch {
+            return {
+                items: [],
+                totalRecords: 0,
+                totalPages: 1,
+                currentPage: pageNumber,
+                pageSize,
+            };
+        }
     },
     async getTaxSummaryYearly(
         shopId: number,
@@ -3825,13 +4190,16 @@ export const reportsService = {
     async getTodayRefunds(
         shopId: number,
         pageNumber = 1,
-        pageSize = 10
+        pageSize = 10,
+        serverTime?: string
     ): Promise<PaginatedRefundResult> {
+        const date = serverTime || new Date().toISOString().split("T")[0];
         const { data } = await foodchowClient.get<PaginatedRefundResult>(
             ENDPOINTS.reports.refundToday,
             {
                 params: {
                     shop_id: shopId,
+                    server_time: date,
                     pageNumber,
                     pageSize,
                 },
@@ -3928,55 +4296,67 @@ export const reportsService = {
     },
     // ---------------- INGREDIENTS ----------------
 
-    async getTodayIngredients(shopId: number): Promise<IngredientRecord[]> {
-        const { data } = await adminFoodchowClient.get<APIResponse>(
+    async getTodayIngredients(shopId: number, pageNumber = 1, pageSize = 100, serverTime?: string): Promise<IngredientRecord[]> {
+        const date = serverTime || new Date().toISOString().split("T")[0];
+        const { data } = await foodchowClient.get(
             ENDPOINTS.reports.ingredientsToday,
-            { params: { shop_id: shopId } }
+            { params: { shop_id: shopId, server_time: date, pageNumber, pageSize } }
         );
-        return parseData<IngredientRecord>(data.data);
+        const resData = data?.data || data;
+        return Array.isArray(resData?.items) ? resData.items : (Array.isArray(resData) ? resData : []);
     },
 
-    async getWeekIngredients(shopId: number): Promise<IngredientRecord[]> {
-        const { data } = await adminFoodchowClient.get<APIResponse>(
+    async getWeekIngredients(shopId: number, pageNumber = 1, pageSize = 100): Promise<IngredientRecord[]> {
+        const { data } = await foodchowClient.get(
             ENDPOINTS.reports.ingredientsWeek,
-            { params: { shop_id: shopId } }
+            { params: { shop_id: shopId, pageNumber, pageSize } }
         );
-        return parseData<IngredientRecord>(data.data);
+        const resData = data?.data || data;
+        return Array.isArray(resData?.items) ? resData.items : (Array.isArray(resData) ? resData : []);
     },
 
     async getMonthIngredients(
         shopId: number,
         month: string,
-        year: string
+        year: string,
+        pageNumber = 1,
+        pageSize = 100
     ): Promise<IngredientRecord[]> {
-        const { data } = await adminFoodchowClient.get<APIResponse>(
+        const { data } = await foodchowClient.get(
             ENDPOINTS.reports.ingredientsMonth,
-            { params: { shop_id: shopId, months: month, year } }
+            { params: { shop_id: shopId, months: month, year, pageNumber, pageSize } }
         );
-        return parseData<IngredientRecord>(data.data);
+        const resData = data?.data || data;
+        return Array.isArray(resData?.items) ? resData.items : (Array.isArray(resData) ? resData : []);
     },
 
     async getYearIngredients(
         shopId: number,
-        year: string
+        year: string,
+        pageNumber = 1,
+        pageSize = 100
     ): Promise<IngredientRecord[]> {
-        const { data } = await adminFoodchowClient.get<APIResponse>(
+        const { data } = await foodchowClient.get(
             ENDPOINTS.reports.ingredientsYear,
-            { params: { shop_id: shopId, years: year } }
+            { params: { shop_id: shopId, year, pageNumber, pageSize } }
         );
-        return parseData<IngredientRecord>(data.data);
+        const resData = data?.data || data;
+        return Array.isArray(resData?.items) ? resData.items : (Array.isArray(resData) ? resData : []);
     },
 
     async getCustomIngredients(
         shopId: number,
         startDate: string,
-        endDate: string
+        endDate: string,
+        pageNumber = 1,
+        pageSize = 100
     ): Promise<IngredientRecord[]> {
-        const { data } = await adminFoodchowClient.get<APIResponse>(
+        const { data } = await foodchowClient.get(
             ENDPOINTS.reports.ingredientsCustom,
-            { params: { shop_id: shopId, start_date: startDate, end_date: endDate } }
+            { params: { shop_id: shopId, start_date: startDate, end_date: endDate, pageNumber, pageSize } }
         );
-        return parseData<IngredientRecord>(data.data);
+        const resData = data?.data || data;
+        return Array.isArray(resData?.items) ? resData.items : (Array.isArray(resData) ? resData : []);
     },
 
     // ---------------- SALES BY ORDER METHOD ----------------
@@ -4425,7 +4805,7 @@ export const reportsService = {
             {
                 params: {
                     shop_id: shopId,
-                    year,
+                    years: year,
                     pageNumber,
                     pageSize,
                 },
@@ -4860,48 +5240,37 @@ export const reportsService = {
         pageNumber: number = 1,
         pageSize: number = 10
     ): Promise<ProductWiseComparison[]> {
-
-        console.log(
-            "Final URL:",
-            foodchowRMSClient.getUri({
-                url: ENDPOINTS.reports.productWiseComparisonToday,
-                params: {
-                    shop_id: shopId,
-                    pageNumber,
-                    pageSize,
-                },
-            })
-        );
-
-        let data;
         try {
-            const response = await fetch(
-                `/api/comparison-by-product?period=today&shop_id=${shopId}&pageNumber=${pageNumber}&pageSize=${pageSize}`
+            const { data } = await foodchowClient.get(
+                ENDPOINTS.reports.productWiseComparisonToday,
+                {
+                    params: {
+                        shop_id: shopId,
+                        pageNumber,
+                        pageSize,
+                    },
+                }
             );
-            data = await response.json();
+
+            console.log("Product Comparison Today API:", data);
+
+            let resData = data?.data ?? data;
+            if (typeof resData === "string") {
+                try {
+                    resData = JSON.parse(resData);
+                } catch {
+                    resData = [];
+                }
+            }
+
+            const rawItems = Array.isArray(resData?.items) ? resData.items : (Array.isArray(resData) ? resData : []);
+            return rawItems.map((item: any) => ({
+                item_name: item.item_name || item.name || "-",
+                previous_quantity: item.previous_day_quantity ?? item.previous_quantity ?? 0,
+                current_quantity: item.current_day_quantity ?? item.current_quantity ?? 0,
+            }));
         } catch (error) {
             console.warn("API Error in getProductWiseComparisonToday:", error);
-            return [];
-        }
-
-        console.log("Product Comparison Today API:", data);
-
-        if (!data.data) {
-            return [];
-        }
-
-        try {
-            // return JSON.parse(data.data);
-
-            const result = JSON.parse(data.data);
-
-            return result.map((item: any) => ({
-                item_name: item.item_name,
-                previous_quantity: item.previous_day_quantity,
-                current_quantity: item.current_day_quantity,
-            }));
-        } catch (e) {
-            console.log(e);
             return [];
         }
     },
@@ -4911,30 +5280,35 @@ export const reportsService = {
         pageNumber: number = 1,
         pageSize: number = 10
     ): Promise<ProductWiseComparison[]> {
-
-        let data;
         try {
-            const response = await fetch(
-                `/api/comparison-by-product?period=week&shop_id=${shopId}&pageNumber=${pageNumber}&pageSize=${pageSize}`
+            const { data } = await foodchowClient.get(
+                ENDPOINTS.reports.productWiseComparisonWeek,
+                {
+                    params: {
+                        shop_id: shopId,
+                        pageNumber,
+                        pageSize,
+                    },
+                }
             );
-            data = await response.json();
+
+            let resData = data?.data ?? data;
+            if (typeof resData === "string") {
+                try {
+                    resData = JSON.parse(resData);
+                } catch {
+                    resData = [];
+                }
+            }
+
+            const rawItems = Array.isArray(resData?.items) ? resData.items : (Array.isArray(resData) ? resData : []);
+            return rawItems.map((item: any) => ({
+                item_name: item.item_name || item.name || "-",
+                previous_quantity: item.previous_week_quantity ?? item.previous_quantity ?? 0,
+                current_quantity: item.current_week_quantity ?? item.current_quantity ?? 0,
+            }));
         } catch (error) {
             console.warn("API Error in getProductWiseComparisonWeek:", error);
-            return [];
-        }
-
-        if (!data.data) return [];
-
-        try {
-            // return JSON.parse(data.data);
-            const result = JSON.parse(data.data);
-
-            return result.map((item: any) => ({
-                item_name: item.item_name,
-                previous_quantity: item.previous_week_quantity,
-                current_quantity: item.current_week_quantity,
-            }));
-        } catch {
             return [];
         }
     },
@@ -4944,29 +5318,35 @@ export const reportsService = {
         pageNumber: number = 1,
         pageSize: number = 10
     ): Promise<ProductWiseComparison[]> {
-
-        let data;
         try {
-            const response = await fetch(
-                `/api/comparison-by-product?period=month&shop_id=${shopId}&pageNumber=${pageNumber}&pageSize=${pageSize}`
+            const { data } = await foodchowClient.get(
+                ENDPOINTS.reports.productWiseComparisonMonth,
+                {
+                    params: {
+                        shop_id: shopId,
+                        pageNumber,
+                        pageSize,
+                    },
+                }
             );
-            data = await response.json();
+
+            let resData = data?.data ?? data;
+            if (typeof resData === "string") {
+                try {
+                    resData = JSON.parse(resData);
+                } catch {
+                    resData = [];
+                }
+            }
+
+            const rawItems = Array.isArray(resData?.items) ? resData.items : (Array.isArray(resData) ? resData : []);
+            return rawItems.map((item: any) => ({
+                item_name: item.item_name || item.name || "-",
+                previous_quantity: item.previous_month_quantity ?? item.previous_quantity ?? 0,
+                current_quantity: item.current_month_quantity ?? item.current_quantity ?? 0,
+            }));
         } catch (error) {
             console.warn("API Error in getProductWiseComparisonMonth:", error);
-            return [];
-        }
-
-        if (!data.data) return [];
-
-        try {
-            const result = JSON.parse(data.data);
-
-            return result.map((item: any) => ({
-                item_name: item.item_name,
-                previous_quantity: item.previous_month_quantity,
-                current_quantity: item.current_month_quantity,
-            }));
-        } catch {
             return [];
         }
     },
@@ -4976,29 +5356,35 @@ export const reportsService = {
         pageNumber: number = 1,
         pageSize: number = 10
     ): Promise<ProductWiseComparison[]> {
-
-        let data;
         try {
-            const response = await fetch(
-                `/api/comparison-by-product?period=year&shop_id=${shopId}&pageNumber=${pageNumber}&pageSize=${pageSize}`
+            const { data } = await foodchowClient.get(
+                ENDPOINTS.reports.productWiseComparisonYear,
+                {
+                    params: {
+                        shop_id: shopId,
+                        pageNumber,
+                        pageSize,
+                    },
+                }
             );
-            data = await response.json();
+
+            let resData = data?.data ?? data;
+            if (typeof resData === "string") {
+                try {
+                    resData = JSON.parse(resData);
+                } catch {
+                    resData = [];
+                }
+            }
+
+            const rawItems = Array.isArray(resData?.items) ? resData.items : (Array.isArray(resData) ? resData : []);
+            return rawItems.map((item: any) => ({
+                item_name: item.item_name || item.name || "-",
+                previous_quantity: item.previous_year_quantity ?? item.previous_quantity ?? 0,
+                current_quantity: item.current_year_quantity ?? item.current_quantity ?? 0,
+            }));
         } catch (error) {
             console.warn("API Error in getProductWiseComparisonYear:", error);
-            return [];
-        }
-
-        if (!data.data) return [];
-
-        try {
-            const result = JSON.parse(data.data);
-
-            return result.map((item: any) => ({
-                item_name: item.item_name,
-                previous_quantity: item.previous_year_quantity,
-                current_quantity: item.current_year_quantity,
-            }));
-        } catch {
             return [];
         }
     },

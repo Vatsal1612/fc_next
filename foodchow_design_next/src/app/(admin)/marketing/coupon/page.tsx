@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import Swal from "sweetalert2";
 import "./page.css";
@@ -66,6 +66,7 @@ function decodeOrderMethod(raw: string): string[] {
   return result;
 }
 export default function CouponPage() {
+  const [showHelpVideo, setShowHelpVideo] = React.useState(false);
   useEffect(() => {
     const shopIdStr = sessionStorage.getItem("shop_id");
     const SHOP_ID = shopIdStr ? Number(shopIdStr) : 0;
@@ -102,8 +103,8 @@ export default function CouponPage() {
       resetForm();
       setText("formTitle", "Add New Coupon");
       setText("formSubtitle", "Fill in the details below to create a promotional coupon");
-      setText("formSubmitBtn", "SAVE COUPON");
-      setText("formSubmitBtn2", "SAVE COUPON");
+      setText("formSubmitBtn", "ADD COUPON");
+      setText("formSubmitBtn2", "ADD COUPON");
       showFormView();
       updatePreview();
     }
@@ -226,17 +227,13 @@ export default function CouponPage() {
           throw new Error(response.message || "Failed to update coupon status.");
         }
 
-        await Swal.fire({
-          toast: true,
-          position: "top-end",
-          icon: "success",
-          title: checked ? "Coupon activated" : "Coupon deactivated",
-          timer: 1500,
-          showConfirmButton: false,
-        });
-
-        // Refetch the coupon list after a successful status update
-        await loadCoupons();
+        // Update local state and re-render without reloading from server
+        const c = coupons.find((x) => x.id === id);
+        if (c) {
+          c.status = checked ? "Active" : "DeActive";
+        }
+        renderTable();
+        updateStats();
       } catch (err: any) {
         console.error(err);
         renderTable(); // revert UI toggle to actual state
@@ -350,8 +347,7 @@ export default function CouponPage() {
           await Swal.fire({
             icon: "success",
             title: res.message || "Coupon updated successfully!",
-            timer: 1500,
-            showConfirmButton: false,
+            showConfirmButton: true,
           });
         } else {
           const res = await marketingService.addCoupon(payload);
@@ -378,8 +374,7 @@ export default function CouponPage() {
           await Swal.fire({
             icon: "success",
             title: res.message || "Your Coupon has been added successfully!",
-            timer: 1500,
-            showConfirmButton: false,
+            showConfirmButton: true,
           });
         }
         await loadCoupons();
@@ -444,7 +439,7 @@ export default function CouponPage() {
         allowOutsideClick: () => !Swal.isLoading()
       }).then((result) => {
         if (result.isConfirmed) {
-          Swal.fire({ icon: "success", title: "Coupon deleted", timer: 1500, showConfirmButton: false });
+          Swal.fire({ icon: "success", title: "Coupon deleted", showConfirmButton: true });
           loadCoupons(); // Refetch the list dynamically
         }
       });
@@ -580,6 +575,7 @@ export default function CouponPage() {
           status: item.status === 0 ? "Active" : "DeActive",
           orderMethod: decodeOrderMethod(item.order_method),
         }));
+        coupons = coupons.reverse();
         renderTable();
         updateStats();
       } catch (err) {
@@ -628,7 +624,7 @@ export default function CouponPage() {
                       </svg>
                       ADD NEW COUPON
                     </button>
-                    <button className="btn-help-hdr">
+                    <button className="btn-help-hdr" onClick={() => setShowHelpVideo(true)}>
                       <svg viewBox="0 0 24 24">
                         <circle cx="12" cy="12" r="10" />
                         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
@@ -876,6 +872,41 @@ export default function CouponPage() {
         </div>
       </div>
       <div className="toast" id="toast" />
+      {showHelpVideo && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{ position: 'relative', width: '80%', maxWidth: '1000px', aspectRatio: '16/9', backgroundColor: '#000' }}>
+            <button
+              onClick={() => setShowHelpVideo(false)}
+              style={{
+                position: 'absolute',
+                top: '-40px',
+                right: '0',
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                fontSize: '30px',
+                cursor: 'pointer'
+              }}
+            >
+              &times;
+            </button>
+            <iframe
+              src="https://player.vimeo.com/video/1075945362?autoplay=1"
+              style={{ width: '100%', height: '100%', border: 'none' }}
+              allow="autoplay; fullscreen; picture-in-picture"
+              allowFullScreen
+            ></iframe>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

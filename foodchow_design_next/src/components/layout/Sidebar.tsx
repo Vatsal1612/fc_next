@@ -89,13 +89,12 @@ import { NAV_SECTIONS, type NavSection } from "@/constants/navigation";
 import { cn } from "@/utils";
 import styles from "./shell.module.css";
 import { setupService } from "@/api/services/setup.service";
-import { LanguageIcon } from "./LanguageIcon";
-import { SupportedLanguagesModal } from "./SupportedLanguagesModal";
+import { getNormalizedPathname, getRestaurantNavHref } from "@/utils/routes";
 
-/** Resolve the active section from the current pathname (falls back to the first). */
+/** Resolve the active section from the normalized pathname (falls back to the first). */
 function getActiveSection(pathname: string): NavSection {
   const match = NAV_SECTIONS.find((section) =>
-    section.items.some((item) => item.href !== "#" && pathname.startsWith(item.href))
+    section.items.some((item) => item.href !== "#" && (pathname === item.href || pathname.startsWith(item.href + "/")))
   );
   return match ?? NAV_SECTIONS[0];
 }
@@ -108,29 +107,48 @@ function firstHref(section: NavSection): string {
 
 /**
  * Dual sidebar: outer icon rail (sections) + inner submenu (active section items).
- * Active state is derived from the route instead of imperative class toggling.
+ * Links are dynamically prefixed with the logged-in restaurant name / subdomain.
  */
 export function Sidebar() {
   const pathname = usePathname();
-  const activeSection = getActiveSection(pathname);
+  const normalizedPath = getNormalizedPathname(pathname);
+  const activeSection = getActiveSection(normalizedPath);
   const router = useRouter();
   const [shopName, setShopName] = useState("Loading...");
-  const [shopLogo, setShopLogo] = useState<string | null>(null);
-  const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
+  const [subdomain, setSubdomain] = useState("foodchowdemoindia");
 
+  // In-memory cache for restaurant info to avoid repeated network calls across route transitions
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedSub = sessionStorage.getItem("subdomain");
+      if (storedSub) setSubdomain(storedSub);
+      const storedName = sessionStorage.getItem("shop_name");
+      if (storedName) setShopName(storedName);
+    }
+
     const fetchShopInfo = async () => {
       const shopId = sessionStorage.getItem("shop_id");
       if (shopId) {
+        // If already cached in sessionStorage, use it immediately
+        const cachedName = sessionStorage.getItem("shop_name");
+        const cachedSub = sessionStorage.getItem("subdomain");
+        if (cachedName && cachedSub) {
+          setShopName(cachedName);
+          setSubdomain(cachedSub);
+          return;
+        }
+
         try {
           const info = await setupService.getRestaurantInformation(Number(shopId));
           if (info && info.shop_name) {
             setShopName(info.shop_name);
-            if (info.shoplogo) {
-              setShopLogo(info.shoplogo);
-            }
+            sessionStorage.setItem("shop_name", info.shop_name);
           } else {
             setShopName("Unknown Restaurant");
+          }
+          if (info && info.subdomain) {
+            setSubdomain(info.subdomain);
+            sessionStorage.setItem("subdomain", info.subdomain);
           }
         } catch (error) {
           console.error("Failed to fetch shop info:", error);
@@ -146,6 +164,9 @@ export function Sidebar() {
   const handleLogout = () => {
     sessionStorage.removeItem("isLoggedIn");
     sessionStorage.removeItem("shop_id");
+    sessionStorage.removeItem("subdomain");
+    sessionStorage.removeItem("shop_name");
+
     router.replace("/login");
   };
 
@@ -156,7 +177,7 @@ export function Sidebar() {
         {NAV_SECTIONS.map((section) => (
           <Link
             key={section.key}
-            href={firstHref(section)}
+            href={getRestaurantNavHref(firstHref(section), subdomain)}
             className={cn(
               styles.menuItem,
               section.key === activeSection.key && styles.active
@@ -167,74 +188,40 @@ export function Sidebar() {
           </Link>
         ))}
 
-        {/* Supported Languages Modal Trigger - placed directly near Support button */}
-        <button
-          type="button"
-          className={cn(
-            styles.menuItem,
-            styles.languageBtn,
-            isLanguageModalOpen && styles.active
-          )}
-          onClick={() => setIsLanguageModalOpen(true)}
-          title="Change Languages / Supported Languages"
-        >
-          <LanguageIcon size={24} />
-          <span>Language</span>
-        </button>
-
-        {/* Logout Button pinned to bottom */}
+        {/* Logout Button */}
         <div className={styles.logoutWrapper}>
-          <button
-            className={styles.logoutBtn}
-            onClick={handleLogout}
-            title="Log Out"
-          >
+          <button className={styles.logoutBtn} onClick={handleLogout}>
             <i className="fas fa-sign-out-alt" />
             <span>Log Out</span>
           </button>
         </div>
       </div>
 
-      {/* Global Supported Languages Modal */}
-      <SupportedLanguagesModal
-        isOpen={isLanguageModalOpen}
-        onClose={() => setIsLanguageModalOpen(false)}
-      />
-
-
       {/* Inner Sidebar */}
       <div className={styles.sidebarInner}>
         <div className={styles.shopInfoWrapper}>
           <div className={styles.shopInfo}>
-            {shopLogo ? (
-              <img
-                src={`https://admin.foodchow.com/LogoImages/${shopLogo}`}
-                alt="Shop Logo"
-                style={{ width: "24px", height: "24px", borderRadius: "50%", objectFit: "cover" }}
-              />
-            ) : (
-              <i className="fas fa-store" />
-            )}
+            <i className="fas fa-store" />
             {shopName}
           </div>
         </div>
 
         <ul className={cn(styles.submenu, styles.active)}>
           {activeSection.items.map((item) => {
-            const isActive = item.href !== "#" && pathname.startsWith(item.href);
+            const isActive =
+              item.href !== "#" &&
+              (normalizedPath === item.href || normalizedPath.startsWith(item.href + "/"));
             const className = cn(styles.submenuItem, isActive && styles.active);
+            const dynamicHref = getRestaurantNavHref(item.href, subdomain);
+
             return (
               <li key={item.label}>
                 {item.href === "#" ? (
                   <a href="#" className={className} onClick={(e) => e.preventDefault()}>
                     <i className={item.icon} /> {item.label}
                   </a>
-                ) : item.href.startsWith("http") ? (
-                  <a href={item.href} className={className} target="_blank" rel="noopener noreferrer">
-                    <i className={item.icon} /> {item.label}
-                  </a>
                 ) : (
-                  <Link href={item.href} className={className}>
+                  <Link href={dynamicHref} className={className}>
                     <i className={item.icon} /> {item.label}
                   </Link>
                 )}
