@@ -100,7 +100,7 @@
 //             <p className="subtitle">Comparison of current week with previous week</p>
 
 //             <button className="export-btn">
-//               <i className="ti ti-download" /> Export to Excel
+//               <i className="ti ti-download" /> EXPORT TO EXCEL
 //             </button>
 
 //             <table className="report-table">
@@ -151,14 +151,14 @@
 //   );
 // }
 
-
-
 "use client";
 
 import { useEffect, useState } from "react";
+import Script from "next/script";
 import "./page.css";
 import { reportsService, WeekComparison } from "@/api/services/report.service";
 import { useShopId } from "@/utils/shop";
+import ReportStepFooter from "@/components/shared/ReportStepFooter";
 
 export default function ComparisionweekPage() {
   const shopId = useShopId();
@@ -238,8 +238,20 @@ export default function ComparisionweekPage() {
   };
 
   const exportToExcel = (): void => {
-    if (!comparisonData || comparisonData.length === 0) return;
-    const rows: string[][] = [
+    if (!comparisonData || comparisonData.length === 0) {
+      alert("No data available to export");
+      return;
+    }
+    const XLSX = (window as any).XLSX;
+    if (!XLSX) {
+      alert("Excel export library is loading, please try again.");
+      return;
+    }
+
+    const wsData: any[][] = [
+      ["Item Report - Comparison of Current Week with Previous Week"],
+      [`Exported On: ${new Date().toLocaleString()}`],
+      [],
       ["Details", "Previous week", "Current week", "Change"],
       ...comparisonData.map((item) => {
         const isAmount =
@@ -259,20 +271,21 @@ export default function ComparisionweekPage() {
         return [item.data, prevValue, currValue, changeInfo.change];
       }),
     ];
-    const csv = rows
-      .map((r) => r.map((c) => '"' + c + '"').join(","))
-      .join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "item_report_weekly.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!cols"] = [{ wch: 25 }, { wch: 18 }, { wch: 18 }, { wch: 15 }];
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+    XLSX.utils.book_append_sheet(wb, ws, "Weekly Comparison");
+    XLSX.writeFile(wb, `item_report_weekly_comparison_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
   return (
     <div id="pg-reports-comparisionweek">
+      <Script
+        src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+        strategy="afterInteractive"
+      />
       <div className="app-container">
         <div className="main-content">
           <div className="report-wrap">
@@ -280,11 +293,26 @@ export default function ComparisionweekPage() {
               <h1 className="report-title typ-page-heading" style={{ margin: 0, marginBottom: "15px" }}>Item report</h1>
             </div>
 
-            <p className="subtitle">Comparison of current week with previous week</p>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
+              <p className="subtitle" style={{ margin: 0 }}>Comparison of current week with previous week</p>
 
-            <button className="export-btn" onClick={exportToExcel}>
-              <i className="ti ti-download" /> Export to Excel
-            </button>
+              <button className="btn-action btn-export" style={{ margin: 0 }} onClick={exportToExcel}>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#ffffff"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ width: "18px", height: "18px", marginRight: "6px" }}
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                EXPORT TO EXCEL
+              </button>
+            </div>
 
             <table className="report-table">
               <thead>
@@ -304,8 +332,8 @@ export default function ComparisionweekPage() {
                   </tr>
                 ) : comparisonData.length === 0 ? (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: "center", padding: "40px" }}>
-                      No comparison data available
+                    <td colSpan={4} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
+                      No Records Found
                     </td>
                   </tr>
                 ) : (
@@ -361,16 +389,9 @@ export default function ComparisionweekPage() {
                 )}
               </tbody>
             </table>
-
-            <div className="nav-bar">
-              <button className="nav-btn">
-                <i className="ti ti-arrow-left" /> Previous
-              </button>
-              <button className="nav-btn">
-                Next <i className="ti ti-arrow-right" />
-              </button>
-            </div>
           </div>
+
+          <ReportStepFooter currentStepOverride={11} totalStepsOverride={25} />
         </div>
       </div>
     </div>

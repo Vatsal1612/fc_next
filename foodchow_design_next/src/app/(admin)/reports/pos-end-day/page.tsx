@@ -450,34 +450,36 @@
 //   );
 // }
 
-
-
 "use client";
 
 import { useEffect, useState } from "react";
 import "./page.css";
 import { reportsService, PosUser } from "@/api/services/report.service";
-import ReportPagination from "@/components/shared/ReportPagination";
+import ReportTableFooter from "@/components/shared/ReportTableFooter";
+import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
 
 export default function PosEndDayPage() {
     const shopId = useShopId();
+    const activeShopId = shopId || (typeof window !== "undefined" ? parseInt(sessionStorage.getItem("shop_id") || "0", 10) : 0);
     const [users, setUsers] = useState<PosUser[]>([]);
     const [selectedUser, setSelectedUser] = useState("");
-    const [selectedDate, setSelectedDate] = useState("");
+    const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
     const [loading, setLoading] = useState(false);
     const [reportData, setReportData] = useState<any>(null);
     const [noData, setNoData] = useState(false);
     const [pageNumber, setPageNumber] = useState(1);
     const [pageSize, setPageSize] = useState(10);
+    const [hasSearched, setHasSearched] = useState(false);
 
     // Fetch users on mount
     useEffect(() => {
         const fetchUsers = async () => {
+            if (!activeShopId) return;
             try {
-                const data = await reportsService.fetchPosUsers(shopId);
+                const data = await reportsService.fetchPosUsers(activeShopId);
                 setUsers(data || []);
-                
+
                 // Select admin user by default or first user
                 const adminUser = data?.find(
                     (u: any) => u.name.toLowerCase() === "admin user"
@@ -488,7 +490,7 @@ export default function PosEndDayPage() {
             }
         };
         fetchUsers();
-    }, [shopId]);
+    }, [activeShopId]);
 
     // Get data function
     const getData = async () => {
@@ -502,6 +504,7 @@ export default function PosEndDayPage() {
             return;
         }
 
+        setHasSearched(true);
         setLoading(true);
         setNoData(false);
         setReportData(null);
@@ -509,7 +512,7 @@ export default function PosEndDayPage() {
 
         try {
             const result = await reportsService.fetchPosEndDayReport(
-                shopId,
+                activeShopId,
                 selectedUser,
                 selectedDate,
                 pageNumber,
@@ -532,6 +535,38 @@ export default function PosEndDayPage() {
         }
     };
 
+    const exportToExcel = () => {
+        const rows = Array.isArray(reportData)
+            ? reportData
+            : reportData?.rows || reportData?.items || [];
+        if (!rows || rows.length === 0) {
+            alert("No data available to export");
+            return;
+        }
+
+        const XLSX = (window as any).XLSX;
+        if (!XLSX) {
+            return;
+        }
+
+        const keys = Object.keys(rows[0] || {});
+        const headers = keys.map((k) => k.replace(/_/g, " ").toUpperCase());
+        const dataRows = rows.map((r: any) => keys.map((k) => r[k] ?? ""));
+
+        const wsData = [
+            ["POS End Day Report"],
+            [`User: ${selectedUser}`, `Date: ${selectedDate}`],
+            [],
+            headers,
+            ...dataRows,
+        ];
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        XLSX.utils.book_append_sheet(wb, ws, "POS End Day");
+        XLSX.writeFile(wb, `pos_end_day_${selectedUser}_${selectedDate}.xlsx`);
+    };
+
     // Render the report
     const renderReport = () => {
         if (loading) {
@@ -539,7 +574,31 @@ export default function PosEndDayPage() {
         }
 
         if (noData) {
-            return <p className="no-record" style={{ textAlign: "center", padding: "40px" }}>No Record Found</p>;
+            return (
+                <div className="result-section">
+                    <h2 className="section-title">Description</h2>
+                    <div className="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Order ID</th>
+                                    <th>Customer Name</th>
+                                    <th>Payment Method</th>
+                                    <th>Order Type</th>
+                                    <th>Amount (Rs.)</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colSpan={7} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>No Records Found</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
         }
 
         if (!reportData) {
@@ -552,7 +611,6 @@ export default function PosEndDayPage() {
             const totalPages = Math.ceil(totalRecords / pageSize);
             const startIndex = (pageNumber - 1) * pageSize;
             const paginatedRows = reportData.slice(startIndex, startIndex + pageSize);
-            const endIndex = Math.min(startIndex + pageSize, totalRecords);
 
             return (
                 <div className="result-section">
@@ -577,32 +635,15 @@ export default function PosEndDayPage() {
                             </tbody>
                         </table>
                     </div>
-                    <div className="table-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '12px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '13px', color: '#64748b' }}>Show</span>
-                            <select
-                                value={pageSize}
-                                onChange={(e) => {
-                                    setPageSize(Number(e.target.value));
-                                    setPageNumber(1);
-                                }}
-                                style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                            >
-                                <option value={10}>10</option>
-                                <option value={20}>20</option>
-                                <option value={50}>50</option>
-                            </select>
-                            <span style={{ fontSize: '13px', color: '#64748b' }}>entries</span>
-                        </div>
-                        <div style={{ fontSize: '13px', color: '#64748b' }}>
-                            Showing {startIndex + 1} to {endIndex} of {totalRecords} entries
-                        </div>
-                        <ReportPagination
-                            currentPage={pageNumber}
-                            totalPages={totalPages}
-                            onPageChange={(page) => setPageNumber(page)}
-                        />
-                    </div>
+                    <ReportTableFooter
+                        currentPage={pageNumber}
+                        totalPages={totalPages}
+                        totalRecords={totalRecords}
+                        pageSize={pageSize}
+                        onPageChange={(page) => setPageNumber(page)}
+                        onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
+                        disabled={loading}
+                    />
                 </div>
             );
         }
@@ -615,7 +656,6 @@ export default function PosEndDayPage() {
             const totalPages = Math.ceil(totalRecords / pageSize);
             const startIndex = (pageNumber - 1) * pageSize;
             const paginatedRows = rowsArray.slice(startIndex, startIndex + pageSize);
-            const endIndex = Math.min(startIndex + pageSize, totalRecords);
 
             return (
                 <div className="result-section">
@@ -688,32 +728,15 @@ export default function PosEndDayPage() {
                             </tbody>
                         </table>
                     </div>
-                    <div className="table-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '12px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '13px', color: '#64748b' }}>Show</span>
-                            <select
-                                value={pageSize}
-                                onChange={(e) => {
-                                    setPageSize(Number(e.target.value));
-                                    setPageNumber(1);
-                                }}
-                                style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                            >
-                                <option value={10}>10</option>
-                                <option value={20}>20</option>
-                                <option value={50}>50</option>
-                            </select>
-                            <span style={{ fontSize: '13px', color: '#64748b' }}>entries</span>
-                        </div>
-                        <div style={{ fontSize: '13px', color: '#64748b' }}>
-                            Showing {startIndex + 1} to {endIndex} of {totalRecords} entries
-                        </div>
-                        <ReportPagination
-                            currentPage={pageNumber}
-                            totalPages={totalPages}
-                            onPageChange={(page) => setPageNumber(page)}
-                        />
-                    </div>
+                    <ReportTableFooter
+                        currentPage={pageNumber}
+                        totalPages={totalPages}
+                        totalRecords={totalRecords}
+                        pageSize={pageSize}
+                        onPageChange={(page) => setPageNumber(page)}
+                        onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
+                        disabled={loading}
+                    />
                 </div>
             );
         }
@@ -777,32 +800,15 @@ export default function PosEndDayPage() {
                             </tbody>
                         </table>
                     </div>
-                    <div className="table-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '12px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '13px', color: '#64748b' }}>Show</span>
-                            <select
-                                value={pageSize}
-                                onChange={(e) => {
-                                    setPageSize(Number(e.target.value));
-                                    setPageNumber(1);
-                                }}
-                                style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                            >
-                                <option value={10}>10</option>
-                                <option value={20}>20</option>
-                                <option value={50}>50</option>
-                            </select>
-                            <span style={{ fontSize: '13px', color: '#64748b' }}>entries</span>
-                        </div>
-                        <div style={{ fontSize: '13px', color: '#64748b' }}>
-                            Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalRecords)} of {totalRecords} entries
-                        </div>
-                        <ReportPagination
-                            currentPage={currentPage}
-                            totalPages={totalPages}
-                            onPageChange={(page) => setPageNumber(page)}
-                        />
-                    </div>
+                    <ReportTableFooter
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalRecords={totalRecords}
+                        pageSize={pageSize}
+                        onPageChange={(page) => setPageNumber(page)}
+                        onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
+                        disabled={loading}
+                    />
                 </div>
             );
         }
@@ -914,6 +920,7 @@ export default function PosEndDayPage() {
                                 <label>Select User</label>
                                 <select
                                     id="userSelect"
+                                    className="input-control"
                                     value={selectedUser}
                                     onChange={(e) => setSelectedUser(e.target.value)}
                                 >
@@ -933,28 +940,35 @@ export default function PosEndDayPage() {
                                     onChange={(e) => setSelectedDate(e.target.value)}
                                 />
                             </div>
-                            <button className="btn-get-data" id="getDataBtn">
+                            <button className="btn-get-data" id="getDataBtn" onClick={getData}>
                                 GET DATA
+                            </button>
+                            <button
+                                className="btn-action"
+                                style={{
+                                    background: "#00a896",
+                                    marginLeft: "8px",
+                                    display: reportData ? "inline-flex" : "none",
+                                    alignItems: "center",
+                                    gap: "6px"
+                                }}
+                                onClick={exportToExcel}
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                                    <polyline points="7 10 12 15 17 10" />
+                                    <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                                EXPORT TO EXCEL
                             </button>
                         </div>
 
                         {/* Result Area */}
-                        <div id="result-area">
+                        <div id="result-area" style={{ display: hasSearched ? "block" : "none" }}>
                             {renderReport()}
                         </div>
                     </div>
-                    <div className="step-footer">
-                        <button className="btn-prev" id="prevBtn">
-                            <i className="fas fa-chevron-left"></i> PREVIOUS
-                        </button>
-                        <div className="step-indicator">
-                            <span className="step-label">STEP</span>
-                            <span className="step-value" id="stepValue">15/26</span>
-                        </div>
-                        <button className="btn-next" id="nextBtn">
-                            NEXT <i className="fas fa-chevron-right"></i>
-                        </button>
-                    </div>
+                    <ReportStepFooter currentStepOverride={16} totalStepsOverride={25} />
                 </div>
             </div>
 

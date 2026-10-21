@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { WizardFooter } from "@/components/shared/WizardFooter";
+import { useShopId } from "@/utils/shop";
 import Swal from "sweetalert2";
 import {
   orderService,
@@ -31,7 +32,7 @@ function parseDeliveryProcess(detail: any): "auto" | "manual" {
 }
 
 export default function DeliveryIntegrationPage() {
-  const [shopId, setShopId] = useState<number>(0);
+  const shopId = useShopId();
   const [lalamoveCountries, setLalamoveCountries] = useState<LalamoveMarketItem[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>("");
   const [isLoadingCountries, setIsLoadingCountries] = useState<boolean>(true);
@@ -51,14 +52,7 @@ export default function DeliveryIntegrationPage() {
   const [isSavingPorter, setIsSavingPorter] = useState<boolean>(false);
   const [selectedPartner, setSelectedPartner] = useState<string>("lalamove");
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedShopId = sessionStorage.getItem("shop_id") || localStorage.getItem("shop_id");
-      if (storedShopId) {
-        setShopId(Number(storedShopId));
-      }
-    }
-  }, []);
+
 
   useEffect(() => {
     async function loadLalamoveCountries() {

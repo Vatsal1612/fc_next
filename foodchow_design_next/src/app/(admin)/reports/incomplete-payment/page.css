@@ -651,6 +651,20 @@
         margin-top: 4px;
     }
 
+    .results-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 18px;
+    }
+
+    .results-title {
+        font-size: var(--text-section-heading);
+        line-height: var(--lh-section-heading);
+        font-weight: var(--weight-bold);
+        color: var(--teal);
+    }
+
     .table-responsive-box {
         overflow-x: auto;
         border-radius: var(--radius);

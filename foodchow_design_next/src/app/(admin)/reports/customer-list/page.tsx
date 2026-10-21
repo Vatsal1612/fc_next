@@ -224,9 +224,11 @@
 
 import { useEffect, useState } from "react";
 import Script from "next/script";
-import "./page.css";
 import { reportsService } from "@/api/services/report.service";
 import { useShopId } from "@/utils/shop";
+import ReportTableFooter from "@/components/shared/ReportTableFooter";
+import ReportStepFooter from "@/components/shared/ReportStepFooter";
+import "./page.css";
 
 /** Minimal typed surface of the parts of the xlsx (XLSX) global we use. */
 interface XlsxLike {
@@ -302,13 +304,12 @@ export default function CustomerListPage() {
   /* ── Export ── */
   const exportToExcel = (): void => {
     if (!customers || customers.length === 0) {
-      alert("No customers to export.");
+      alert("No data available to export");
       return;
     }
 
     const XLSX = (window as unknown as { XLSX?: XlsxLike }).XLSX;
     if (!XLSX) {
-      alert("Excel library not loaded yet.");
       return;
     }
 
@@ -326,46 +327,9 @@ export default function CustomerListPage() {
     XLSX.writeFile(wb, "customer_list.xlsx");
   };
 
-  /* ── Step nav ── */
-  useEffect(() => {
-    let currentStep = 8;
-    const totalSteps = 25;
-    const stepValue = document.getElementById("stepValue");
-    const goPrev = (): void => {
-      if (currentStep > 1) {
-        currentStep--;
-        if (stepValue) stepValue.textContent = currentStep + "/" + totalSteps;
-      }
-    };
-    const goNext = (): void => {
-      if (currentStep < totalSteps) {
-        currentStep++;
-        if (stepValue) stepValue.textContent = currentStep + "/" + totalSteps;
-      }
-    };
-
-    const exportBtn = document.getElementById("exportExcelBtn");
-    const prevBtn = document.getElementById("prevBtn");
-    const nextBtn = document.getElementById("nextBtn");
-
-    exportBtn?.addEventListener("click", exportToExcel);
-    prevBtn?.addEventListener("click", goPrev);
-    nextBtn?.addEventListener("click", goNext);
-
-    // Help button
-    const helpBtn = document.querySelector(".btn-help");
-    const onHelp = (): void => {
-      alert("Help & Support - Customer List");
-    };
-    helpBtn?.addEventListener("click", onHelp);
-
-    return () => {
-      exportBtn?.removeEventListener("click", exportToExcel);
-      prevBtn?.removeEventListener("click", goPrev);
-      nextBtn?.removeEventListener("click", goNext);
-      helpBtn?.removeEventListener("click", onHelp);
-    };
-  }, [customers]);
+  const onHelp = (): void => {
+    alert("Help & Support - Customer List");
+  };
 
   return (
     <div id="pg-reports-customer-list">
@@ -391,140 +355,90 @@ export default function CustomerListPage() {
         strategy="afterInteractive"
       />
 
-      <div className="layout">
-        <div className="main">
-          <div className="content-area">
-            <div className="card">
-              <div className="card-actions">
-                <button className="btn-help">
-                  <svg viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                    <line x1="12" y1="17" x2="12.01" y2="17" />
-                  </svg>
-                  HELP
-                </button>
+      <div className="app-container">
+        <div className="main-content">
+          <div className="card">
+            <div className="report-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <h1 className="report-title typ-page-heading" style={{ margin: 0 }}>CRM Report</h1>
+              <button className="btn-help-hdr" onClick={onHelp}>
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                HELP
+              </button>
+            </div>
+
+            <div className="results-header">
+              <div className="results-title">Detail Report</div>
+              <button className="btn-action btn-export" id="exportExcelBtn" onClick={exportToExcel}>
+                <svg viewBox="0 0 24 24">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                EXPORT TO EXCEL
+              </button>
+            </div>
+
+            <div className="table-card">
+              <div className="table-card-header">
+                <span>All Customers</span>
               </div>
-
-              <div className="card-title">CRM Report</div>
-
-              <div className="results-header">
-                <div className="results-title">Detail Report</div>
-                <button className="btn-action" id="exportExcelBtn">
-                  <svg viewBox="0 0 24 24">
-                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  EXPORT TO EXCEL
-                </button>
-              </div>
-
-              <div className="table-card">
-                <div className="table-card-header">
-                  <span>All Customers</span>
-                  {loading && <span style={{ marginLeft: "10px", fontSize: "14px", color: "#666" }}>Loading...</span>}
-                </div>
-                <div className="table-wrap">
-                  <table className="data-table">
-                    <thead>
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Sr No.</th>
+                      <th>Customer Name</th>
+                      <th>Mobile No.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
                       <tr>
-                        <th>Sr No.</th>
-                        <th>Customer Name</th>
-                        <th>Mobile No.</th>
+                        <td colSpan={3} style={{ textAlign: "center", padding: "40px" }}>
+                          Loading data...
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {loading ? (
-                        <tr>
-                          <td colSpan={3} style={{ textAlign: "center", padding: "20px" }}>
-                            Loading customers...
-                          </td>
+                    ) : customers.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
+                          No Records Found
+                        </td>
+                      </tr>
+                    ) : (
+                      customers.map((customer, index) => (
+                        <tr key={index}>
+                          <td>{(pageNumber - 1) * pageSize + index + 1}</td>
+                          <td>{customer.user_name || "N/A"}</td>
+                          <td>{customer.mobile_number || "N/A"}</td>
                         </tr>
-                      ) : customers.length === 0 ? (
-                        <tr>
-                          <td colSpan={3} style={{ textAlign: "center", padding: "20px" }}>
-                            No customers found
-                          </td>
-                        </tr>
-                      ) : (
-                        customers.map((customer, index) => (
-                          <tr key={index}>
-                            <td>{(pageNumber - 1) * pageSize + index + 1}</td>
-                            <td>{customer.user_name || "N/A"}</td>
-                            <td>{customer.mobile_number || "N/A"}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="pagination-container">
-                  <div>
-                    Showing{" "}
-                    {totalRecords === 0
-                      ? 0
-                      : (pageNumber - 1) * pageSize + 1}{" "}
-                    to{" "}
-                    {Math.min(pageNumber * pageSize, totalRecords)}{" "}
-                    of {totalRecords} entries
-                  </div>
-
-                  <ul className="pagination-list">
-                    <li className="pagination-item">
-                      <button
-                        onClick={() => handlePaginationClick(pageNumber - 1)}
-                        disabled={pageNumber <= 1}
-                      >
-                        &laquo; Previous
-                      </button>
-                    </li>
-
-                    {Array.from({ length: totalPages }, (_, index) => index + 1).map(
-                      (page) => (
-                        <li
-                          key={page}
-                          className={`pagination-item ${
-                            page === pageNumber ? "active" : ""
-                          }`}
-                        >
-                          <button onClick={() => handlePaginationClick(page)}>
-                            {page}
-                          </button>
-                        </li>
-                      )
+                      ))
                     )}
-
-                    <li className="pagination-item">
-                      <button
-                        onClick={() => handlePaginationClick(pageNumber + 1)}
-                        disabled={pageNumber >= totalPages || totalPages === 0}
-                      >
-                        Next &raquo;
-                      </button>
-                    </li>
-                  </ul>
-                </div>
+                  </tbody>
+                </table>
               </div>
             </div>
 
-            {/* Step footer */}
-            <div className="step-footer">
-              <button className="btn-prev" id="prevBtn">
-                <i className="fas fa-chevron-left" /> PREVIOUS
-              </button>
-              <div className="step-indicator">
-                <span className="step-label">STEP</span>
-                <span className="step-value" id="stepValue">
-                  8/25
-                </span>
-              </div>
-              <button className="btn-next" id="nextBtn">
-                NEXT <i className="fas fa-chevron-right" />
-              </button>
-            </div>
+            {customers.length > 0 && (
+              <ReportTableFooter
+                currentPage={pageNumber}
+                totalPages={totalPages}
+                totalRecords={totalRecords}
+                pageSize={pageSize}
+                onPageChange={(page) => handlePaginationClick(page)}
+                onPageSizeChange={() => {
+                  // Not supported in this component's state yet, but we provide it
+                }}
+                disabled={loading}
+              />
+            )}
           </div>
+
+          {/* Step footer */}
+          <ReportStepFooter currentStepOverride={9} totalStepsOverride={25} />
         </div>
       </div>
     </div>

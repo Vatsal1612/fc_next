@@ -654,12 +654,13 @@
   }
 
   .no-record {
-  font-size: var(--text-body);
-  font-weight: var(--weight-medium);
-    color: var(--primary-color);
+    font-size: 15px !important;
+    font-weight: 500 !important;
+    color: black !important;
     padding: 20px 0;
     border: none;
     background: none;
+    text-align: center;
   }
 
   .toast {

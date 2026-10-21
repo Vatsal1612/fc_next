@@ -241,7 +241,7 @@ h4 {
 }
 
 /* ==========================================================================
-   GLOBAL REPORT TABLE WRAPPER SPACING
+   GLOBAL REPORT TABLE WRAPPER SPACING & EMPTY STATE STYLING
    ========================================================================== */
 .items-table-wrapper,
 .table-wrapper,
@@ -250,4 +250,370 @@ h4 {
 .table-wrapper-outer,
 .table-card {
   margin-bottom: 28px !important;
+}
+
+/* Unified style for "No Records Found" across all report pages and filters */
+.report-no-records,
+.no-record-cell,
+.report-empty-message,
+.no-record,
+p.no-record,
+span.no-record,
+div.no-record,
+td.no-record,
+td.no-data,
+.no-data,
+.report-empty-state,
+.report-empty-state p,
+.table-empty,
+table tbody td.report-no-records,
+table tbody td.no-record-cell,
+table tbody td.no-record,
+table tbody td.no-data,
+.data-table tbody td.no-record-cell,
+.data-table tbody td.no-record,
+.data-table tbody td.report-no-records,
+.table-wrapper td.report-no-records,
+.table-wrapper td.no-data,
+.table-card td.no-record-cell,
+.table-card td.report-no-records,
+.results-section .no-record,
+.results-section td.report-no-records {
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  color: black !important;
+  font-family: 'Poppins', 'Inter', sans-serif !important;
+  letter-spacing: 0.3px !important;
+  text-align: center !important;
+}
+
+/* ==========================================================================
+   UNIFIED REPORT BUTTONS: GET DATA & EXPORT TO EXCEL (Same as CRM report by revenue)
+   ========================================================================== */
+.btn-getdata,
+.btn-action-teal,
+.btn-get-data,
+.btn-apply {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #00a896 !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 9px 28px !important;
+  font-size: var(--text-button) !important;
+  line-height: var(--lh-button) !important;
+  font-weight: var(--weight-semibold) !important;
+  cursor: pointer !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  transition: all 0.15s ease-in-out !important;
+  height: 40px !important;
+  box-shadow: 0 2px 6px rgba(0, 168, 150, 0.2) !important;
+}
+
+.btn-getdata:hover,
+.btn-action-teal:hover,
+.btn-get-data:hover,
+.btn-apply:hover {
+  background: #008f7f !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 168, 150, 0.32) !important;
+}
+
+.btn-getdata:active,
+.btn-action-teal:active,
+.btn-get-data:active,
+.btn-apply:active {
+  transform: translateY(0) !important;
+  box-shadow: 0 2px 4px rgba(0, 168, 150, 0.2) !important;
+}
+
+.btn-export,
+.btn-action.btn-export,
+.btn-export-excel,
+button.btn-action:has(svg) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  background: #00a896 !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 9px 20px !important;
+  font-size: var(--text-button) !important;
+  line-height: var(--lh-button) !important;
+  font-weight: var(--weight-semibold) !important;
+  cursor: pointer !important;
+  letter-spacing: 0.03em !important;
+  text-transform: uppercase !important;
+  transition: all 0.15s ease-in-out !important;
+  height: 40px !important;
+  box-shadow: 0 2px 6px rgba(0, 168, 150, 0.2) !important;
+}
+
+.btn-export:hover,
+.btn-action.btn-export:hover,
+.btn-export-excel:hover,
+button.btn-action:has(svg):hover {
+  background: #008f7f !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 168, 150, 0.32) !important;
+}
+
+.btn-export:active,
+.btn-action.btn-export:active,
+.btn-export-excel:active,
+button.btn-action:has(svg):active {
+  transform: translateY(0) !important;
+  box-shadow: 0 2px 4px rgba(0, 168, 150, 0.2) !important;
+}
+
+.btn-export svg,
+.btn-action svg,
+.btn-export-excel svg {
+  width: 18px !important;
+  height: 18px !important;
+  margin-right: 6px !important;
+  stroke: #ffffff !important;
+  fill: none !important;
+}
+
+/* ==========================================================================
+   UNIVERSAL REPORT MODULE STEP FOOTER (Matching Top Selling Items)
+   ========================================================================== */
+.report-step-footer,
+.step-footer,
+div[id^="pg-reports-"] .report-step-footer,
+div[id^="pg-reports-"] .step-footer,
+div[id^="pg-reports-"] div.report-step-footer,
+div[id^="pg-reports-"] div.step-footer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 24px 0 32px !important;
+  margin-top: 28px !important;
+  margin-bottom: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  background: transparent !important;
+  flex-shrink: 0 !important;
+  clear: both !important;
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+.report-step-footer .btn-prev,
+.report-step-footer .btn-next,
+.step-footer .btn-prev,
+.step-footer .btn-next,
+div[id^="pg-reports-"] .btn-prev,
+div[id^="pg-reports-"] .btn-next,
+div[id^="pg-reports-"] button.btn-prev,
+div[id^="pg-reports-"] button.btn-next,
+div[id^="pg-reports-"] .step-footer button.btn-prev,
+div[id^="pg-reports-"] .step-footer button.btn-next {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  background: #00a896 !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 10px 24px !important;
+  margin: 0 !important;
+  font-family: "Poppins", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease-in-out !important;
+  box-shadow: 0 2px 6px rgba(0, 168, 150, 0.2) !important;
+  user-select: none !important;
+  line-height: 1.4 !important;
+  height: auto !important;
+  min-height: 40px !important;
+  outline: none !important;
+}
+
+.report-step-footer .btn-prev svg,
+.report-step-footer .btn-next svg,
+.step-footer .btn-prev svg,
+.step-footer .btn-next svg,
+div[id^="pg-reports-"] .step-footer .btn-prev svg,
+div[id^="pg-reports-"] .step-footer .btn-next svg {
+  display: inline-block !important;
+  vertical-align: middle !important;
+  stroke: #ffffff !important;
+  fill: none !important;
+  flex-shrink: 0 !important;
+}
+
+.report-step-footer .btn-prev:hover:not(:disabled),
+.report-step-footer .btn-next:hover:not(:disabled),
+.step-footer .btn-prev:hover:not(:disabled),
+.step-footer .btn-next:hover:not(:disabled),
+div[id^="pg-reports-"] button.btn-prev:hover:not(:disabled),
+div[id^="pg-reports-"] button.btn-next:hover:not(:disabled) {
+  background: #008f7f !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 168, 150, 0.32) !important;
+}
+
+.report-step-footer .btn-prev:active:not(:disabled),
+.report-step-footer .btn-next:active:not(:disabled),
+.step-footer .btn-prev:active:not(:disabled),
+.step-footer .btn-next:active:not(:disabled),
+div[id^="pg-reports-"] button.btn-prev:active:not(:disabled),
+div[id^="pg-reports-"] button.btn-next:active:not(:disabled) {
+  transform: translateY(0) !important;
+  box-shadow: 0 2px 4px rgba(0, 168, 150, 0.2) !important;
+}
+
+.report-step-footer .btn-prev:disabled,
+.report-step-footer .btn-next:disabled,
+.step-footer .btn-prev:disabled,
+.step-footer .btn-next:disabled,
+div[id^="pg-reports-"] button.btn-prev:disabled,
+div[id^="pg-reports-"] button.btn-next:disabled {
+  background: #d1d5db !important;
+  color: #9ca3af !important;
+  cursor: not-allowed !important;
+  opacity: 0.7 !important;
+  transform: none !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+}
+
+.report-step-footer .step-indicator,
+.step-footer .step-indicator,
+div[id^="pg-reports-"] .step-indicator,
+div[id^="pg-reports-"] div.step-indicator,
+div[id^="pg-reports-"] .step-footer .step-indicator {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  border: 1.5px dashed #ccc !important;
+  border-radius: 10px !important;
+  padding: 6px 26px !important;
+  margin: 0 !important;
+  background: #ffffff !important;
+  user-select: none !important;
+  box-sizing: border-box !important;
+  box-shadow: none !important;
+  min-width: 80px !important;
+}
+
+.report-step-footer .step-label,
+.step-footer .step-label,
+div[id^="pg-reports-"] .step-label,
+div[id^="pg-reports-"] span.step-label,
+div[id^="pg-reports-"] .step-footer .step-label {
+  font-family: "Poppins", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: #aaa !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+  line-height: 1.2 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.report-step-footer .step-value,
+.step-footer .step-value,
+div[id^="pg-reports-"] .step-value,
+div[id^="pg-reports-"] span.step-value,
+div[id^="pg-reports-"] .step-footer .step-value {
+  font-family: "Poppins", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  color: #0aa89e !important;
+  line-height: 1.2 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* ==========================================================================
+   UNIVERSAL REPORT MODULE TABLE HOVER EFFECT (Matching CRM Report by Revenue)
+   ========================================================================== */
+.table-wrapper table tbody tr,
+.table-card table tbody tr,
+.results-section table tbody tr,
+.table-wrap table tbody tr,
+.data-table tbody tr,
+#report-table tbody tr,
+table.data-table tbody tr,
+.modal-table tbody tr {
+  transition: background 0.12s ease-in-out !important;
+}
+
+.table-wrapper table tbody tr:hover td,
+.table-card table tbody tr:hover td,
+.results-section table tbody tr:hover td,
+.table-wrap table tbody tr:hover td,
+.data-table tbody tr:hover td,
+#report-table tbody tr:hover td,
+table.data-table tbody tr:hover td,
+.modal-table tbody tr:hover td,
+tbody tr:hover>td:not(.no-data):not(.report-no-records) {
+  background: #EAF7F6 !important;
+  transition: background 0.12s ease-in-out !important;
+}
+
+/* ==========================================================================
+   UNIFIED REPORT FILTER TABS (Exact match to Top Selling Items)
+   Applies to .tab-btn, .btn-sales-filter, .period-btn, .filter-tab across all reports
+   ========================================================================== */
+.tab-btn,
+.btn-sales-filter,
+.period-btn,
+.filter-tab,
+.tabs .tab,
+.filter-tabs button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 8px 22px !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease-in-out !important;
+  border: 1.5px solid #0aa89e !important;
+  background: transparent !important;
+  color: #0aa89e !important;
+  font-size: var(--text-helper, 13px) !important;
+  line-height: var(--lh-helper, 1.5) !important;
+  font-weight: 600 !important;
+  white-space: nowrap !important;
+  outline: none !important;
+  box-shadow: none !important;
+  text-decoration: none !important;
+}
+
+.tab-btn:hover:not(.active),
+.btn-sales-filter:hover:not(.active),
+.period-btn:hover:not(.active),
+.filter-tab:hover:not(.active),
+.tabs .tab:hover:not(.active),
+.filter-tabs button:hover:not(.active) {
+  background: #e0f5f4 !important;
+  color: #0aa89e !important;
+  border-color: #0aa89e !important;
+}
+
+.tab-btn.active,
+.btn-sales-filter.active,
+.period-btn.active,
+.filter-tab.active,
+.tabs .tab.active,
+.filter-tabs button.active {
+  background: #0aa89e !important;
+  color: #ffffff !important;
+  border-color: #0aa89e !important;
 }

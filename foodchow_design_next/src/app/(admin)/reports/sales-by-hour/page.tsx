@@ -186,7 +186,7 @@
 //             </table>`;
 //     };
 
-//     /* ── Export to Excel ── */
+//     /* ── EXPORT TO EXCEL ── */
 //     const exportExcel = (): void => {
 //       const dateInput =
 //         document.getElementById("filterDate") as HTMLInputElement | null;
@@ -406,13 +406,14 @@
 //   );
 // }
 
-
 "use client";
 
 import { useEffect, useState } from "react";
+import Script from "next/script";
 import "./page.css";
 import { reportsService, SalesByHour } from "@/api/services/report.service";
-import ReportPagination from "@/components/shared/ReportPagination";
+import ReportTableFooter from "@/components/shared/ReportTableFooter";
+import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
 
 interface DisplayRow {
@@ -426,6 +427,7 @@ export default function SalesByHourPage() {
     const shopId = useShopId();
     const [data, setData] = useState<DisplayRow[]>([]);
     const [loading, setLoading] = useState(false);
+    const [hasSearched, setHasSearched] = useState(false);
     const [selectedDate, setSelectedDate] = useState("");
     const [selectedHour, setSelectedHour] = useState("");
     const [pageNumber, setPageNumber] = useState(1);
@@ -456,18 +458,19 @@ export default function SalesByHourPage() {
     // Get data function
     const getData = async () => {
         if (!selectedDate) {
-            showToast("Please select a date", true);
+            alert("Please select a date.");
             return;
         }
 
         // Parse hour from selected hour (e.g., "12" -> from_time=12, to_time=13)
         const hour = parseInt(selectedHour);
         if (isNaN(hour)) {
-            showToast("Please select an hour", true);
+            alert("Please select an hour.");
             return;
         }
 
         try {
+            setHasSearched(true);
             setLoading(true);
             setPageNumber(1);
             const fromTime = String(hour);
@@ -483,62 +486,63 @@ export default function SalesByHourPage() {
             console.error("Error fetching sales by hour:", err);
             setData([]);
             if (err.response?.status === 404) {
-                showToast("API endpoint not found. Please contact support.", true);
+                alert("API endpoint not found. Please contact support.");
             } else {
-                showToast("Error fetching data", true);
+                alert("Error fetching data.");
             }
         } finally {
             setLoading(false);
         }
     };
 
-    // Export to CSV
+    // Export to Excel function
     const exportExcel = (): void => {
         if (!data || data.length === 0) {
-            showToast("No data to export", true);
+            window.alert("No data available to export");
             return;
         }
 
+        const XLSX = (window as any).XLSX;
+        if (!XLSX) {
+            return;
+        }
+
+        const reportTitle = `Sales By Hour — ${selectedDate}`;
         const headers = [
             "Sr No",
             "Hour Interval",
             "Item Name",
             "Quantity",
-            "Total Amount",
+            "Total Amount (Rs.)",
         ];
-        const csvRows = [headers.join(",")];
-        data.forEach((item, i) => {
-            csvRows.push(
-                [
-                    i + 1,
-                    `"${item.hour_interval}"`,
-                    `"${item.item_name}"`,
-                    item.total_quantity,
-                    item.total_amount.toFixed(2),
-                ].join(",")
-            );
-        });
 
-        const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `Sales_By_Hour_${selectedDate}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-        showToast("Export downloaded successfully!");
-    };
+        const rows = data.map((item, i) => [
+            i + 1,
+            item.hour_interval,
+            item.item_name,
+            item.total_quantity,
+            parseFloat(item.total_amount.toFixed(2)),
+        ]);
 
-    // Toast
-    const showToast = (msg: string, isErr = false): void => {
-        const t = document.getElementById("toast");
-        if (!t) return;
-        t.textContent = msg;
-        t.style.background = isErr ? "#ef4444" : "#00a896";
-        t.className = "toast show";
-        setTimeout(() => {
-            t.className = "toast";
-        }, 3000);
+        const wsData = [
+            [reportTitle],
+            [`Exported On: ${new Date().toLocaleString()}`],
+            [],
+            headers,
+            ...rows,
+        ];
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        ws["!cols"] = [
+            { wch: 10 },
+            { wch: 20 },
+            { wch: 28 },
+            { wch: 14 },
+            { wch: 20 },
+        ];
+        XLSX.utils.book_append_sheet(wb, ws, "Sales By Hour");
+        XLSX.writeFile(wb, `sales_by_hour_${selectedDate || "all"}.xlsx`);
     };
 
     // Set today's date by default
@@ -578,31 +582,8 @@ export default function SalesByHourPage() {
         // Help button
         const helpBtn = document.querySelector<HTMLButtonElement>(".btn-help-hdr");
         helpBtn?.addEventListener("click", () => {
-            showToast("Help & Support - Sales by Hour");
+            alert("Help & Support - Sales by Hour");
         });
-
-        // Step navigation
-        let currentStep = 4;
-        const totalSteps = 26;
-        const stepValue = document.getElementById("stepValue");
-        const prevBtn = document.getElementById("prevBtn");
-        const nextBtn = document.getElementById("nextBtn");
-
-        const prevHandler = (): void => {
-            if (currentStep > 1) {
-                currentStep--;
-                if (stepValue) stepValue.textContent = `${currentStep}/${totalSteps}`;
-            }
-        };
-        const nextHandler = (): void => {
-            if (currentStep < totalSteps) {
-                currentStep++;
-                if (stepValue) stepValue.textContent = `${currentStep}/${totalSteps}`;
-            }
-        };
-
-        prevBtn?.addEventListener("click", prevHandler);
-        nextBtn?.addEventListener("click", nextHandler);
 
         return () => {
             dateInput?.removeEventListener("change", handleDateChange);
@@ -610,13 +591,15 @@ export default function SalesByHourPage() {
             getDataBtn?.removeEventListener("click", getData);
             exportBtn?.removeEventListener("click", exportExcel);
             helpBtn?.removeEventListener("click", () => { });
-            prevBtn?.removeEventListener("click", prevHandler);
-            nextBtn?.removeEventListener("click", nextHandler);
         };
     }, [selectedDate, selectedHour, data]);
 
     return (
         <div id="pg-reports-sales-by-hour">
+            <Script
+                src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+                strategy="afterInteractive"
+            />
             <link
                 rel="stylesheet"
                 href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
@@ -632,7 +615,7 @@ export default function SalesByHourPage() {
                         {/* Report title + Help */}
                         <div className="report-header">
                             <h1 className="report-title typ-page-heading" style={{ margin: 0, marginBottom: "15px" }}>Sales by hour</h1>
-                            <button className="btn-help-hdr">
+                            <button className="btn-help-hdr" onClick={() => alert("Help & Support - Sales by Hour")}>
                                 <svg viewBox="0 0 24 24">
                                     <circle cx="12" cy="12" r="10" />
                                     <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" />
@@ -649,11 +632,22 @@ export default function SalesByHourPage() {
                         <div className="filter-row">
                             <div className="filter-group">
                                 <label className="filter-label">Date :</label>
-                                <input type="date" id="filterDate" className="filter-input" />
+                                <input
+                                    type="date"
+                                    id="filterDate"
+                                    className="filter-input"
+                                    value={selectedDate}
+                                    onChange={(e) => setSelectedDate(e.target.value)}
+                                />
                             </div>
                             <div className="filter-group">
                                 <label className="filter-label">Hour :</label>
-                                <select id="filterHour" className="filter-input">
+                                <select
+                                    id="filterHour"
+                                    className="filter-input"
+                                    value={selectedHour}
+                                    onChange={(e) => setSelectedHour(e.target.value)}
+                                >
                                     {hourOptions.map((option) => (
                                         <option key={option.value} value={option.value}>
                                             {option.label}
@@ -662,8 +656,8 @@ export default function SalesByHourPage() {
                                 </select>
                             </div>
                             <div style={{ display: "flex", gap: "12px", alignItems: "flex-end" }}>
-                                <button className="btn-getdata">GETDATA</button>
-                                <button className="btn-export">
+                                <button className="btn-getdata" onClick={getData}>GET DATA</button>
+                                <button className="btn-action btn-export" onClick={exportExcel}>
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
                                         width="16"
@@ -674,6 +668,7 @@ export default function SalesByHourPage() {
                                         strokeWidth="2.5"
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
+                                        style={{ width: "18px", height: "18px", marginRight: "6px" }}
                                     >
                                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                                         <polyline points="7 10 12 15 17 10" />
@@ -688,7 +683,7 @@ export default function SalesByHourPage() {
                         <div
                             className="results-section"
                             id="resultsSection"
-                            style={{ display: "block" }}
+                            style={{ display: hasSearched ? "block" : "none" }}
                         >
                             <h3
                                 className="results-title"
@@ -698,20 +693,11 @@ export default function SalesByHourPage() {
                                 Description
                             </h3>
                             <div id="tableWrap" className="report-table-wrap">
-                                {loading ? (
-                                    <p className="no-record" style={{ textAlign: "center", padding: "40px" }}>
-                                        Loading data...
-                                    </p>
-                                ) : data.length === 0 ? (
-                                    <p className="no-record">No Record Found</p>
-                                ) : (
-                                    <>
                                         {(() => {
                                             const totalRecords = data.length;
                                             const totalPages = Math.ceil(totalRecords / pageSize);
                                             const startIndex = (pageNumber - 1) * pageSize;
                                             const paginatedRows = data.slice(startIndex, startIndex + pageSize);
-                                            const endIndex = Math.min(startIndex + pageSize, totalRecords);
 
                                             return (
                                                 <>
@@ -725,72 +711,56 @@ export default function SalesByHourPage() {
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            {paginatedRows.map((item, index) => (
-                                                                <tr key={index}>
-                                                                    <td>
-                                                                        <span className="hour-pill">{item.hour_interval}</span>
-                                                                    </td>
-                                                                    <td style={{ fontWeight: "600" }}>{item.item_name}</td>
-                                                                    <td>
-                                                                        <span className="qty-pill">{item.total_quantity}</span>
-                                                                    </td>
-                                                                    <td className="amount-cell">
-                                                                        ₹ {item.total_amount.toFixed(2)}
+                                                            {loading ? (
+                                                                <tr>
+                                                                    <td colSpan={4} style={{ textAlign: "center", padding: "40px" }}>
+                                                                        Loading data...
                                                                     </td>
                                                                 </tr>
-                                                            ))}
+                                                            ) : data.length === 0 ? (
+                                                                <tr>
+                                                                    <td colSpan={4} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
+                                                                        No Records Found
+                                                                    </td>
+                                                                </tr>
+                                                            ) : (
+                                                                paginatedRows.map((item, index) => (
+                                                                    <tr key={index}>
+                                                                        <td>
+                                                                            <span className="hour-pill">{item.hour_interval}</span>
+                                                                        </td>
+                                                                        <td style={{ fontWeight: "600" }}>{item.item_name}</td>
+                                                                        <td>
+                                                                            <span className="qty-pill">{item.total_quantity}</span>
+                                                                        </td>
+                                                                        <td className="amount-cell">
+                                                                            ₹ {item.total_amount.toFixed(2)}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))
+                                                            )}
                                                         </tbody>
                                                     </table>
-                                                    <div className="table-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '12px 16px', marginTop: '12px' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                            <span style={{ fontSize: '13px', color: '#64748b' }}>Show</span>
-                                                            <select
-                                                                value={pageSize}
-                                                                onChange={(e) => {
-                                                                    setPageSize(Number(e.target.value));
-                                                                    setPageNumber(1);
-                                                                }}
-                                                                style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                                                            >
-                                                                <option value={10}>10</option>
-                                                                <option value={20}>20</option>
-                                                                <option value={50}>50</option>
-                                                            </select>
-                                                            <span style={{ fontSize: '13px', color: '#64748b' }}>entries</span>
-                                                        </div>
-                                                        <div style={{ fontSize: '13px', color: '#64748b' }}>
-                                                            Showing {startIndex + 1} to {endIndex} of {totalRecords} entries
-                                                        </div>
-                                                        <ReportPagination
+                                                    {totalRecords > 0 && (
+                                                        <ReportTableFooter
                                                             currentPage={pageNumber}
                                                             totalPages={totalPages}
+                                                            totalRecords={totalRecords}
+                                                            pageSize={pageSize}
                                                             onPageChange={(page) => setPageNumber(page)}
+                                                            onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
+                                                            disabled={loading}
                                                         />
-                                                    </div>
+                                                    )}
                                                 </>
                                             );
                                         })()}
-                                    </>
-                                )}
                             </div>
                         </div>
                     </div>
-                    <div className="step-footer">
-                        <button className="btn-prev" id="prevBtn">
-                            <i className="fas fa-chevron-left" /> PREVIOUS
-                        </button>
-                        <div className="step-indicator">
-                            <span className="step-label">STEP</span>
-                            <span className="step-value" id="stepValue">4/26</span>
-                        </div>
-                        <button className="btn-next" id="nextBtn">
-                            NEXT <i className="fas fa-chevron-right" />
-                        </button>
-                    </div>
+                    <ReportStepFooter currentStepOverride={5} totalStepsOverride={25} />
                 </div>
             </div>
-
-            <div className="toast" id="toast" />
         </div>
     );
 }

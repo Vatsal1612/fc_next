@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import "./page.css";
 
@@ -11,13 +11,29 @@ import "./page.css";
  * That logic is ported here, inline, into one useEffect:
  *   - tab switcher (Any Website / WordPress) swapping the code box content,
  *   - COPY CODE → clipboard with transient "COPIED!" feedback,
- *   - EMAIL THE ABOVE CODE → email modal open/close + mailto compose,
  *   - step-footer Prev/Next navigation.
  * The external sidebar-loader.js (shell) is dropped; dropdown/help helpers in
  * the original JS targeted shell-owned markup not present in the body and are
  * therefore omitted.
  */
 export default function OrderingWidgetPage() {
+  const [showHelpVideo, setShowHelpVideo] = useState(false);
+  const [shopUrl, setShopUrl] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored =
+        sessionStorage.getItem("shop_url") ||
+        localStorage.getItem("shop_url") ||
+        sessionStorage.getItem("shop_domain") ||
+        localStorage.getItem("shop_domain");
+      if (stored) {
+        const formatted = stored.startsWith("http") ? stored : `https://${stored}`;
+        setShopUrl(formatted);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     const root = document.getElementById("pg-orders-ordering-widget");
     if (!root) return;
@@ -34,7 +50,7 @@ html, body, div, iframe { margin: 0px; padding: 0px; height: 100%; border: none 
 iframe { display: block; width: 100%; border: none; }
 </style>
 <iframe
-src="https://foodchowdemoindia.foodchow.com"
+src="${shopUrl}"
 style="overflow: auto!important; -webkit-overflow-scrolling: touch!important;"
 frameborder="0" marginheight="0" marginwidth="0">
 </iframe>
@@ -44,7 +60,7 @@ frameborder="0" marginheight="0" marginwidth="0">
 
     const codes: Record<string, string> = {
       website: fullCode,
-      wordpress: `[foodchow_ordering_widget url="https://foodchowdemoindia.foodchow.com" width="100%" height="100vh"]`,
+      wordpress: `[foodchow_ordering_widget url="${shopUrl}" width="100%" height="100vh"]`,
     };
 
     const codeContent = document.getElementById("codeContent");
@@ -78,43 +94,7 @@ frameborder="0" marginheight="0" marginwidth="0">
     };
     copyBtn?.addEventListener("click", onCopy);
 
-    // ── Email modal ──
-    const emailModal = document.getElementById("emailModal");
-    const emailBtn = root.querySelector<HTMLButtonElement>(".btn-email");
-    const closeBtns = Array.from(
-      root.querySelectorAll<HTMLButtonElement>(".modal-close, .btn-close-modal"),
-    );
-    const sendBtn = root.querySelector<HTMLButtonElement>(".btn-send-modal");
 
-    const openEmailModal = (): void => emailModal?.classList.add("show");
-    const closeEmailModal = (): void => emailModal?.classList.remove("show");
-    emailBtn?.addEventListener("click", openEmailModal);
-    closeBtns.forEach((b) => b.addEventListener("click", closeEmailModal));
-
-    const sendInstructions = (): void => {
-      const emailInput = document.getElementById("developerEmail") as HTMLInputElement | null;
-      const email = emailInput?.value ?? "";
-      if (!email.trim()) {
-        alert("Please enter email address");
-        return;
-      }
-      const subject = encodeURIComponent("FoodChow Ordering Widget Integration");
-      const body = encodeURIComponent(
-        `Greetings from FoodChow!!\n\nPlease go through the following link so that you can embed our code into your website:\n\nhttps://foodchowdemoindia.foodchow.com\n\nCopy and paste the below code into your HTML file:\n\n${fullCode}\n\nFor any queries, feel free to contact us at support@foodchow.com.`,
-      );
-      window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
-    };
-    sendBtn?.addEventListener("click", sendInstructions);
-
-    const onOverlayClick = (e: MouseEvent): void => {
-      if (e.target === emailModal) closeEmailModal();
-    };
-    window.addEventListener("click", onOverlayClick);
-
-    // ── Help ──
-    const helpBtn = root.querySelector<HTMLButtonElement>(".btn-help");
-    const onHelp = (): void => alert("Help documentation coming soon!");
-    helpBtn?.addEventListener("click", onHelp);
 
     // ── Step nav ──
     let currentStep = 6;
@@ -140,11 +120,7 @@ frameborder="0" marginheight="0" marginwidth="0">
     return () => {
       tabs.forEach((btn, i) => btn.removeEventListener("click", tabHandlers[i]));
       copyBtn?.removeEventListener("click", onCopy);
-      emailBtn?.removeEventListener("click", openEmailModal);
-      closeBtns.forEach((b) => b.removeEventListener("click", closeEmailModal));
-      sendBtn?.removeEventListener("click", sendInstructions);
-      window.removeEventListener("click", onOverlayClick);
-      helpBtn?.removeEventListener("click", onHelp);
+
       prevBtn?.removeEventListener("click", onPrev);
       nextBtn?.removeEventListener("click", onNext);
       if (copyTimer) clearTimeout(copyTimer);
@@ -161,7 +137,7 @@ frameborder="0" marginheight="0" marginwidth="0">
               {/* Page header */}
               <div className="ow-header">
                 <h2>Start online ordering on your website</h2>
-                <button className="btn-help">
+                <button className="btn-help" onClick={() => setShowHelpVideo(true)}>
                   <svg viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="10" />
                     <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
@@ -219,9 +195,7 @@ frameborder="0" marginheight="0" marginwidth="0">
               <div className="ow-code-wrap">
                 <div className="ow-code-inner">
                   <code id="codeContent">
-                    {
-                      '<iframe src="https://foodchowdemoindia.foodchow.com" name="myFrame" style="width: 100vw; height: 100vh; overflow: auto!important; -webkit-overflow-scrolling: touch !important; border: none;" scrolling="yes"></iframe>'
-                    }
+                    {`<iframe src="${shopUrl}" name="myFrame" style="width: 100vw; height: 100vh; overflow: auto!important; -webkit-overflow-scrolling: touch !important; border: none;" scrolling="yes"></iframe>`}
                   </code>
                 </div>
                 <div className="ow-code-scrollbar">
@@ -235,13 +209,6 @@ frameborder="0" marginheight="0" marginwidth="0">
 
               {/* Action buttons */}
               <div className="ow-actions">
-                <button className="btn-email">
-                  <svg viewBox="0 0 24 24">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                    <polyline points="22,6 12,13 2,6" />
-                  </svg>
-                  EMAIL THE ABOVE CODE
-                </button>
                 <button className="btn-copy-code">COPY CODE</button>
               </div>
             </div>
@@ -251,41 +218,42 @@ frameborder="0" marginheight="0" marginwidth="0">
         </div>
       </div>
 
-      {/* ── Email Modal ── */}
-      <div className="modal-overlay" id="emailModal">
-        <div className="email-modal">
-          <button className="modal-close">×</button>
 
-          <h2>Email Instructions To Developer</h2>
-          <p className="modal-subtitle">
-            Send instructions to your developer telling them how to embed code to your website
-          </p>
-
-          <div className="modal-field">
-            <label>
-              Email <span>*</span>
-            </label>
-            <input type="email" id="developerEmail" placeholder="abc@gmail.com" />
-          </div>
-
-          <div className="modal-field">
-            <label>Instructions</label>
-            <div className="modal-instructions">
-              <p>
-                <strong>Greetings from FoodChow!!</strong>
-              </p>
-              <p>Please go through the following link so that you can embed our code into your website:</p>
-              <p className="modal-link">https://foodchowdemoindia.foodchow.com</p>
-              <p>For any queries, feel free to contact us at support@foodchow.com.</p>
-            </div>
-          </div>
-
-          <div className="modal-actions">
-            <button className="btn-send-modal">SEND INSTRUCTIONS</button>
-            <button className="btn-close-modal">CLOSE</button>
+      {showHelpVideo && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{ position: 'relative', width: '80%', maxWidth: '1000px', aspectRatio: '16/9', backgroundColor: '#000' }}>
+            <button
+              onClick={() => setShowHelpVideo(false)}
+              style={{
+                position: 'absolute',
+                top: '-40px',
+                right: '0',
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                fontSize: '30px',
+                cursor: 'pointer'
+              }}
+            >
+              &times;
+            </button>
+            <iframe
+              src="https://player.vimeo.com/video/1075945308?autoplay=1"
+              style={{ width: '100%', height: '100%', border: 'none' }}
+              allow="autoplay; fullscreen; picture-in-picture"
+              allowFullScreen
+            ></iframe>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

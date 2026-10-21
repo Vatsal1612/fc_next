@@ -45,10 +45,7 @@ export const ENDPOINTS = {
     //item code
     getItemNames: "/FoodChowRMS/GetItemName",
     getItemCodeTypeSetting: "/FoodChowWD/GetItemCodeTypeSetting",
-    saveItemCodeTypeSetting: "/FoodChowRMS/ItemCodeTypeSetting",
     updateItemCode: "/FoodChowRMS/UpdateItemCode",
-    changeItemPosition: "/FoodItem/ChangeItemPosition",
-    changeCategoryPosition: "/FoodCategory/ChangeCategoryPosition",
 
     // Tax
     getAllTax: "/TaxMaster/GetAllStoreTax",
@@ -83,19 +80,8 @@ export const ENDPOINTS = {
     addUpdateVariant: "/MenuMaster/AddUpdateVariant",
     deleteVariant: "/MenuMaster/DeleteVariant",
     addItem: "/MenuMaster/QuickAddStoreItemWithStock",
-    assignVariantToItem: "/MenuMaster/AssignVariantToItem",
     getItems: "/MenuMaster/GetItemDetailsByShopIdMasterWithSoldOUtNew",
     deleteItem: "/MenuMaster/DeleteStoreItem",
-
-    // Store Category CRUD
-    addStoreCategory: "/MenuMaster/AddStoreCategory",
-    categoryImageUpload: "/MenuMaster/CategoryImageUpload",
-    deleteCategory: "/MenuMaster/DeleteCategory",
-    changeStoreCategoryStatus: "/MenuMaster/ChangeStoreCategoryStatus",
-
-    // Store Item CRUD
-    editStoreItem: "/MenuMaster/EditStoreItem",
-    changeStoreItemStatus: "/MenuMaster/ChangeStoreItemStatus",
 
     // Additional Menu
     getAllShopMenuType: "/FoodChowWD/GetAllShopMenuTypeWD",
@@ -115,14 +101,6 @@ export const ENDPOINTS = {
     //Menu Language
     getSupportedLanguageList: "/FoodChowWD/GetSupportedLanguageList",
     getAllLanguage: "/FoodChowRMS/GetAllLanguage",
-    getSupportedLanguageForShop: "/FoodChowWD/GetSupportedLanguageForShop",
-    saveLanguageForShop: "/FoodChowWD/SaveLanguageForShop",
-    deleteLanguageForShop: "/FoodChowWD/DeleteLanguageForShop",
-    setDefaultLanguageforShop: "/FoodChowWD/SetDefaultLanguageforShop",
-
-    // Upload Menu Excel
-    uploadMenuExcel: "/MenuMaster/UploadMenuExcel",
-    downloadSampleMenuExcel: "/MenuMaster/DownloadSampleMenuExcel",
   },
 
   orders: {
@@ -157,240 +135,205 @@ export const ENDPOINTS = {
   reports: {
     weightedAverageToday:
       "/FoodChowRMS/WeightedAverageTransactionByToday",
-
     weightedAverageMonthly:
       "/FoodChowRMS/WeightedAverageTransactionByMonth",
-    customerList: "/SalesReports/Get_CRM_Report",
-    crmRevenueReport: "/SalesReports/CRM_Report_By_Orders",
-    weekComparison: "/FoodChowRMS/WeekWiseComparision",
-    topSellingToday: "/FoodChowRMS/TopSellingItemsByToday",
-    topSellingDayWise: "/FoodChowRMS/TopSellingItemsByDayWise",
-    topSellingWeek: "/FoodChowRMS/TopSellingItemsByWeek",
-    topSellingMonth: "/FoodChowRMS/TopSellingItemsByMonth",
+
+    // CRM Reports
+    customerList: "/SalesReportsWithoutPagination/Get_CRM_Report",
+    crmRevenueReport: "/SalesReportsWithoutPagination/CRM_Report_By_Orders",
+
+    // Week & Month Comparisons
+    weekComparison: "/SalesReportsWithoutPagination/WeekWiseComparision",
+    monthWiseComparison: "/SalesReportsWithoutPagination/MonthWiseComparision",
+    yearWiseComparison: "/FoodChowRMS/YearWiseComparision",
+
+    // Product Wise Comparison
+    productWiseComparisonToday: "/SalesReportsWithoutPagination/ProductWiseComparisionByToday",
+    productWiseComparisonWeek: "/SalesReportsWithoutPagination/ProductWiseComparisionByWeek",
+    productWiseComparisonMonth: "/SalesReportsWithoutPagination/ProductWiseComparisionByMonth",
+    productWiseComparisonYear: "/FoodChowRMS/ProductWiseComparisonByYear",
+
+    // Top Selling Items
+    topSellingItemsToday: "/SalesReportsWithoutPagination/TopSellingItemsByToday",
+    topSellingItemsWeek: "/SalesReportsWithoutPagination/TopSellingItemsByWeek",
+    topSellingItemsDayWise: "/SalesReportsWithoutPagination/TopSellingItemsByDayWise",
+    topSellingItemsMonth: "/SalesReportsWithoutPagination/TopSellingItemsByMonth",
+    topSellingItemsYear: "/SalesReports/TopSellingItemsByYear",
+    topSellingToday: "/SalesReportsWithoutPagination/TopSellingItemsByToday",
+    topSellingDayWise: "/SalesReportsWithoutPagination/TopSellingItemsByDayWise",
+    topSellingWeek: "/SalesReportsWithoutPagination/TopSellingItemsByWeek",
+    topSellingMonth: "/SalesReportsWithoutPagination/TopSellingItemsByMonth",
     topSellingYear: "/FoodChowRMS/TopSellingItemsByYear",
-    tradingSessionToday: "/SalesReports/SalesByTradingSessionByToday",
-    tradingSessionDayWise: "/SalesReports/SalesByTradingSessionByDayWise",
-    tradingSessionWeek: "/SalesReports/SalesByTradingSessionByWeek",
-    tradingSessionMonth: "/SalesReports/SalesByTradingSessionByMonth",
+
+    // Sales By Trading Session
+    tradingSessionToday: "/SalesReportsWithoutPagination/SalesByTradingSessionByToday",
+    tradingSessionWeek: "/SalesReportsWithoutPagination/SalesByTradingSessionByWeek",
+    tradingSessionDayWise: "/SalesReportsWithoutPagination/SalesByTradingSessionByDayWise",
+    tradingSessionMonth: "/SalesReportsWithoutPagination/SalesByTradingSessionByMonth",
     tradingSessionYear: "/SalesReports/SalesByTradingSessionByYear",
+
+    // POS Users
     salesByHour: "/FoodChowRMS/SalesByHours",
     posUsers: "/FoodChowRMS/GetPosUserName",
-    posEndDayReport: "/SalesReports/PosEndDayReport",
-    salesByPosUserToday: "/FoodChowRMS/SalesByPosUserByToday",
-    salesByPosUserWeek: "/FoodChowRMS/salesByPosUserByWeek",
-    salesByPosUserMonth: "/FoodChowRMS/salesByPosUserByMonth",
+    posEndDayReport: "/SalesReportsWithoutPagination/PosEndDayReport",
+    salesByPosUserToday: "/SalesReportsWithoutPagination/SalesByPosUserByToday",
+    salesByPosUserWeek: "/SalesReportsWithoutPagination/SalesByPosUserByWeek",
+    salesByPosUserMonth: "/SalesReportsWithoutPagination/SalesByPosUserByMonth",
+    salesByPosUserDateWise: "/SalesReportsWithoutPagination/SalesByPosUserByDateWise",
+    salesByPosUserTodaySalesReport: "/SalesReportsWithoutPagination/SalesByPosUserByToday",
+    salesByPosUserWeekSalesReport: "/SalesReportsWithoutPagination/SalesByPosUserByWeek",
+    salesByPosUserMonthSalesReport: "/SalesReportsWithoutPagination/SalesByPosUserByMonth",
+    salesByPosUserDateWiseSalesReport: "/SalesReportsWithoutPagination/SalesByPosUserByDateWise",
     salesByPosUserYear: "/FoodChowRMS/salesByPosUserByYear",
-    salesByPosUserDateWise: "/FoodChowRMS/salesByPosUserByDateWise",
-    taxSummaryToday: "/FoodChowRMS/TotalSalesTaxToday",
-    taxSummaryWeekly: "/FoodChowRMS/TotalSalesTaxWeekly",
-    taxSummaryMonthly: "/FoodChowRMS/TotalSalesTaxmonthly",
+    salesByPosUserYearSalesReport: "/SalesReports/SalesByPosUserByYear",
+
+    // Total Sales Tax
+    taxSummaryToday: "/SalesReportsWithoutPagination/TotalSalesTaxToday",
+    taxSummaryWeekly: "/SalesReportsWithoutPagination/TotalSalesTaxWeekly",
+    taxSummaryMonthly: "/SalesReportsWithoutPagination/TotalSalesTaxmonthly",
+    taxSummaryDateWise: "/SalesReportsWithoutPagination/TotalSalesTaxDateWise",
+    taxSummaryTodaySalesReport: "/SalesReportsWithoutPagination/TotalSalesTaxToday",
+    taxSummaryWeeklySalesReport: "/SalesReportsWithoutPagination/TotalSalesTaxWeekly",
+    taxSummaryMonthlySalesReport: "/SalesReportsWithoutPagination/TotalSalesTaxmonthly",
+    taxSummaryDateWiseSalesReport: "/SalesReportsWithoutPagination/TotalSalesTaxDateWise",
     taxSummaryYearly: "/FoodChowRMS/TotalSalesTaxyearly",
-    taxSummaryDateWise: "/FoodChowRMS/TotalSalesTaxDateWise",
-    declinedOrderToday: "/FoodChowRMS/TotaldeclinedOrderToday",
-    declinedOrderWeekly: "/FoodChowRMS/TotaldeclinedOrderWeekly",
-    declinedOrderMonthly: "/FoodChowRMS/TotaldeclinedOrdermonthly",
+    taxSummaryYearlySalesReport: "/SalesReports/TotalSalesTaxYearly",
+
+    // Declined / Void Orders
+    declinedOrderToday: "/SalesReportsWithoutPagination/VoidOrdersByToday",
+    declinedOrderWeekly: "/SalesReportsWithoutPagination/VoidOrdersByWeek",
+    declinedOrderMonthly: "/SalesReportsWithoutPagination/VoidOrdersByMonth",
+    declinedOrderDateWise: "/SalesReportsWithoutPagination/VoidOrdersByDateWise",
     declinedOrderYearly: "/FoodChowRMS/TotaldeclinedOrderyearly",
-    declinedOrderDateWise: "/FoodChowRMS/TotaldeclinedOrderDateWise",
-    orderItemDetails: "/FoodChowRMS/GetOrderItemDetails",
-    salesByItemSizeToday: "/FoodChowRMS/SalesByItemSizeToday",
-    salesByItemSizeWeekly: "/FoodChowRMS/SalesByItemSizeWeekly",
-    salesByItemSizeMonthly: "/FoodChowRMS/SalesByItemSizeMonthly",
+    voidOrdersToday: "/SalesReportsWithoutPagination/VoidOrdersByToday",
+    voidOrdersWeek: "/SalesReportsWithoutPagination/VoidOrdersByWeek",
+    voidOrdersMonth: "/SalesReportsWithoutPagination/VoidOrdersByMonth",
+    voidOrdersDateWise: "/SalesReportsWithoutPagination/VoidOrdersByDateWise",
+    voidOrdersYear: "/SalesReports/VoidOrdersByYear",
+
+    // Expense Transactions
+    getAllExpenseTransToday: "/SalesReportsWithoutPagination/GetAllExpenseTransToday",
+    getAllExpenseTransWeekly: "/SalesReportsWithoutPagination/GetAllExpenseTransWeekly",
+    getAllExpenseTransMonthly: "/SalesReportsWithoutPagination/GetAllExpenseTransmonthly",
+    getAllExpenseTransDateWise: "/SalesReportsWithoutPagination/GetAllExpenseTransDateWise",
+
+    // Refund History
+    refundToday: "/SalesReportsWithoutPagination/RefundHistoryOfToday",
+    refundWeek: "/SalesReportsWithoutPagination/RefundHistoryOfWeek",
+    refundMonth: "/SalesReportsWithoutPagination/RefundHistoryByMonth",
+    refundCustom: "/SalesReportsWithoutPagination/RefundHistoryByDateWise",
+    today: "/SalesReportsWithoutPagination/RefundHistoryOfToday",
+    week: "/SalesReportsWithoutPagination/RefundHistoryOfWeek",
+    month: "/SalesReportsWithoutPagination/RefundHistoryByMonth",
+    custom: "/SalesReportsWithoutPagination/RefundHistoryByDateWise",
+    refundYear: "/SalesReports/RefundHistoryByYear",
+    year: "/FoodChowWD/RefundHistoryByYear",
+
+    // Discount Orders
+    discountOrdersToday: "/SalesReportsWithoutPagination/DiscountOrdersByToday",
+    discountOrdersWeek: "/SalesReportsWithoutPagination/DiscountOrdersByWeek",
+    discountOrdersMonth: "/SalesReportsWithoutPagination/DiscountOrdersByMonth",
+    discountOrdersDateWise: "/SalesReportsWithoutPagination/DiscountOrdersByDateWise",
+
+    // Razorpay Orders
+    razorpayOrdersToday: "/SalesReportsWithoutPagination/RazorpayOrdersByToday",
+    razorpayOrdersWeek: "/SalesReportsWithoutPagination/RazorpayOrdersByWeek",
+    razorpayOrdersMonth: "/SalesReportsWithoutPagination/RazorpayOrdersByMonth",
+    razorpayOrdersDateWise: "/SalesReportsWithoutPagination/RazorpayOrdersByDateWise",
+
+    // Ingredients
+    ingredientsToday: "/SalesReportsWithoutPagination/TotalSalesOfIngredientsByToday",
+    ingredientsWeek: "/SalesReportsWithoutPagination/TotalSalesOfIngredientsByWeek",
+    ingredientsMonth: "/SalesReportsWithoutPagination/TotalSalesOfIngredientsByMonth",
+    ingredientsCustom: "/SalesReportsWithoutPagination/TotalSalesOfIngredientsByDateWise",
+    ingredientsYear: "/SalesReports/TotalSalesOfIngredientsByYear",
+
+    // Sales by Items
+    salesByItemsToday: "/SalesReportsWithoutPagination/SalesByItemsByToday",
+    salesByItemsWeek: "/SalesReportsWithoutPagination/SalesByItemsByWeek",
+    salesByItemsDayWise: "/SalesReportsWithoutPagination/SalesByItemsByDayWise",
+    salesByItemsMonth: "/SalesReportsWithoutPagination/SalesByItemsByMonth",
+    salesByItemsYear: "/SalesReports/SalesByItemsByYear",
+
+    // Sales by Item Size
+    salesByItemSizeToday: "/SalesReportsWithoutPagination/SalesByItemSizeToday",
+    salesByItemSizeWeekly: "/SalesReportsWithoutPagination/SalesByItemSizeWeekly",
+    salesByItemSizeMonthly: "/SalesReportsWithoutPagination/SalesByItemSizeMonthly",
+    salesByItemSizeDateWise: "/SalesReportsWithoutPagination/SalesByItemSizeDateWise",
+    salesByItemSizeTodaySalesReport: "/SalesReportsWithoutPagination/SalesByItemSizeToday",
+    salesByItemSizeWeeklySalesReport: "/SalesReportsWithoutPagination/SalesByItemSizeWeekly",
+    salesByItemSizeMonthlySalesReport: "/SalesReportsWithoutPagination/SalesByItemSizeMonthly",
+    salesByItemSizeDateWiseSalesReport: "/SalesReportsWithoutPagination/SalesByItemSizeDateWise",
     salesByItemSizeYearly: "/FoodChowRMS/SalesByItemSizeyearly",
-    salesByItemSizeDateWise: "/FoodChowRMS/SalesByItemSizeDateWise",
+    salesByItemSizeYearlySalesReport: "/SalesReports/SalesByItemSizeYearly",
 
+    // Total Sales
+    totalSalesToday: "/SalesReportsWithoutPagination/TotalSalesByToday",
+    totalSalesWeek: "/SalesReportsWithoutPagination/TotalSalesByWeek",
+    totalSalesMonth: "/SalesReportsWithoutPagination/TotalSalesByMonth",
+    totalSalesDateWise: "/SalesReportsWithoutPagination/TotalSalesByDateWise",
+    totalSalesYear: "/SalesReports/TotalSalesByYear",
 
-
-    // Today
     todaySales: "/FoodChowRMS/TotalSalesByToday",
     todaySummary: "/FoodChowRMS/TotalSalesByTodayTotal",
-
-    // Week
     weekSales: "/FoodChowRMS/TotalSalesByWeek",
     weekSummary: "/FoodChowRMS/TotalSalesByWeekTotal",
-
-    // Month
     monthSales: "/FoodChowRMS/TotalSalesByMonth",
     monthSummary: "/FoodChowRMS/TotalSalesByMonthTotal",
-
-    // Year
     yearSales: "/FoodChowRMS/TotalSalesByYear",
     yearSummary: "/FoodChowRMS/TotalSalesByYearTotal",
-
-    // Custom Date
-    // Custom Date
     customSales: "/FoodChowRMS/TotalSalesByDateWise",
     customSummary: "/FoodChowRMS/TotalSalesByDateWiseTotal",
 
-    // Order Details
+    // Sales by Category
+    salesByCategoryToday: "/SalesReportsWithoutPagination/SalesByCategoryByToday",
+    salesByCategoryWeek: "/SalesReportsWithoutPagination/SalesByCategoryByWeek",
+    salesByCategoryDayWise: "/SalesReportsWithoutPagination/SalesByCategoryByDayWise",
+    salesByCategoryMonth: "/SalesReportsWithoutPagination/SalesByCategoryByMonth",
+    salesByCategoryYear: "/SalesReports/SalesByCategoryByyear",
+
+    // Daily Closing Report
+    dailyClosingReport: "/SalesReportsWithoutPagination/DailyClosingReport",
+    dailyClosingReportByDate: "/SalesReportsWithoutPagination/DailyClosingReportByDate",
+    dailyClosingReportByMonth: "/SalesReportsWithoutPagination/DailyClosingReportByMonth",
+    dailyClosingReportByPayment: "/SalesReportsWithoutPagination/DailyclosingReportByPayment",
+    dailyClosingReportByPaymentDate: "/SalesReportsWithoutPagination/DailyclosingReportByPaymentDate",
+    dailyClosingReportByPaymentMonth: "/SalesReportsWithoutPagination/DailyclosingReportByPaymentMonth",
+
+    // Order Details & Invoices
+    orderItemDetails: "/FoodChowRMS/GetOrderItemDetails",
     orderItems: "/FoodChowRMS/GetOrderItemDetails",
     invoiceDetails: "/FoodChowRMS/getOrderDetailsByOderId",
     invoiceItemList: "/FoodChowWD/getOrderedItemList",
 
-    monthWiseComparison: "/FoodChowRMS/MonthWiseComparision",
-    today: "/FoodChowWD/RefundHistoryOfToday",
-    week: "/FoodChowWD/RefundHistoryOfWeek",
-    month: "/FoodChowWD/RefundHistoryByMonth",
-    year: "/FoodChowWD/RefundHistoryByYear",
-    custom: "/FoodChowWD/RefundHistoryByDateWise",
-    refundToday: "/SalesReports/RefundHistoryOfToday",
-    refundWeek: "/SalesReports/RefundHistoryOfWeek",
-    refundMonth: "/SalesReports/RefundHistoryByMonth",
-    refundYear: "/SalesReports/RefundHistoryByYear",
-    refundCustom: "/SalesReports/RefundHistoryByDateWise",
-    // Ingredients
-    ingredientsToday: "/FoodChowRMS/TotalSalesByIngredientsToday",
-    ingredientsWeek: "/FoodChowRMS/TotalSalesByIngredientsWeek",
-    ingredientsMonth: "/FoodChowRMS/TotalSalesByIngredientsMonth",
-    ingredientsYear: "/FoodChowRMS/TotalSalesByIngredientsYear",
-    ingredientsCustom: "/FoodChowRMS/TotalSalesByIngredientsDateWise",
-    // Sales by Order Method (Dine In / Home Delivery / Take Away)
+    // Additional Reports
     orderMethodMonthly: "/FoodChowRMS/TotalSalesByOrderMethodMonthly",
-    // Online Order Report (Completed Online Payments)
     onlineOrderToday: "/FoodChowRMS/TotalCompleteOnlinePaymentByToday",
     onlineOrderWeek: "/FoodChowRMS/TotalCompleteOnlinePaymentByWeek",
     onlineOrderMonth: "/FoodChowRMS/TotalCompleteOnlinePaymentByMonth",
     onlineOrderYear: "/FoodChowRMS/TotalCompleteOnlinePaymentByYear",
     onlineOrderCustom: "/FoodChowRMS/TotalCompleteOnlinePaymentByDateWise",
-
-
-
-    topSellingItemsToday: "/SalesReports/TopSellingItemsByToday",
-    topSellingItemsDayWise: "/SalesReports/TopSellingItemsByDaywise",
-    topSellingItemsWeek: "/SalesReports/TopSellingItemsByWeek",
-    topSellingItemsMonth: "/SalesReports/TopSellingItemsByMonth",
-    topSellingItemsYear: "/SalesReports/TopSellingItemsByYear",
-    salesByItemsToday: "/SalesReports/SalesByItemsByToday",
-    salesByItemsDayWise: "/SalesReports/SalesByItemsByDayWise",
-    salesByItemsWeek: "/SalesReports/SalesByItemsByWeek",
-    salesByItemsMonth: "/SalesReports/SalesByItemsByMonth",
-    salesByItemsYear: "/SalesReports/SalesByItemsByYear",
-    totalSalesDateWise: "/SalesReports/TotalSalesByDateWise",
-    salesByCategoryToday: "/SalesReports/SalesByCategoryByToday",
-    salesByCategoryDayWise: "/SalesReports/SalesByCategoryByDaywise",
-    salesByCategoryWeek: "/SalesReports/SalesByCategoryByWeek",
-    salesByCategoryMonth: "/SalesReports/SalesByCategoryByMonth",
-    salesByCategoryYear: "/SalesReports/SalesByCategoryByyear",
-
-    dailyClosingReport:
-      "/SalesReports/DailyClosingReport",
-
-    dailyClosingReportByPayment:
-      "/SalesReports/DailyclosingReportByPayment",
-
-    dailyClosingReportByMonth:
-      "/SalesReports/DailyClosingReportByMonth",
-
-    dailyClosingReportByPaymentMonth:
-      "/SalesReports/DailyclosingReportByPaymentMonth",
-
-    dailyClosingReportByDate:
-      "/SalesReports/DailyClosingReportByDate",
-
-    dailyClosingReportByPaymentDate:
-      "/SalesReports/DailyclosingReportByPaymentDate",
-
-    yearWiseComparison:
-      "/FoodChowRMS/YearWiseComparision",
-
-    productWiseComparisonToday:
-      "/FoodChowRMS/ProductWiseComparisonByToday",
-
-    productWiseComparisonWeek:
-      "/FoodChowRMS/ProductWiseComparisonByWeek",
-
-    productWiseComparisonMonth:
-      "/FoodChowRMS/ProductWiseComparisonByMonth",
-
-    productWiseComparisonYear:
-      "/FoodChowRMS/ProductWiseComparisonByYear",
-
-    posTotalSalesToday:
-      "/FoodChowRMS/PosTotalsalesToday",
-
+    posTotalSalesToday: "/FoodChowRMS/PosTotalsalesToday",
     posTotalSalesWeek: "/FoodChowRMS/PosTotalsalesWeekly",
-
     posTotalSalesMonth: "/FoodChowRMS/PosTotalsalesmonthly",
-
     posTotalSalesYear: "/FoodChowRMS/PosTotalsalesyearly",
-
     posTotalSalesDateWise: "/FoodChowRMS/PosTotalsalesDateWise",
-
-    incompletePaymentToday:
-      "/FoodChowRMS/IncompletePaymentByToday",
-
-    incompletePaymentWeek:
-      "/FoodChowRMS/IncompletePaymentByWeek",
-
-
-    incompletePaymentMonth:
-      "/FoodChowRMS/IncompletePaymentByMonth",
-    incompletePaymentYear:
-      "/FoodChowRMS/IncompletePaymentByYear",
-
-    incompletePaymentDateWise:
-      "/FoodChowRMS/IncompletePaymentByDateWise",
-
-    totalOnlinePaymentToday:
-      "/FoodChowRMS/StipeConnectTransToday",
-
-    totalOnlinePaymentWeekly:
-      "/FoodChowRMS/StipeConnectTransWeekly",
-
-    totalOnlinePaymentMonth:
-      "/FoodChowRMS/StipeConnectTransMonthly",
-
-    totalOnlinePaymentYear:
-      "/FoodChowRMS/StipeConnectTransyearly",
-
-    totalOnlinePaymentDateWise:
-      "/FoodChowRMS/StipeConnectTransDateWise",
-    voidOrdersToday:
-      "/SalesReports/VoidOrdersByToday",
-    voidOrdersWeek:
-      "/SalesReports/VoidOrdersByWeek",
-    voidOrdersMonth:
-      "/SalesReports/VoidOrdersByMonth",
-    voidOrdersYear:
-      "/SalesReports/VoidOrdersByYear",
-    voidOrdersDateWise:
-      "/SalesReports/VoidOrdersByDateWise",
-    salesByPosUserTodaySalesReport:
-      "/SalesReports/SalesByPosUserByToday",
-    salesByPosUserWeekSalesReport:
-      "/SalesReports/SalesByPosUserByWeek",
-    salesByPosUserMonthSalesReport:
-      "/SalesReports/SalesByPosUserByMonth",
-    salesByPosUserYearSalesReport:
-      "/SalesReports/SalesByPosUserByYear",
-    salesByPosUserDateWiseSalesReport:
-      "/SalesReports/SalesByPosUserByDateWise",
-    taxSummaryTodaySalesReport:
-      "/SalesReports/TotalSalesTaxToday",
-    taxSummaryWeeklySalesReport:
-      "/SalesReports/TotalSalesTaxWeekly",
-    taxSummaryMonthlySalesReport:
-      "/SalesReports/TotalSalesTaxmonthly",
-    taxSummaryYearlySalesReport:
-      "/SalesReports/TotalSalesTaxYearly",
-    taxSummaryDateWiseSalesReport:
-      "/SalesReports/TotalSalesTaxDateWise",
-    salesByItemSizeTodaySalesReport:
-      "/SalesReports/SalesByItemSizeToday",
-    salesByItemSizeDateWiseSalesReport:
-      "/SalesReports/SalesByItemSizeDateWise",
-    salesByItemSizeWeeklySalesReport:
-      "/SalesReports/SalesByItemSizeWeekly",
-    salesByItemSizeMonthlySalesReport:
-      "/SalesReports/SalesByItemSizeMonthly",
-    salesByItemSizeYearlySalesReport:
-      "/SalesReports/SalesByItemSizeYearly",
+    incompletePaymentToday: "/FoodChowRMS/IncompletePaymentByToday",
+    incompletePaymentWeek: "/FoodChowRMS/IncompletePaymentByWeek",
+    incompletePaymentMonth: "/FoodChowRMS/IncompletePaymentByMonth",
+    incompletePaymentYear: "/FoodChowRMS/IncompletePaymentByYear",
+    incompletePaymentDateWise: "/FoodChowRMS/IncompletePaymentByDateWise",
+    totalOnlinePaymentToday: "/FoodChowRMS/StipeConnectTransToday",
+    totalOnlinePaymentWeekly: "/FoodChowRMS/StipeConnectTransWeekly",
+    totalOnlinePaymentMonth: "/FoodChowRMS/StipeConnectTransMonthly",
+    totalOnlinePaymentYear: "/FoodChowRMS/StipeConnectTransyearly",
+    totalOnlinePaymentDateWise: "/FoodChowRMS/StipeConnectTransDateWise",
   },
 
 
   setup: {
     getRestaurantInformation: "/RestaurantProfile/GetRestaurantInformation",
     updateShopLogo: "/RestaurantProfile/UpdateShopLogo",
-    getShopTypesAndCuisine: "/RestaurantProfile/GetShopTypesAndCuisine",
     // getRestaurantInformation:
     //   "/RestaurantProfile/GetRestaurantInformation",
 
@@ -409,28 +352,10 @@ export const ENDPOINTS = {
     getGalleryImages:
       "/FoodChowRMS/GetImagesByShopWD",
 
-    getFoodGallery: "/FoodGallery/GetFoodgallery",
-    addToFoodGallery: "/FoodGallery/AddToFoodGallery",
-    deleteGalleryPhoto: "/FoodGallery/DeleteGalleryPhoto",
-
-    getShopOverview: "/ShopOverview/GetShopOverview",
-    saveShopOverview: "/ShopOverview/SaveShopOverview",
-    uploadShopOverviewImage: "/ShopOverview/UploadShopOverviewImage", // Keep the one I added just in case
-    uploadRestaurantImageRMS: "/OfferMaster/UploadRestaurantImageRMS", // The real live endpoint
-    deleteShopOverviewImage: "/FoodChowWD/DeleteShopOverviewImageByShopId",
-
     //Delivery 
     getAllDeliveryZone: "/zone/get",
     addDeliveryZone: "/zone/select-zone",
     updateDeliveryZone: "/zone/update-zone",
-    deleteDeliveryZone: (zoneId: string | number) => `/zone/delete/${zoneId}`,
-    getDeliverySettingsForShop: "/FoodChowWD/GetDeliverySettingsForShop",
-    updateDeliverySettingsForShop: "/FoodChowWD/UpdateDeliverySettingsForShop",
-    getCustomDeliveryLocation: "/FoodChowWD/GetCustomDeliveryLocation",
-    addCustomDeliveryLocation: "/FoodChowWD/AddCustomDeliveryLocation",
-    updateCustomDeliveryLocation: "/FoodChowWD/UpdateCustomDeliveryLocation",
-    deleteCustomDeliveryLocation: "/FoodChowWD/DeleteCustomDeliveryLocation",
-    changeCustomDeliveryLocationStatus: "/FoodChowWD/ChangeCustomDeliveryLocationStatus",
 
     //Timings
     getRestaurantTimings: "/RestaurantProfile/GetShopTimings",
@@ -442,16 +367,6 @@ export const ENDPOINTS = {
     addShopFacilitiesRequest: "/RestaurantProfile/AddShopFacilitiesRequest",
     addShopFacilities: "/RestaurantProfile/AddShopFacilities",
     deleteShopFacilities: "/RestaurantProfile/DeleteShopFacilities",
-
-    // Support
-    addSupportTicket: "/UserMaster/AddShopSupportTicket",
-
-    // Custom Domain
-    saveCustomDomain: "/RestaurantProfile/SaveCustomDomain",
-
-    // Shop Invoices
-    getShopInvoices: "/Marketplace/GetShopInvoiceList",
-    getFoodchowPricingPlanPurchases: "/MenuMaster/GetFoodchowPricingPlanPurchases",
   },
 
 

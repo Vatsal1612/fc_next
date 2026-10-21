@@ -516,10 +516,11 @@
   }
 
   .no-record {
-  font-size: var(--text-body);
-  font-weight: var(--weight-semibold);
-    color: var(--text-dark);
+    font-size: 15px !important;
+    font-weight: 500 !important;
+    color: black !important;
     padding: 10px 0 20px;
+    text-align: center;
   }
 
   /* Table - Coupon Style */

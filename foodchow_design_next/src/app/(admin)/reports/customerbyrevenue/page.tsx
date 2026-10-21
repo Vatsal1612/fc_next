@@ -161,7 +161,7 @@
 //                 </div>
 //                 <button className="btn-export" id="exportBtn">
 //                   <i className="ti ti-download" />
-//                   Export to Excel
+//                   EXPORT TO EXCEL
 //                 </button>
 //               </div>
 //             </div>
@@ -295,13 +295,14 @@
 //   );
 // }
 
-
 "use client";
 
 import { useEffect, useState } from "react";
+import Script from "next/script";
 import "./page.css";
 import { reportsService, CRMRevenueCustomer } from "@/api/services/report.service";
-import ReportPagination from "@/components/shared/ReportPagination";
+import ReportTableFooter from "@/components/shared/ReportTableFooter";
+import ReportStepFooter from "@/components/shared/ReportStepFooter";
 
 import { useShopId } from "@/utils/shop";
 
@@ -391,84 +392,50 @@ export default function CustomerbyrevenuePage() {
     return amount.toLocaleString("en-IN", { minimumFractionDigits: 2 });
   };
 
-  // Export to CSV
+  // Export to Excel
   const exportToExcel = (): void => {
     if (!customers || customers.length === 0) {
-      alert("No records to export.");
+      alert("No data available to export");
       return;
     }
 
-    const rows: (string | number)[][] = [
-      ["Sr. No.", "Order ID", "Customer Name", "Mobile No.", "Revenue (Rs.)"],
-      ...customers.map((d, index) => [
-        index + 1,
-        d.order_id,
-        d.name,
-        d.mobile_no,
-        d.total_amount,
-      ]),
+    const XLSX = (window as any).XLSX;
+    if (!XLSX) {
+      alert("Excel library is loading, please try again.");
+      return;
+    }
+
+    const headers = ["Sr. No.", "Order ID", "Customer Name", "Mobile No.", "Revenue (Rs.)"];
+    const rows = customers.map((d, index) => [
+      index + 1,
+      d.order_id,
+      d.name || "-",
+      d.mobile_no || "-",
+      Number(d.total_amount || 0),
+    ]);
+
+    const reportTitle = "CRM Report by Revenue";
+    const wsData = [
+      [reportTitle],
+      [`Exported On: ${new Date().toLocaleString()}`],
+      [],
+      headers,
+      ...rows,
     ];
 
-    const csv = rows.map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `crm_report_revenue_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!cols"] = [{ wch: 10 }, { wch: 15 }, { wch: 25 }, { wch: 18 }, { wch: 18 }];
+    XLSX.utils.book_append_sheet(wb, ws, "Revenue Report");
+    XLSX.writeFile(wb, `crm_report_revenue_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
-
-  // Step navigation
-  useEffect(() => {
-    let currentStep = 6;
-    const totalSteps = 26;
-    const stepPill = document.querySelector(".step-pill strong");
-
-    const onPrev = (): void => {
-      if (currentStep > 1) {
-        currentStep--;
-        if (stepPill) {
-          stepPill.textContent = ` ${currentStep}.2 / ${totalSteps}`;
-        }
-      }
-    };
-
-    const onNext = (): void => {
-      if (currentStep < totalSteps) {
-        currentStep++;
-        if (stepPill) {
-          stepPill.textContent = ` ${currentStep}.2 / ${totalSteps}`;
-        }
-      }
-    };
-
-    const prevBtn = document.getElementById("prevBtn");
-    const nextBtn = document.getElementById("nextBtn");
-    const exportBtn = document.getElementById("exportBtn");
-    const searchInput = document.getElementById("searchInput") as HTMLInputElement | null;
-
-    prevBtn?.addEventListener("click", onPrev);
-    nextBtn?.addEventListener("click", onNext);
-    exportBtn?.addEventListener("click", exportToExcel);
-    
-    // Search handler
-    const handleSearch = (): void => {
-      if (searchInput) {
-        setSearchTerm(searchInput.value);
-      }
-    };
-    searchInput?.addEventListener("input", handleSearch);
-
-    return () => {
-      prevBtn?.removeEventListener("click", onPrev);
-      nextBtn?.removeEventListener("click", onNext);
-      exportBtn?.removeEventListener("click", exportToExcel);
-      searchInput?.removeEventListener("input", handleSearch);
-    };
-  }, [customers]);
 
   return (
     <div id="pg-reports-customerbyrevenue">
+      <Script
+        src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+        strategy="afterInteractive"
+      />
       <link
         rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
@@ -491,23 +458,7 @@ export default function CustomerbyrevenuePage() {
                 <div className="subtitle">Sorted by highest revenue</div>
               </div>
               <div className="actions" style={{ gap: "12px" }}>
-                <div style={{ fontSize: "13px", color: "var(--text-secondary, #666)", display: "flex", alignItems: "center", gap: "6px" }}>
-                  <span>Show</span>
-                  <select
-                    className="input-control"
-                    style={{ width: "auto", padding: "2px 6px", fontSize: "13px" }}
-                    value={pageSize}
-                    onChange={(e) => {
-                      setPageSize(Number(e.target.value));
-                      setPageNumber(1);
-                    }}
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                  </select>
-                  <span>entries</span>
-                </div>
+                
                 <div className="search-bar">
                   <i className="ti ti-search" />
                   <input
@@ -518,9 +469,21 @@ export default function CustomerbyrevenuePage() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <button className="btn-export" id="exportBtn">
-                  <i className="ti ti-download" />
-                  Export to Excel
+                <button className="btn-action btn-export" id="exportBtn" onClick={exportToExcel}>
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#ffffff"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ width: "18px", height: "18px", marginRight: "6px" }}
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  EXPORT TO EXCEL
                 </button>
               </div>
             </div>
@@ -543,8 +506,8 @@ export default function CustomerbyrevenuePage() {
                   </tr>
                 ) : displayedCustomers.length === 0 ? (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: "center", padding: "40px" }}>
-                      {searchTerm ? "No customers found matching your search" : "No customers found"}
+                    <td colSpan={4} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
+                      No Records Found
                     </td>
                   </tr>
                 ) : (
@@ -591,25 +554,18 @@ export default function CustomerbyrevenuePage() {
               <span>Last updated: {new Date().toLocaleDateString("en-IN")}</span>
             </div>
 
-            <ReportPagination
+            <ReportTableFooter
               currentPage={pageNumber}
               totalPages={totalPages}
+              totalRecords={totalRecords}
+              pageSize={pageSize}
               onPageChange={(page) => setPageNumber(page)}
+              onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
               disabled={loading}
             />
-
-            <div className="step-nav">
-              <button className="btn-nav" id="prevBtn">
-                <i className="fas fa-arrow-left" /> Previous
-              </button>
-              <span className="step-pill">
-                Step <strong>&nbsp;6.2 / 26</strong>
-              </span>
-              <button className="btn-nav" id="nextBtn">
-                Next <i className="fas fa-arrow-right" />
-              </button>
-            </div>
           </div>
+
+          <ReportStepFooter currentStepOverride={10} totalStepsOverride={25} />
         </div>
       </div>
     </div>

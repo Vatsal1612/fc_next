@@ -59,8 +59,12 @@ export default function WhatsappMarketingPage() {
                   <div className="feature-desc">Start automating today with no upfront costs</div>
                 </div>
               </div>
-
-              <button className="btn-primary">Click Here to Login</button>
+              <button
+                className="btn-primary"
+                onClick={() => window.open('https://marketing.foodchow.app/login', '_blank')}
+              >
+                Click Here to Login
+              </button>
             </div>
 
             <WizardFooter />

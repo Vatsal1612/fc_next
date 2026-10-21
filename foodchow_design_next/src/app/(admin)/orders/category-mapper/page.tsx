@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { WizardFooter } from "@/components/shared/WizardFooter";
+import { menuService } from "@/api/services/menu.service";
+import { getShopId } from "@/utils/shop";
 import "./page.css";
 
 interface Category {
@@ -16,36 +18,36 @@ interface Section {
 
 /**
  * orders/category-mapper.html → React.
- *
- * The original page builds both the left categories list and the right sections
- * list dynamically in JS (innerHTML / createElement) with HTML5 drag-and-drop.
- * That logic is ported verbatim into one useEffect; the JSX renders only the
- * static shell (search bar, empty containers, modals, footer) so there is no
- * hydration mismatch. Inline handlers on generated nodes are recreated with
- * ondragstart/ondrop/onclick on the created elements exactly as the source did.
  */
 export default function CategoryMapperPage() {
+  const [showHelpVideo, setShowHelpVideo] = useState(false);
+
   useEffect(() => {
     const root = document.getElementById("pg-orders-category-mapper");
     if (!root) return;
 
-    const categories: Category[] = [
-      { id: "cat-1", name: "Maggi" },
-      { id: "cat-2", name: "Dessert" },
-      { id: "cat-3", name: "burger" },
-      { id: "cat-4", name: "Chaat" },
-      { id: "cat-5", name: "Bread" },
-      { id: "cat-6", name: "South Indian" },
-      { id: "cat-7", name: "Fast Food" },
-      { id: "cat-8", name: "Beverage" },
-      { id: "cat-9", name: "dosa" },
-    ];
+    let categories: Category[] = [];
 
-    let sections: Section[] = [
-      { id: "sec-1", name: "Starters", mappedCategoryIds: ["cat-8", "cat-4", "cat-5"] },
-      { id: "sec-2", name: "Main Course", mappedCategoryIds: ["cat-1", "cat-3", "cat-9"] },
-      { id: "sec-3", name: "Sweet Station", mappedCategoryIds: ["cat-2"] },
-    ];
+    let sections: Section[] = [];
+
+    const shopId = getShopId();
+    if (shopId) {
+      menuService
+        .categoriesByShop(shopId)
+        .then((fetched) => {
+          if (Array.isArray(fetched) && fetched.length > 0) {
+            categories = fetched.map((c) => ({
+              id: String(c.id),
+              name: c.cate_name,
+            }));
+            renderCategoriesList();
+            renderSectionsList();
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to fetch categories from DB:", err);
+        });
+    }
 
     // ── Toast Controller ──
     let toastTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -62,18 +64,6 @@ export default function CategoryMapperPage() {
     };
 
     // ── Modal Helpers ──
-    const openHelpModal = (): void => {
-      const modal = document.getElementById("helpModal");
-      if (!modal) return;
-      modal.style.display = "flex";
-      setTimeout(() => modal.classList.add("show"), 10);
-    };
-    const closeHelpModal = (): void => {
-      const modal = document.getElementById("helpModal");
-      if (!modal) return;
-      modal.classList.remove("show");
-      setTimeout(() => (modal.style.display = "none"), 200);
-    };
     const openSectionModal = (): void => {
       const modal = document.getElementById("sectionFormModal");
       if (!modal) return;
@@ -110,16 +100,6 @@ export default function CategoryMapperPage() {
     };
 
     // ── Render Categories List (Left Panel) ──
-    const escapeHtml = (str: string): string => {
-      if (!str) return "";
-      return str
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    };
-
     const renderCategoriesList = (): void => {
       const container = document.getElementById("categoriesListContainer");
       const searchInput = document.getElementById("categorySearch") as HTMLInputElement | null;
@@ -153,7 +133,7 @@ export default function CategoryMapperPage() {
 
         item.innerHTML = `
       <span class="drag-handle"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line></svg></span>
-      <span class="draggable-item-text">${escapeHtml(cat.name)}</span>
+      <span class="draggable-item-text">${cat.name}</span>
     `;
 
         container.appendChild(item);
@@ -248,7 +228,7 @@ export default function CategoryMapperPage() {
               const mappedEl = document.createElement("div");
               mappedEl.className = "mapped-item";
               mappedEl.innerHTML = `
-            <span class="mapped-item-text">${escapeHtml(cat.name)}</span>
+            <span class="mapped-item-text">${cat.name}</span>
             <button class="btn-remove-mapped">
               <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </button>
@@ -338,7 +318,6 @@ export default function CategoryMapperPage() {
     const searchInput = document.getElementById("categorySearch");
     const searchBtn = root.querySelector<HTMLButtonElement>(".btn-search-icon");
     const addSectionBtn = root.querySelector<HTMLButtonElement>(".sections-actions-bar .btn-add-section");
-    const helpBtn = root.querySelector<HTMLButtonElement>(".btn-help-common");
     const nextBtn = root.querySelector<HTMLAnchorElement>(".btn-navigation-next");
     const sectionForm = document.getElementById("sectionForm");
     const sectionCancelBtns = Array.from(
@@ -346,20 +325,13 @@ export default function CategoryMapperPage() {
         "#sectionFormModal .modal-close-btn, #sectionFormModal .btn-modal-cancel",
       ),
     );
-    const helpCloseBtns = Array.from(
-      root.querySelectorAll<HTMLButtonElement>(
-        "#helpModal .modal-close-btn, #helpModal .btn-modal-cancel",
-      ),
-    );
 
     searchInput?.addEventListener("input", filterCategories);
     searchBtn?.addEventListener("click", filterCategories);
     addSectionBtn?.addEventListener("click", openAddSectionModal);
-    helpBtn?.addEventListener("click", openHelpModal);
     nextBtn?.addEventListener("click", handleNextStep);
     sectionForm?.addEventListener("submit", handleSectionFormSubmit);
     sectionCancelBtns.forEach((b) => b.addEventListener("click", closeSectionModal));
-    helpCloseBtns.forEach((b) => b.addEventListener("click", closeHelpModal));
 
     // ── Initialization ──
     renderCategoriesList();
@@ -369,11 +341,9 @@ export default function CategoryMapperPage() {
       searchInput?.removeEventListener("input", filterCategories);
       searchBtn?.removeEventListener("click", filterCategories);
       addSectionBtn?.removeEventListener("click", openAddSectionModal);
-      helpBtn?.removeEventListener("click", openHelpModal);
       nextBtn?.removeEventListener("click", handleNextStep);
       sectionForm?.removeEventListener("submit", handleSectionFormSubmit);
       sectionCancelBtns.forEach((b) => b.removeEventListener("click", closeSectionModal));
-      helpCloseBtns.forEach((b) => b.removeEventListener("click", closeHelpModal));
       if (toastTimeout) clearTimeout(toastTimeout);
     };
   }, []);
@@ -429,7 +399,7 @@ export default function CategoryMapperPage() {
                     Add Section
                   </button>
 
-                  <button className="btn-action btn-help btn-help-common">
+                  <button className="btn-action btn-help btn-help-common" onClick={() => setShowHelpVideo(true)}>
                     <svg viewBox="0 0 24 24">
                       <circle cx="12" cy="12" r="10" />
                       <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
@@ -493,46 +463,41 @@ export default function CategoryMapperPage() {
       </div>
 
       {/* Help Modal Overlay */}
-      <div className="modal-overlay" id="helpModal">
-        <div className="modal-container">
-          <div className="modal-title-bar">
-            <h3>Category Mapper Guide</h3>
-            <button className="modal-close-btn">
-              <svg viewBox="0 0 24 24">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+      {showHelpVideo && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{ position: 'relative', width: '80%', maxWidth: '1000px', aspectRatio: '16/9', backgroundColor: '#000' }}>
+            <button
+              onClick={() => setShowHelpVideo(false)}
+              style={{
+                position: 'absolute',
+                top: '-40px',
+                right: '0',
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                fontSize: '30px',
+                cursor: 'pointer'
+              }}
+            >
+              &times;
             </button>
-          </div>
-          <div className="modal-body-content">
-            <div className="help-list">
-              <div className="help-item">
-                <strong>Category Mapping:</strong> Organize menu item categories into restaurant outlet
-                sections (e.g. mapping Pizza and Maggi into the Main Course kitchen queue, or Beverages to
-                the Bar counter).
-              </div>
-              <div className="help-item">
-                <strong>Draggable Categories:</strong> Press and hold a category item on the left list,
-                drag it over to any section&apos;s drop area on the right, and release to map it.
-              </div>
-              <div className="help-item">
-                <strong>Removing Categories:</strong> Click the small red trash icon next to a category
-                within any section card to un-map it.
-              </div>
-              <div className="help-item">
-                <strong>Section Management:</strong> Use &quot;+ Add Section&quot; to build custom
-                kitchens, counters, or stations. Use Edit to rename sections, and Delete to remove them
-                entirely.
-              </div>
-            </div>
-          </div>
-          <div className="modal-footer-bar">
-            <button className="btn-action btn-cancel btn-modal-cancel" type="button">
-              Close
-            </button>
+            <iframe
+              src="https://player.vimeo.com/video/1075945448?autoplay=1"
+              style={{ width: '100%', height: '100%', border: 'none' }}
+              allow="autoplay; fullscreen; picture-in-picture"
+              allowFullScreen
+            ></iframe>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Toast Box */}
       <div className="toast-box" id="toast">

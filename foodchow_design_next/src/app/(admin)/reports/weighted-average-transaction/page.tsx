@@ -7,7 +7,9 @@ import {
   reportsService,
   WeightedAverageTransaction,
 } from "@/api/services/report.service";
-import ReportPagination from "@/components/shared/ReportPagination";
+import ReportTableFooter from "@/components/shared/ReportTableFooter";
+import ReportTableState from "@/components/shared/ReportTableState";
+import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
 
 export default function WeightedAverageTransactionPage() {
@@ -16,6 +18,7 @@ export default function WeightedAverageTransactionPage() {
   const [todayData, setTodayData] = useState<WeightedAverageTransaction[]>([]);
   const [monthlyData, setMonthlyData] = useState<WeightedAverageTransaction[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [hasSearchedMonthly, setHasSearchedMonthly] = useState<boolean>(false);
 
   const [selectedMonth, setSelectedMonth] = useState<string>(
     String(new Date().getMonth() + 1)
@@ -41,6 +44,7 @@ export default function WeightedAverageTransactionPage() {
   };
 
   const loadMonthly = async () => {
+    setHasSearchedMonthly(true);
     try {
       setLoading(true);
       const data = await reportsService.fetchMonthlyWeightedAverage(
@@ -62,7 +66,7 @@ export default function WeightedAverageTransactionPage() {
   useEffect(() => {
     if (!shopId) return;
     if (lastFetched.current.tab === activeTab && lastFetched.current.shopId === shopId) return;
-    
+
     if (activeTab === "today") {
       lastFetched.current = { tab: activeTab, shopId };
       loadToday();
@@ -77,12 +81,73 @@ export default function WeightedAverageTransactionPage() {
     pageNumber * pageSize
   );
 
-  const handleTabChange = (tab: "today" | "monthly") => {
-    setActiveTab(tab);
-    setPageNumber(1);
+  const exportToExcel = () => {
+    if (!currentRows || currentRows.length === 0) {
+      alert("No data available to export");
+      return;
+    }
+
+    const XLSX = (window as any).XLSX;
+    if (!XLSX) {
+      return;
+    }
+
+    const headers = [
+      "Order Type",
+      "Total Order Count",
+      "Total Amount (Rs.)",
+      "Weighted Average Transaction (Rs.)",
+    ];
+
+    const rows = currentRows.map((r) => {
+      const orderType =
+        r.delivery_method_name ||
+        (r as any).Delivery_Method_Name ||
+        (r as any).delivery_method ||
+        "-";
+      const totalOrders =
+        r.total_orders ?? (r as any).Total_Orders ?? 0;
+      const totalAmount = Number(
+        r.total_amount ?? (r as any).Total_Amount ?? 0
+      );
+      const weightedAvg = Number(
+        r.weighted_average_transaction ??
+        (r as any).Weighted_Average_Transaction ??
+        (r as any).weighted_average ??
+        0
+      );
+      return [
+        orderType,
+        totalOrders,
+        parseFloat(totalAmount.toFixed(2)),
+        parseFloat(weightedAvg.toFixed(2)),
+      ];
+    });
+
+    const reportTitle = `Weighted Average Transaction — ${activeTab === "today" ? "TODAY" : "MONTHLY"}`;
+    const wsData = [
+      [reportTitle],
+      [`Exported On: ${new Date().toLocaleString()}`],
+      [],
+      headers,
+      ...rows,
+    ];
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!cols"] = [{ wch: 25 }, { wch: 20 }, { wch: 20 }, { wch: 35 }];
+    XLSX.utils.book_append_sheet(wb, ws, "Weighted Avg Transaction");
+    XLSX.writeFile(
+      wb,
+      `weighted_average_transaction_${activeTab}_${new Date().toISOString().split("T")[0]}.xlsx`
+    );
   };
 
-
+  const handleTabChange = (tab: "today" | "monthly") => {
+    setActiveTab(tab);
+    setHasSearchedMonthly(false);
+    setPageNumber(1);
+  };
 
   return (
     <div id="pg-reports-weighted-average-transaction">
@@ -107,24 +172,39 @@ export default function WeightedAverageTransactionPage() {
                 View average transaction value by order type
               </div>
 
-              <div className="tab-row">
-                <button
-                  className={`tab-btn ${activeTab === "today" ? "active" : ""}`}
-                  onClick={() => handleTabChange("today")}
-                >
-                  Average Transaction of Today
-                </button>
-                <button
-                  className={`tab-btn ${activeTab === "monthly" ? "active" : ""}`}
-                  onClick={() => handleTabChange("monthly")}
-                >
-                  Average Transaction by Monthly
-                </button>
+              <div className="tab-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                  <button
+                    className={`tab-btn ${activeTab === "today" ? "active" : ""}`}
+                    onClick={() => handleTabChange("today")}
+                  >
+                    Average Transaction of Today
+                  </button>
+                  <button
+                    className={`tab-btn ${activeTab === "monthly" ? "active" : ""}`}
+                    onClick={() => handleTabChange("monthly")}
+                  >
+                    Average Transaction by Monthly
+                  </button>
+                </div>
 
+                {activeTab === "today" && (
+                  <button
+                    className="btn-action"
+                    onClick={exportToExcel}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    EXPORT TO EXCEL
+                  </button>
+                )}
               </div>
 
               {activeTab === "monthly" && (
-                <div className="filter-row" style={{ marginTop: "16px" }}>
+                <div className="filter-row" style={{ marginTop: "16px", display: "flex", alignItems: "flex-end", gap: "16px", flexWrap: "wrap" }}>
                   <div className="filter-group">
                     <label className="filter-label">Select Month :</label>
                     <select
@@ -169,10 +249,27 @@ export default function WeightedAverageTransactionPage() {
                   >
                     GET DATA
                   </button>
+                  <button
+                    className="btn-action"
+                    onClick={exportToExcel}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    EXPORT TO EXCEL
+                  </button>
                 </div>
               )}
 
-              <div className="results-section" style={{ marginTop: "20px" }}>
+              <div
+                className="results-section"
+                style={{
+                  display: activeTab === "today" ? "block" : hasSearchedMonthly ? "block" : "none",
+                  marginTop: "20px",
+                }}
+              >
                 <div className="table-card">
                   <div className="table-card-header">
                     <span>
@@ -181,116 +278,76 @@ export default function WeightedAverageTransactionPage() {
                         : "Monthly Transactions"}
                     </span>
                   </div>
-                  <div className="table-wrap">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Order Type</th>
-                          <th>Total Order Count</th>
-                          <th>Total Amount</th>
-                          <th>Weighted average transaction</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {loading ? (
+                  <ReportTableState loading={loading} hasData={paginatedRows.length > 0} columns={4}>
+                    <div className="table-wrap">
+                      <table className="data-table">
+                        <thead>
                           <tr>
-                            <td colSpan={4} style={{ textAlign: "center", padding: "20px" }}>
-                              Loading...
-                            </td>
+                            <th>Order Type</th>
+                            <th>Total Order Count</th>
+                            <th>Total Amount</th>
+                            <th>Weighted average transaction</th>
                           </tr>
-                        ) : paginatedRows.length === 0 ? (
-                          <tr>
-                            <td colSpan={4} style={{ textAlign: "center", padding: "20px" }}>
-                              No Record Found
-                            </td>
-                          </tr>
-                        ) : (
-                          paginatedRows.map((r, idx) => {
-                            const orderType =
-                              r.delivery_method_name ||
-                              (r as any).Delivery_Method_Name ||
-                              (r as any).delivery_method ||
-                              "-";
-                            const totalOrders =
-                              r.total_orders ?? (r as any).Total_Orders ?? 0;
-                            const totalAmount = Number(
-                              r.total_amount ?? (r as any).Total_Amount ?? 0
-                            );
-                            const weightedAvg = Number(
-                              r.weighted_average_transaction ??
-                              (r as any).Weighted_Average_Transaction ??
-                              (r as any).weighted_average ??
-                              0
-                            );
-                            return (
-                              <tr key={idx}>
-                                <td>{orderType}</td>
-                                <td>{totalOrders}</td>
-                                <td>{totalAmount.toFixed(2)}</td>
-                                <td>{weightedAvg.toFixed(2)}</td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {loading ? (
+                            <tr>
+                              <td colSpan={4} style={{ textAlign: "center", padding: "40px" }}>
+                                Loading data...
+                              </td>
+                            </tr>
+                          ) : paginatedRows.length === 0 ? (
+                            <tr>
+                              <td colSpan={4} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
+                                No Records Found
+                              </td>
+                            </tr>
+                          ) : (
+                            paginatedRows.map((r, idx) => {
+                              const orderType =
+                                r.delivery_method_name ||
+                                (r as any).Delivery_Method_Name ||
+                                (r as any).delivery_method ||
+                                "-";
+                              const totalOrders =
+                                r.total_orders ?? (r as any).Total_Orders ?? 0;
+                              const totalAmount = Number(
+                                r.total_amount ?? (r as any).Total_Amount ?? 0
+                              );
+                              const weightedAvg = Number(
+                                r.weighted_average_transaction ??
+                                (r as any).Weighted_Average_Transaction ??
+                                (r as any).weighted_average ??
+                                0
+                              );
+                              return (
+                                <tr key={idx}>
+                                  <td>{orderType}</td>
+                                  <td>{totalOrders}</td>
+                                  <td>{totalAmount.toFixed(2)}</td>
+                                  <td>{weightedAvg.toFixed(2)}</td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    <ReportTableFooter
+                      currentPage={pageNumber}
+                      totalPages={totalPages}
+                      totalRecords={totalRecords}
+                      pageSize={pageSize}
+                      onPageChange={(page) => setPageNumber(page)}
+                      onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
+                      disabled={loading}
+                    />
+                  </ReportTableState>
                 </div>
-              </div>
-
-              <div
-                style={{
-                  marginTop: "16px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ fontSize: "14px", color: "#666" }}>Show</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => {
-                      setPageSize(Number(e.target.value));
-                      setPageNumber(1);
-                    }}
-                    style={{
-                      padding: "4px 8px",
-                      borderRadius: "4px",
-                      border: "1px solid #ccc",
-                    }}
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                  </select>
-                  <span style={{ fontSize: "14px", color: "#666" }}>entries</span>
-                </div>
-
-                <ReportPagination
-                  currentPage={pageNumber}
-                  totalPages={totalPages}
-                  totalRecords={totalRecords}
-                  pageSize={pageSize}
-                  onPageChange={(page) => setPageNumber(page)}
-                />
               </div>
             </div>
 
-            <div className="step-footer">
-              <button className="btn-prev" id="prevBtn">
-                <i className="fas fa-chevron-left" /> PREVIOUS
-              </button>
-              <div className="step-indicator">
-                <span className="step-label">STEP</span>
-                <span className="step-value" id="stepValue">
-                  6/25
-                </span>
-              </div>
-              <button className="btn-next" id="nextBtn">
-                NEXT <i className="fas fa-chevron-right" />
-              </button>
-            </div>
+            <ReportStepFooter currentStepOverride={7} totalStepsOverride={25} />
           </div>
         </div>
       </div>

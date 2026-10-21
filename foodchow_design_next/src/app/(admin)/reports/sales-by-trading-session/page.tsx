@@ -587,14 +587,17 @@
 //   );
 // }
 
-
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Script from "next/script";
 import "./page.css";
 import { reportsService, TradingSession } from "@/api/services/report.service";
-import ReportPagination from "@/components/shared/ReportPagination";
+import ReportTableFooter from "@/components/shared/ReportTableFooter";
+import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
+
+
 
 interface DisplayRow {
   date: string;
@@ -622,8 +625,11 @@ export default function SalesByTradingSessionPage() {
 
   // Current active tab & pagination
   const [activeTab, setActiveTab] = useState("today");
+  const [hasSearched, setHasSearched] = useState(false);
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  // Server pagination (moved from inside IIFE to comply with Rules of Hooks)
+  const [serverTotalPages] = useState(1);
 
   // Helper to format date
   const formatDate = (item: TradingSession): string => {
@@ -692,6 +698,7 @@ export default function SalesByTradingSessionPage() {
   // Fetch daywise data
   const fetchDaywise = async (date: string, page = 1) => {
     if (!date) return;
+    setHasSearched(true);
     try {
       setLoadingDaywise(true);
       setPageNumber(1);
@@ -708,6 +715,7 @@ export default function SalesByTradingSessionPage() {
   // Fetch month data
   const fetchMonth = async (month: string, year: number, page = 1) => {
     if (!month || !year) return;
+    setHasSearched(true);
     try {
       setLoadingMonth(true);
       setPageNumber(1);
@@ -724,6 +732,7 @@ export default function SalesByTradingSessionPage() {
   // Fetch year data
   const fetchYear = async (year: number, page = 1) => {
     if (!year) return;
+    setHasSearched(true);
     try {
       setLoadingYear(true);
       setPageNumber(1);
@@ -737,10 +746,15 @@ export default function SalesByTradingSessionPage() {
     }
   };
 
-  // Export CSV
-  const exportCSV = (data: DisplayRow[], tab: string): void => {
+  // EXPORT TO EXCEL
+  const exportToExcel = (data: DisplayRow[], tab: string): void => {
     if (!data || data.length === 0) {
-      alert("No records to export.");
+      window.alert("No data available to export");
+      return;
+    }
+
+    const XLSX = (window as any).XLSX;
+    if (!XLSX) {
       return;
     }
 
@@ -749,32 +763,39 @@ export default function SalesByTradingSessionPage() {
       ? ["Sr No", "Date", "Sessions", "Total Order Count", "Total Amount (Rs.)"]
       : ["Sr No", "Sessions", "Total Order Count", "Total Amount (Rs.)"];
 
-    const rows = [headers.join(",")];
-    data.forEach((item, i) => {
-      const row = hasDate
+    const rows = data.map((item, i) =>
+      hasDate
         ? [
-          i + 1,
-          `"${item.date}"`,
-          `"${item.session}"`,
-          item.orders,
-          item.amount.toFixed(2),
-        ]
+            i + 1,
+            item.date || "-",
+            item.session || "-",
+            item.orders,
+            parseFloat(item.amount.toFixed(2)),
+          ]
         : [
-          i + 1,
-          `"${item.session}"`,
-          item.orders,
-          item.amount.toFixed(2),
-        ];
-      rows.push(row.join(","));
-    });
+            i + 1,
+            item.session || "-",
+            item.orders,
+            parseFloat(item.amount.toFixed(2)),
+          ]
+    );
 
-    const blob = new Blob([rows.join("\n")], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Sales_By_Session_${tab}_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const reportTitle = `Sales By Trading Session — ${tab.toUpperCase()}`;
+    const wsData = [
+      [reportTitle],
+      [`Exported On: ${new Date().toLocaleString()}`],
+      [],
+      headers,
+      ...rows,
+    ];
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!cols"] = hasDate
+      ? [{ wch: 10 }, { wch: 16 }, { wch: 20 }, { wch: 20 }, { wch: 22 }]
+      : [{ wch: 10 }, { wch: 20 }, { wch: 20 }, { wch: 22 }];
+    XLSX.utils.book_append_sheet(wb, ws, "Trading Session Sales");
+    XLSX.writeFile(wb, `sales_by_trading_session_${tab}_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
   // Render table function
@@ -792,8 +813,8 @@ export default function SalesByTradingSessionPage() {
     if (!data || data.length === 0) {
       return (
         <tr>
-          <td colSpan={hasDate ? 4 : 3} style={{ textAlign: "center", padding: "40px" }}>
-            No records found
+          <td colSpan={hasDate ? 4 : 3} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
+            No Records Found
           </td>
         </tr>
       );
@@ -812,6 +833,7 @@ export default function SalesByTradingSessionPage() {
   // Switch tab
   const switchTab = (tab: string, btn: HTMLElement) => {
     setActiveTab(tab);
+    setHasSearched(false);
     setPageNumber(1);
 
     if (tab === "today") {
@@ -932,7 +954,7 @@ export default function SalesByTradingSessionPage() {
         year: yearData,
       };
       const tab = activeTab;
-      exportCSV(dataMap[tab] || [], tab);
+      exportToExcel(dataMap[tab] || [], tab);
     };
     document.addEventListener("click", exportHandler);
 
@@ -943,30 +965,6 @@ export default function SalesByTradingSessionPage() {
     };
     helpBtn?.addEventListener("click", onHelpClick);
 
-    // Step navigation
-    let currentStep = 4;
-    const totalSteps = 26;
-    const stepValue = document.getElementById("stepValue");
-    const prevBtn = document.getElementById("prevBtn");
-    const nextBtn = document.getElementById("nextBtn");
-
-    const onPrev = () => {
-      if (currentStep > 1) {
-        currentStep--;
-        if (stepValue) stepValue.textContent = `${currentStep}/${totalSteps}`;
-      }
-    };
-
-    const onNext = () => {
-      if (currentStep < totalSteps) {
-        currentStep++;
-        if (stepValue) stepValue.textContent = `${currentStep}/${totalSteps}`;
-      }
-    };
-
-    prevBtn?.addEventListener("click", onPrev);
-    nextBtn?.addEventListener("click", onNext);
-
     return () => {
       tabHandlers.forEach(([el, fn]) => el.removeEventListener("click", fn));
       daywiseBtn?.removeEventListener("click", onDaywiseClick);
@@ -974,8 +972,6 @@ export default function SalesByTradingSessionPage() {
       yearBtn?.removeEventListener("click", onYearClick);
       document.removeEventListener("click", exportHandler);
       helpBtn?.removeEventListener("click", onHelpClick);
-      prevBtn?.removeEventListener("click", onPrev);
-      nextBtn?.removeEventListener("click", onNext);
     };
   }, [todayData, weekData, daywiseData, monthData, yearData, activeTab]);
 
@@ -1018,6 +1014,10 @@ export default function SalesByTradingSessionPage() {
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
         rel="stylesheet"
       />
+      <Script
+        src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+        strategy="afterInteractive"
+      />
 
       <div className="app-container">
         <div className="main-content">
@@ -1055,7 +1055,7 @@ export default function SalesByTradingSessionPage() {
                   <input type="date" id="dw-date" className="filter-input" />
                 </div>
                 <button className="btn-getdata" id="dw-getdata">GETDATA</button>
-                <button className="btn-export">
+                <button className="btn-action btn-export">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="16"
@@ -1066,6 +1066,7 @@ export default function SalesByTradingSessionPage() {
                     strokeWidth="2.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                    style={{ width: "18px", height: "18px", marginRight: "6px" }}
                   >
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
@@ -1104,7 +1105,7 @@ export default function SalesByTradingSessionPage() {
                   <select id="m-year" className="filter-input"></select>
                 </div>
                 <button className="btn-getdata" id="m-getdata">GETDATA</button>
-                <button className="btn-export">
+                <button className="btn-action btn-export">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="16"
@@ -1115,6 +1116,7 @@ export default function SalesByTradingSessionPage() {
                     strokeWidth="2.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                    style={{ width: "18px", height: "18px", marginRight: "6px" }}
                   >
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
@@ -1133,7 +1135,7 @@ export default function SalesByTradingSessionPage() {
                   <select id="y-year" className="filter-input"></select>
                 </div>
                 <button className="btn-getdata" id="y-getdata">GETDATA</button>
-                <button className="btn-export">
+                <button className="btn-action btn-export">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="16"
@@ -1144,6 +1146,7 @@ export default function SalesByTradingSessionPage() {
                     strokeWidth="2.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                    style={{ width: "18px", height: "18px", marginRight: "6px" }}
                   >
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
@@ -1155,10 +1158,22 @@ export default function SalesByTradingSessionPage() {
             </div>
 
             {/* Results */}
-            <div id="resultsSection" style={{ display: "block", marginTop: "4px" }}>
+            <div
+              id="resultsSection"
+              className="results-section"
+              style={{
+                display:
+                  activeTab === "today" || activeTab === "week"
+                    ? "block"
+                    : hasSearched
+                    ? "block"
+                    : "none",
+                marginTop: "4px",
+              }}
+            >
               {/* Export top-right for Today & This Week */}
               <div id="exportTopRow" className="export-toprow" style={{ display: "flex" }}>
-                <button className="btn-export">
+                <button className="btn-action btn-export">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="16"
@@ -1169,6 +1184,7 @@ export default function SalesByTradingSessionPage() {
                     strokeWidth="2.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                    style={{ width: "18px", height: "18px", marginRight: "6px" }}
                   >
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
@@ -1184,14 +1200,9 @@ export default function SalesByTradingSessionPage() {
                 <div className="report-table-wrap">
                   {(() => {
                     const totalRecords = currentData.length;
-
-
-                    const [serverTotalPages] = useState(1);
-
                     const totalPages = Math.max(serverTotalPages, Math.ceil((totalRecords || 0) / pageSize) || 1);
                     const startIndex = (pageNumber - 1) * pageSize;
                     const paginatedRows = currentData.slice(startIndex, startIndex + pageSize);
-                    const endIndex = Math.min(startIndex + pageSize, totalRecords);
 
                     return (
                       <>
@@ -1209,32 +1220,15 @@ export default function SalesByTradingSessionPage() {
                           </tbody>
                         </table>
                         {currentData.length > 0 && !isLoading && (
-                          <div className="table-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '12px 16px', marginTop: '12px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span style={{ fontSize: '13px', color: '#64748b' }}>Show</span>
-                              <select
-                                value={pageSize}
-                                onChange={(e) => {
-                                  setPageSize(Number(e.target.value));
-                                  setPageNumber(1);
-                                }}
-                                style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                              >
-                                <option value={10}>10</option>
-                                <option value={20}>20</option>
-                                <option value={50}>50</option>
-                              </select>
-                              <span style={{ fontSize: '13px', color: '#64748b' }}>entries</span>
-                            </div>
-                            <div style={{ fontSize: '13px', color: '#64748b' }}>
-                              Showing {startIndex + 1} to {endIndex} of {totalRecords} entries
-                            </div>
-                            <ReportPagination
-                              currentPage={pageNumber}
-                              totalPages={totalPages}
-                              onPageChange={(page) => setPageNumber(page)}
-                            />
-                          </div>
+                          <ReportTableFooter
+                            currentPage={pageNumber}
+                            totalPages={totalPages}
+                            totalRecords={totalRecords}
+                            pageSize={pageSize}
+                            onPageChange={(page) => setPageNumber(page)}
+                            onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
+                            disabled={isLoading}
+                          />
                         )}
                       </>
                     );
@@ -1244,18 +1238,7 @@ export default function SalesByTradingSessionPage() {
             </div>
           </div>
 
-          <div className="step-footer">
-            <button className="btn-prev" id="prevBtn">
-              <i className="fas fa-chevron-left" /> PREVIOUS
-            </button>
-            <div className="step-indicator">
-              <span className="step-label">STEP</span>
-              <span className="step-value" id="stepValue">4/26</span>
-            </div>
-            <button className="btn-next" id="nextBtn">
-              NEXT <i className="fas fa-chevron-right" />
-            </button>
-          </div>
+          <ReportStepFooter currentStepOverride={4} totalStepsOverride={25} />
         </div>
       </div>
     </div>

@@ -171,12 +171,22 @@
     .data-table tbody tr:hover { background: #f8fafb; }
     .data-table tbody td { padding: 12px 14px; text-align: center; font-size: var(--text-table); color: var(--ink); white-space: nowrap; vertical-align: middle; }
     .data-table tbody td:first-child { text-align: left; }
-    .data-table tbody td.no-record-cell { text-align: center; color: var(--muted); font-size: var(--text-label); line-height: var(--lh-label); font-weight: var(--weight-semibold); padding: 40px 0; white-space: normal; }
+    .data-table tbody td.no-record-cell,
+    .data-table tbody td.report-no-records {
+      text-align: center !important;
+      font-size: 15px !important;
+      font-weight: 500 !important;
+      color: black !important;
+      padding: 40px 0;
+      white-space: normal;
+    }
 
     /* PAGINATION */
-    .table-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 16px 18px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+    .table-footer { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 16px 18px; border-top: 1px solid var(--line); flex-wrap: wrap; }
     .table-info { font-size: var(--text-helper); line-height: var(--lh-helper); color: var(--muted); }
     .pagination { display: flex; gap: 6px; align-items: center; }
-    .page-btn { min-width: 32px; width: auto; height: 32px; padding: 0 12px; white-space: nowrap; border-radius: 6px; border: 1.5px solid var(--teal); background: transparent; color: var(--teal); font-size: var(--text-helper); line-height: var(--lh-helper); font-weight: var(--weight-semibold); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: .15s; }
-    .page-btn.active, .page-btn:hover { background: var(--teal); color: #fff; }
+    .page-btn { min-width: 32px; width: auto; height: 32px; padding: 0 12px; white-space: nowrap; border-radius: 6px; border: 1px solid #f1f5f9; background: #fff; color: #94a3b8; font-size: var(--text-helper); line-height: var(--lh-helper); font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: .15s; user-select: none; }
+    .page-btn.active { background: #0d9488; border-color: #0d9488; color: #fff; font-weight: 600; }
+    .page-btn:hover:not(:disabled):not(.active) { background: #f8fafc; border-color: #e2e8f0; color: #64748b; }
+    .page-btn:disabled, .page-btn.disabled { opacity: 0.6; cursor: not-allowed; background: #fff; border-color: #f8fafc; color: #cbd5e1; pointer-events: none; }
 }

@@ -841,15 +841,24 @@
   .code-input-wrap .form-control {
     flex: 1;
     font-family: 'Courier New', monospace;
-  font-weight: var(--weight-regular);
+    font-weight: var(--weight-regular);
     letter-spacing: .1em;
     font-size: var(--text-input); line-height: var(--lh-input);
     background: var(--teal-tint);
     border: 1.5px solid var(--teal-light);
     border-radius: 8px;
     color: var(--teal-dark);
-  font-size: var(--text-button); line-height: var(--lh-button);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-button); line-height: var(--lh-button);
+    font-weight: var(--weight-semibold);
+  }
+  .btn-gen {
+    padding: 0 16px;
+    background: var(--teal);
+    border: 1.5px solid var(--teal-light);
+    border-radius: 8px;
+    color: #fff;
+    font-size: var(--text-button); line-height: var(--lh-button);
+    font-weight: var(--weight-semibold);
     cursor: pointer;
     white-space: nowrap;
     transition: .15s;

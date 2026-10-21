@@ -6,9 +6,20 @@ import {
   reportsService,
   type RefundRecord,
 } from "@/api/services/report.service";
-import ReportPagination from "@/components/shared/ReportPagination";
+import ReportTableFooter from "@/components/shared/ReportTableFooter";
+import ReportTableState from "@/components/shared/ReportTableState";
+import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
 import "./page.css";
+
+interface XlsxLike {
+  utils: {
+    book_new(): unknown;
+    aoa_to_sheet(data: unknown[][]): unknown;
+    book_append_sheet(wb: unknown, ws: unknown, name: string): void;
+  };
+  writeFile(wb: unknown, filename: string): void;
+}
 
 export default function RefundHistoryPage() {
   const shopId = useShopId();
@@ -32,6 +43,7 @@ export default function RefundHistoryPage() {
 
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
+  const [hasSearched, setHasSearched] = useState<boolean>(false);
 
   const fmtDate = (trans_date?: RefundRecord["trans_date"]): string => {
     if (!trans_date) return "";
@@ -45,6 +57,7 @@ export default function RefundHistoryPage() {
       setPageNumber(1);
       const res = await reportsService.getTodayRefunds(shopId, 1, pageSize);
       setRecords(res?.records || []);
+      setHasSearched(true);
     } catch (err) {
       console.error(err);
       setRecords([]);
@@ -59,6 +72,7 @@ export default function RefundHistoryPage() {
       setPageNumber(1);
       const res = await reportsService.getWeekRefunds(shopId, 1, pageSize);
       setRecords(res?.records || []);
+      setHasSearched(true);
     } catch (err) {
       console.error(err);
       setRecords([]);
@@ -79,6 +93,7 @@ export default function RefundHistoryPage() {
         pageSize
       );
       setRecords(res?.records || []);
+      setHasSearched(true);
     } catch (err) {
       console.error(err);
       setRecords([]);
@@ -93,6 +108,7 @@ export default function RefundHistoryPage() {
       setPageNumber(1);
       const res = await reportsService.getYearRefunds(shopId, selectedYear, 1, pageSize);
       setRecords(res?.records || []);
+      setHasSearched(true);
     } catch (err) {
       console.error(err);
       setRecords([]);
@@ -108,6 +124,7 @@ export default function RefundHistoryPage() {
       setPageNumber(1);
       const res = await reportsService.getCustomRefunds(shopId, fromDate, toDate, 1, pageSize);
       setRecords(res?.records || []);
+      setHasSearched(true);
     } catch (err) {
       console.error(err);
       setRecords([]);
@@ -125,11 +142,17 @@ export default function RefundHistoryPage() {
   const handleTabChange = (
     tab: "today" | "thisweek" | "monthwise" | "yearwise" | "custom"
   ) => {
+    if (activeTab === tab) return;
     setActiveTab(tab);
     setPageNumber(1);
-    if (tab === "today") loadToday();
-    else if (tab === "thisweek") loadWeek();
-    else setRecords([]);
+    setRecords([]);
+    if (tab === "today") {
+      loadToday();
+    } else if (tab === "thisweek") {
+      loadWeek();
+    } else {
+      setHasSearched(false);
+    }
   };
 
   const totalRecords = records.length;
@@ -142,6 +165,42 @@ export default function RefundHistoryPage() {
   const totalRefundAmount = records
     .reduce((sum, r) => sum + Number(r.refund_amount || 0), 0)
     .toFixed(2);
+
+  const exportToExcel = (): void => {
+    if (!records || records.length === 0) {
+      alert("No data available to export");
+      return;
+    }
+    const XLSX = (window as unknown as { XLSX?: XlsxLike }).XLSX;
+    if (!XLSX) return;
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    let tabLabel: string = activeTab;
+    if (activeTab === "monthwise") tabLabel = `Month_${monthNames[parseInt(selectedMonth) - 1]}_${selectedMonthYear}`;
+    else if (activeTab === "yearwise") tabLabel = `Year_${selectedYear}`;
+    else if (activeTab === "custom") tabLabel = `${fromDate}_to_${toDate}`;
+    const headers = ["Date", "Order ID", "Customer Name", "Mobile No", "Payment Method", "Order Type", "Refund Amount (Rs.)", "Reason"];
+    const wsData: unknown[][] = [
+      ["Refund History Report"],
+      [],
+      headers,
+      ...records.map((r) => [
+        fmtDate(r.trans_date),
+        r.order_id,
+        r.name,
+        r.mobile_no,
+        r.payment_method,
+        r.delivery_method_name,
+        parseFloat(Number(r.refund_amount || 0).toFixed(2)),
+        r.reason ?? "",
+      ]),
+      [],
+      ["", "", "", "", "", "", `Total: Rs.${totalRefundAmount}`, ""],
+    ];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    XLSX.utils.book_append_sheet(wb, ws, "Refund History");
+    XLSX.writeFile(wb, `refund_history_${tabLabel}_${new Date().toISOString().split("T")[0]}.xlsx`);
+  };
 
   return (
     <div id="pg-reports-refund-history">
@@ -157,37 +216,53 @@ export default function RefundHistoryPage() {
               <h1 className="typ-page-heading page-title">Refund History</h1>
             </div>
 
-            <div className="tabs-row">
-              <button
-                className={`tab-btn ${activeTab === "today" ? "active" : ""}`}
-                onClick={() => handleTabChange("today")}
-              >
-                Today
-              </button>
-              <button
-                className={`tab-btn ${activeTab === "thisweek" ? "active" : ""}`}
-                onClick={() => handleTabChange("thisweek")}
-              >
-                This Week
-              </button>
-              <button
-                className={`tab-btn ${activeTab === "monthwise" ? "active" : ""}`}
-                onClick={() => handleTabChange("monthwise")}
-              >
-                Month Wise
-              </button>
-              <button
-                className={`tab-btn ${activeTab === "yearwise" ? "active" : ""}`}
-                onClick={() => handleTabChange("yearwise")}
-              >
-                Year Wise
-              </button>
-              <button
-                className={`tab-btn ${activeTab === "custom" ? "active" : ""}`}
-                onClick={() => handleTabChange("custom")}
-              >
-                Custom
-              </button>
+            <div className="tabs-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "10px" }}>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <button
+                  className={`tab-btn ${activeTab === "today" ? "active" : ""}`}
+                  onClick={() => handleTabChange("today")}
+                >
+                  Today
+                </button>
+                <button
+                  className={`tab-btn ${activeTab === "thisweek" ? "active" : ""}`}
+                  onClick={() => handleTabChange("thisweek")}
+                >
+                  This Week
+                </button>
+                <button
+                  className={`tab-btn ${activeTab === "monthwise" ? "active" : ""}`}
+                  onClick={() => handleTabChange("monthwise")}
+                >
+                  Month Wise
+                </button>
+                <button
+                  className={`tab-btn ${activeTab === "yearwise" ? "active" : ""}`}
+                  onClick={() => handleTabChange("yearwise")}
+                >
+                  Year Wise
+                </button>
+                <button
+                  className={`tab-btn ${activeTab === "custom" ? "active" : ""}`}
+                  onClick={() => handleTabChange("custom")}
+                >
+                  Custom
+                </button>
+              </div>
+
+              {(activeTab === "today" || activeTab === "thisweek") && (
+                <button
+                  className="btn-action"
+                  onClick={exportToExcel}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  EXPORT TO EXCEL
+                </button>
+              )}
             </div>
 
             {activeTab === "monthwise" && (
@@ -226,7 +301,15 @@ export default function RefundHistoryPage() {
                   </select>
                 </div>
                 <button className="btn-get-data" onClick={loadMonth}>
-                  GETDATA
+                  GET DATA
+                </button>
+                <button className="btn-action" onClick={exportToExcel}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  EXPORT TO EXCEL
                 </button>
               </div>
             )}
@@ -247,7 +330,15 @@ export default function RefundHistoryPage() {
                   </select>
                 </div>
                 <button className="btn-get-data" onClick={loadYear}>
-                  GETDATA
+                  GET DATA
+                </button>
+                <button className="btn-action" onClick={exportToExcel}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  EXPORT TO EXCEL
                 </button>
               </div>
             )}
@@ -271,107 +362,101 @@ export default function RefundHistoryPage() {
                   />
                 </div>
                 <button className="btn-get-data" onClick={loadCustom}>
-                  GETDATA
+                  GET DATA
+                </button>
+                <button className="btn-action" onClick={exportToExcel}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  EXPORT TO EXCEL
                 </button>
               </div>
             )}
 
-            <div className="summary-stats" style={{ margin: "16px 0" }}>
-              <p className="stat-line">Total Refund = ₹{totalRefundAmount}</p>
-              <p className="stat-line">Total Order Count = {totalRecords}</p>
-            </div>
-
-            <div className="table-wrapper">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Order ID</th>
-                    <th>Customer Name</th>
-                    <th>Mobile No</th>
-                    <th>Payment Method</th>
-                    <th>Order Type</th>
-                    <th>Refund Amount</th>
-                    <th>Reason</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={8} style={{ textAlign: "center", padding: "20px" }}>
-                        Loading...
-                      </td>
-                    </tr>
-                  ) : paginatedRecords.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} style={{ textAlign: "center", padding: "20px" }}>
-                        No Record Found
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedRecords.map((r, idx) => (
-                      <tr key={idx}>
-                        <td>{fmtDate(r.trans_date)}</td>
-                        <td>
-                          <span className="order-pill">{r.order_id}</span>
-                        </td>
-                        <td>{r.name}</td>
-                        <td>{r.mobile_no}</td>
-                        <td>
-                          <span className="method-pill">{r.payment_method}</span>
-                        </td>
-                        <td>
-                          <span className="type-pill">{r.delivery_method_name}</span>
-                        </td>
-                        <td className="amount-cell">
-                          ₹{Number(r.refund_amount).toFixed(2)}
-                        </td>
-                        <td>{r.reason ?? ""}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div
-              style={{
-                marginTop: "16px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ fontSize: "14px", color: "#666" }}>Show</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setPageNumber(1);
-                  }}
-                  style={{
-                    padding: "4px 8px",
-                    borderRadius: "4px",
-                    border: "1px solid #ccc",
-                  }}
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
-                <span style={{ fontSize: "14px", color: "#666" }}>entries</span>
+            {(activeTab === "today" || activeTab === "thisweek" || hasSearched) && (
+              <div
+                className="results-section"
+                style={{ display: "block" }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", marginTop: "10px" }}>
+                  <div style={{ fontSize: "18px", fontWeight: 600, color: "#0aa89e" }}>Description</div>
+                </div>
+              <div className="summary-stats" style={{ margin: "16px 0" }}>
+                <div>
+                  <p className="stat-line">Total Refund = ₹{totalRefundAmount}</p>
+                  <p className="stat-line">Total Order Count = {totalRecords}</p>
+                </div>
               </div>
 
-              <ReportPagination
-                currentPage={pageNumber}
-                totalPages={totalPages}
-                totalRecords={totalRecords}
-                pageSize={pageSize}
-                onPageChange={(page) => setPageNumber(page)}
-              />
+              <ReportTableState loading={loading} hasData={paginatedRecords.length > 0} columns={8}>
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Order ID</th>
+                        <th>Customer Name</th>
+                        <th>Mobile No</th>
+                        <th>Payment Method</th>
+                        <th>Order Type</th>
+                        <th>Refund Amount</th>
+                        <th>Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loading ? (
+                        <tr>
+                          <td colSpan={8} style={{ textAlign: "center", padding: "40px" }}>
+                            Loading data...
+                          </td>
+                        </tr>
+                      ) : paginatedRecords.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
+                            No Records Found
+                          </td>
+                        </tr>
+                      ) : (
+                        paginatedRecords.map((r, idx) => (
+                          <tr key={idx}>
+                            <td>{fmtDate(r.trans_date)}</td>
+                            <td>
+                              <span className="order-pill">{r.order_id}</span>
+                            </td>
+                            <td>{r.name}</td>
+                            <td>{r.mobile_no}</td>
+                            <td>
+                              <span className="method-pill">{r.payment_method}</span>
+                            </td>
+                            <td>
+                              <span className="type-pill">{r.delivery_method_name}</span>
+                            </td>
+                            <td className="amount-cell">
+                              ₹{Number(r.refund_amount).toFixed(2)}
+                            </td>
+                            <td>{r.reason ?? ""}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <ReportTableFooter
+                  currentPage={pageNumber}
+                  totalPages={totalPages}
+                  totalRecords={totalRecords}
+                  pageSize={pageSize}
+                  onPageChange={(page) => setPageNumber(page)}
+                  onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
+                />
+              </ReportTableState>
             </div>
+            )}
           </div>
+
+          <ReportStepFooter currentStepOverride={15} totalStepsOverride={25} />
         </div>
       </div>
     </div>

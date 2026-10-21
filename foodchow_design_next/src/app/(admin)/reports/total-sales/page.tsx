@@ -4,10 +4,11 @@ import { useEffect, useState, useRef } from "react";
 import Script from "next/script";
 import {
   reportsService,
-  type SalesRecord as ApiSalesRecord,
-  type SalesSummary,
+  type TotalSalesDateWiseItem,
 } from "@/api/services/report.service";
-import ReportPagination from "@/components/shared/ReportPagination";
+import ReportTableFooter from "@/components/shared/ReportTableFooter";
+import ReportTableState from "@/components/shared/ReportTableState";
+import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
 import "./page.css";
 
@@ -34,7 +35,9 @@ export default function TotalSalesPage() {
   const [metrics, setMetrics] = useState({ salesAmount: "0.00", orderCount: 0, taxAmount: "0.00" });
   const [loading, setLoading] = useState<boolean>(false);
 
-  const [selectedMonth, setSelectedMonth] = useState("1");
+  const [selectedMonth, setSelectedMonth] = useState<string>(() =>
+    String(new Date().getMonth() + 1)
+  );
   const [selectedMonthYear, setSelectedMonthYear] = useState<string>(() =>
     String(new Date().getFullYear())
   );
@@ -48,6 +51,7 @@ export default function TotalSalesPage() {
   const [pageSize, setPageSize] = useState<number>(10);
   const [serverTotalRecords, setServerTotalRecords] = useState<number>(0);
   const [serverTotalPages, setServerTotalPages] = useState<number>(0);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const latestRequestRef = useState<{ current: number }>({ current: 0 })[0];
 
@@ -73,16 +77,16 @@ export default function TotalSalesPage() {
     return "";
   };
 
-  const mapRecords = (list: ApiSalesRecord[]): TableRow[] =>
+  const mapRecords = (list: (TotalSalesDateWiseItem | any)[]): TableRow[] =>
     list.map((item) => ({
       date: formatTransDate(item.trans_date),
-      id: item.pos_order_id || item.order_id,
-      orderId: item.order_id,
-      status: item.o_status,
-      name: item.name,
-      phone: item.mobile_no,
-      payment: item.payment_method,
-      type: item.delivery_method_name,
+      id: String(item.pos_order_id || item.order_id || ""),
+      orderId: String(item.order_id || ""),
+      status: item.o_status || item.order_status || "",
+      name: item.name || "",
+      phone: item.mobile_no || "",
+      payment: item.payment_method || "",
+      type: item.delivery_method_name || "",
       split: item.split_payment_method ?? "",
       amount: String(item.total_amount ?? item.full_amount ?? 0),
       tax: String(item.total_tax ?? item.tax_amount ?? 0),
@@ -90,89 +94,151 @@ export default function TotalSalesPage() {
       discount: String(item.discount ?? 0),
     }));
 
-  const summarize = (summary: SalesSummary[]) => ({
-    salesAmount: summary
-      .reduce((sum, x) => sum + Number(x.total_amount || 0), 0)
-      .toFixed(2),
-    taxAmount: summary
-      .reduce((sum, x) => sum + Number(x.tax_amount || 0), 0)
-      .toFixed(2),
-    orderCount: summary.length,
-  });
-
   const loadTodaySales = async () => {
+    if (!shopId) return;
+    const requestId = Date.now();
+    latestRequestRef.current = requestId;
     try {
       setLoading(true);
-      setPageNumber(1);
-      const [summary, list] = await Promise.all([
-        reportsService.getTodaySummary(shopId),
-        reportsService.getTodaySales(shopId, 0, 100),
-      ]);
-      setMetrics(summarize(summary));
-      setRecords(mapRecords(list));
+      const response = await reportsService.getTotalSalesByToday(shopId);
+      if (latestRequestRef.current !== requestId) return;
+
+      const items = response.items || [];
+      const formatted = mapRecords(items);
+      setRecords(formatted);
+      setServerTotalRecords(response.totalRecords);
+      setServerTotalPages(response.totalPages || (response.totalRecords > 0 ? Math.ceil(response.totalRecords / pageSize) : 0));
+
+      const salesTot = items.reduce((acc, item: any) => acc + Number(item.total_amount ?? item.full_amount ?? 0), 0);
+      const taxTot = items.reduce((acc, item: any) => acc + Number(item.total_tax ?? item.tax_amount ?? 0), 0);
+      setMetrics({
+        salesAmount: salesTot.toFixed(2),
+        orderCount: response.totalRecords || items.length,
+        taxAmount: taxTot.toFixed(2),
+      });
     } catch (err) {
+      if (latestRequestRef.current !== requestId) return;
       console.error(err);
       setRecords([]);
+      setServerTotalRecords(0);
+      setServerTotalPages(0);
+      setMetrics({ salesAmount: "0.00", orderCount: 0, taxAmount: "0.00" });
     } finally {
-      setLoading(false);
+      if (latestRequestRef.current === requestId) {
+        setLoading(false);
+      }
     }
   };
 
   const loadWeekSales = async () => {
+    if (!shopId) return;
+    const requestId = Date.now();
+    latestRequestRef.current = requestId;
     try {
       setLoading(true);
-      setPageNumber(1);
-      const [summary, list] = await Promise.all([
-        reportsService.getWeekSummary(shopId),
-        reportsService.getWeekSales(shopId, 0, 100),
-      ]);
-      setMetrics(summarize(summary));
-      setRecords(mapRecords(list));
+      const response = await reportsService.getTotalSalesByWeek(shopId);
+      if (latestRequestRef.current !== requestId) return;
+
+      const items = response.items || [];
+      const formatted = mapRecords(items);
+      setRecords(formatted);
+      setServerTotalRecords(response.totalRecords);
+      setServerTotalPages(response.totalPages || (response.totalRecords > 0 ? Math.ceil(response.totalRecords / pageSize) : 0));
+
+      const salesTot = items.reduce((acc, item: any) => acc + Number(item.total_amount ?? item.full_amount ?? 0), 0);
+      const taxTot = items.reduce((acc, item: any) => acc + Number(item.total_tax ?? item.tax_amount ?? 0), 0);
+      setMetrics({
+        salesAmount: salesTot.toFixed(2),
+        orderCount: response.totalRecords || items.length,
+        taxAmount: taxTot.toFixed(2),
+      });
     } catch (err) {
+      if (latestRequestRef.current !== requestId) return;
       console.error(err);
       setRecords([]);
+      setServerTotalRecords(0);
+      setServerTotalPages(0);
+      setMetrics({ salesAmount: "0.00", orderCount: 0, taxAmount: "0.00" });
     } finally {
-      setLoading(false);
+      if (latestRequestRef.current === requestId) {
+        setLoading(false);
+      }
     }
   };
 
   const loadMonthSales = async () => {
+    if (!shopId || !selectedMonth || !selectedMonthYear) return;
+    const requestId = Date.now();
+    latestRequestRef.current = requestId;
     try {
       setLoading(true);
-      setPageNumber(1);
-      const [summary, list] = await Promise.all([
-        reportsService.getMonthSummary(shopId, selectedMonth, selectedMonthYear),
-        reportsService.getMonthSales(shopId, selectedMonth, selectedMonthYear, 0, 100),
-      ]);
-      setMetrics(summarize(summary));
-      setRecords(mapRecords(list));
+      const response = await reportsService.getTotalSalesByMonth(shopId, selectedMonth, selectedMonthYear);
+      if (latestRequestRef.current !== requestId) return;
+
+      const items = response.items || [];
+      const formatted = mapRecords(items);
+      setRecords(formatted);
+      setServerTotalRecords(response.totalRecords);
+      setServerTotalPages(response.totalPages || (response.totalRecords > 0 ? Math.ceil(response.totalRecords / pageSize) : 0));
+
+      const salesTot = items.reduce((acc, item: any) => acc + Number(item.total_amount ?? item.full_amount ?? 0), 0);
+      const taxTot = items.reduce((acc, item: any) => acc + Number(item.total_tax ?? item.tax_amount ?? 0), 0);
+      setMetrics({
+        salesAmount: salesTot.toFixed(2),
+        orderCount: response.totalRecords || items.length,
+        taxAmount: taxTot.toFixed(2),
+      });
     } catch (err) {
+      if (latestRequestRef.current !== requestId) return;
       console.error(err);
       setRecords([]);
+      setServerTotalRecords(0);
+      setServerTotalPages(0);
+      setMetrics({ salesAmount: "0.00", orderCount: 0, taxAmount: "0.00" });
     } finally {
-      setLoading(false);
+      if (latestRequestRef.current === requestId) {
+        setLoading(false);
+      }
     }
   };
 
-  const loadYearSales = async () => {
+  const loadYearSales = async (targetPage = pageNumber, targetSize = pageSize) => {
+    if (!shopId || !selectedYear) return;
+    const requestId = Date.now();
+    latestRequestRef.current = requestId;
     try {
       setLoading(true);
-      setPageNumber(1);
-      const [summary, list] = await Promise.all([
-        reportsService.getYearSummary(shopId, selectedYear),
-        reportsService.getYearSales(shopId, selectedYear, 0, 100),
-      ]);
-      setMetrics(summarize(summary));
-      setRecords(mapRecords(list));
+      const response = await reportsService.getTotalSalesByYear(shopId, selectedYear, targetPage, targetSize);
+      if (latestRequestRef.current !== requestId) return;
+
+      const items = response.items || [];
+      const formatted = mapRecords(items);
+      setRecords(formatted);
+      setServerTotalRecords(response.totalRecords);
+      setServerTotalPages(response.totalPages || (response.totalRecords > 0 ? Math.ceil(response.totalRecords / targetSize) : 0));
+
+      const salesTot = items.reduce((acc, item: any) => acc + Number(item.total_amount ?? item.full_amount ?? 0), 0);
+      const taxTot = items.reduce((acc, item: any) => acc + Number(item.total_tax ?? item.tax_amount ?? 0), 0);
+      setMetrics({
+        salesAmount: salesTot.toFixed(2),
+        orderCount: response.totalRecords || items.length,
+        taxAmount: taxTot.toFixed(2),
+      });
     } catch (err) {
+      if (latestRequestRef.current !== requestId) return;
       console.error(err);
       setRecords([]);
+      setServerTotalRecords(0);
+      setServerTotalPages(0);
+      setMetrics({ salesAmount: "0.00", orderCount: 0, taxAmount: "0.00" });
     } finally {
-      setLoading(false);
+      if (latestRequestRef.current === requestId) {
+        setLoading(false);
+      }
     }
   };
 
-  const loadCustomSales = async (targetPage = pageNumber, targetSize = pageSize) => {
+  const loadCustomSales = async () => {
     if (!customFrom || !customTo || !shopId) return;
     const requestId = Date.now();
     latestRequestRef.current = requestId;
@@ -181,40 +247,24 @@ export default function TotalSalesPage() {
       const response = await reportsService.getTotalSalesByDateWise(
         shopId,
         customFrom,
-        customTo,
-        targetPage,
-        targetSize
+        customTo
       );
 
       if (latestRequestRef.current !== requestId) return;
 
       const items = response.items || [];
-      const formattedRows: TableRow[] = items.map((item) => ({
-        date: formatTransDate(item.trans_date),
-        id: item.pos_order_id || item.order_id || "",
-        orderId: item.order_id || "",
-        status: item.order_status || item.o_status || "",
-        name: item.name || "",
-        phone: item.mobile_no || "",
-        payment: item.payment_method || "",
-        type: item.delivery_method_name || "",
-        split: item.split_payment_method || item.split_payment || "",
-        amount: String(item.total_amount ?? item.full_amount ?? 0),
-        tax: String(item.total_tax ?? 0),
-        charge: String(item.charges ?? 0),
-        discount: String(item.discount ?? 0),
-      }));
+      const formattedRows: TableRow[] = mapRecords(items);
 
       setRecords(formattedRows);
       setServerTotalRecords(response.totalRecords);
-      setServerTotalPages(response.totalPages);
+      setServerTotalPages(response.totalPages || (response.totalRecords > 0 ? Math.ceil(response.totalRecords / pageSize) : 0));
 
       const salesTot = items.reduce(
-        (acc, item) => acc + Number(item.total_amount ?? item.full_amount ?? 0),
+        (acc, item: any) => acc + Number(item.total_amount ?? item.full_amount ?? 0),
         0
       );
       const taxTot = items.reduce(
-        (acc, item) => acc + Number(item.total_tax || 0),
+        (acc, item: any) => acc + Number(item.total_tax ?? item.tax_amount ?? 0),
         0
       );
       setMetrics({
@@ -236,12 +286,98 @@ export default function TotalSalesPage() {
     }
   };
 
+  const exportToExcel = async () => {
+    if (!records || records.length === 0) {
+      alert("No data available to export");
+      return;
+    }
+
+    const XLSX = (window as any).XLSX;
+    if (!XLSX) {
+      return;
+    }
+
+    const headers = [
+      "Date",
+      "Order ID",
+      "Status",
+      "Customer Name",
+      "Mobile No",
+      "Payment Method",
+      "Order Type",
+      "Split Payment",
+      "Total Amount (Rs.)",
+      "Total Tax (Rs.)",
+      "Total Charge (Rs.)",
+      "Total Discount (Rs.)"
+    ];
+
+    const rows = records.map((r) => [
+      r.date || "-",
+      r.orderId || r.id || "-",
+      r.status || "-",
+      r.name || "-",
+      r.phone || "-",
+      r.payment || "-",
+      r.type || "-",
+      r.split || "-",
+      parseFloat(r.amount || "0") || 0,
+      parseFloat(r.tax || "0") || 0,
+      parseFloat(r.charge || "0") || 0,
+      parseFloat(r.discount || "0") || 0,
+    ]);
+
+    const reportTitle = `Total Sales Report — ${activeTab.toUpperCase()}`;
+    const wsData: any[][] = [
+      [reportTitle],
+      [`Exported On: ${new Date().toLocaleString()}`],
+      [],
+      headers,
+      ...rows,
+      [],
+      [
+        "Total",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        parseFloat(metrics.salesAmount || "0") || 0,
+        parseFloat(metrics.taxAmount || "0") || 0,
+        "",
+        ""
+      ]
+    ];
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!cols"] = [
+      { wch: 20 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 22 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 16 }
+    ];
+
+    const fileName = `total_sales_${activeTab}_${new Date().toISOString().split("T")[0]}.xlsx`;
+    XLSX.utils.book_append_sheet(wb, ws, "Total Sales");
+    XLSX.writeFile(wb, fileName);
+  };
+
   const lastFetched = useRef<{ tab: string; shopId: number | null }>({ tab: "", shopId: null });
 
   useEffect(() => {
     if (!shopId) return;
 
-    // Prevent duplicate calls from React Strict Mode in development
     if (lastFetched.current.tab === activeTab && lastFetched.current.shopId === shopId) {
       return;
     }
@@ -257,34 +393,60 @@ export default function TotalSalesPage() {
   const handleTabChange = (
     tab: "today" | "this-week" | "month-wise" | "year-wise" | "custom"
   ) => {
-    if (activeTab === tab) return; // Prevent clicking the same tab twice
+    if (activeTab === tab) return;
     setActiveTab(tab);
     setPageNumber(1);
     setRecords([]);
+    setServerTotalRecords(0);
+    setServerTotalPages(0);
     setMetrics({ salesAmount: "0.00", orderCount: 0, taxAmount: "0.00" });
+
+    if (tab === "today") {
+      setHasSearched(true);
+      loadTodaySales();
+    } else if (tab === "this-week") {
+      setHasSearched(true);
+      loadWeekSales();
+    } else {
+      setHasSearched(false);
+    }
   };
 
   const handlePageChange = (newPage: number) => {
     setPageNumber(newPage);
-    if (activeTab === "custom") {
-      loadCustomSales(newPage, pageSize);
+    if (activeTab === "today") {
+      loadTodaySales();
+    } else if (activeTab === "this-week") {
+      loadWeekSales();
+    } else if (activeTab === "month-wise") {
+      loadMonthSales();
+    } else if (activeTab === "year-wise") {
+      loadYearSales(newPage, pageSize);
+    } else if (activeTab === "custom") {
+      loadCustomSales();
     }
   };
 
   const handlePageSizeChange = (newSize: number) => {
     setPageSize(newSize);
     setPageNumber(1);
-    if (activeTab === "custom") {
-      loadCustomSales(1, newSize);
+    if (activeTab === "today") {
+      loadTodaySales();
+    } else if (activeTab === "this-week") {
+      loadWeekSales();
+    } else if (activeTab === "month-wise") {
+      loadMonthSales();
+    } else if (activeTab === "year-wise") {
+      loadYearSales(1, newSize);
+    } else if (activeTab === "custom") {
+      loadCustomSales();
     }
   };
 
-  const totalRecords = activeTab === "custom" ? serverTotalRecords : records.length;
-  const totalPages = activeTab === "custom" ? serverTotalPages : Math.ceil(records.length / pageSize);
-  const paginatedRecords = activeTab === "custom" ? records : records.slice(
-    (pageNumber - 1) * pageSize,
-    pageNumber * pageSize
-  );
+  const totalRecords = serverTotalRecords;
+  const totalPages = serverTotalPages;
+  const paginatedRecords = records;
+  const shouldShowResults = activeTab === "today" || activeTab === "this-week" || hasSearched;
 
   return (
     <div id="pg-reports-total-sales">
@@ -331,18 +493,23 @@ export default function TotalSalesPage() {
                 </button>
               </div>
 
-              <div style={{ display: "flex", gap: "10px" }}>
-                <button id="default-export-btn" className="btn-action-teal btn-export-excel">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13" />
+              {(activeTab === "today" || activeTab === "this-week") && (
+                <button
+                  className="btn-action"
+                  onClick={exportToExcel}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
-                  &nbsp;EXPORT TO EXCEL
+                  EXPORT TO EXCEL
                 </button>
-              </div>
+              )}
             </div>
 
             {activeTab === "month-wise" && (
-              <div className="sub-filter-panel" style={{ display: "flex" }}>
+              <div className="sub-filter-panel" style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
                 <div className="input-group">
                   <label>Select Month :</label>
                   <select
@@ -378,14 +545,32 @@ export default function TotalSalesPage() {
                     ))}
                   </select>
                 </div>
-                <button className="btn-action-teal" onClick={loadMonthSales}>
+                <button
+                  className="btn-action-teal"
+                  onClick={() => {
+                    setHasSearched(true);
+                    setPageNumber(1);
+                    loadMonthSales();
+                  }}
+                >
                   GET DATA
+                </button>
+                <button
+                  className="btn-action"
+                  onClick={exportToExcel}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  EXPORT TO EXCEL
                 </button>
               </div>
             )}
 
             {activeTab === "year-wise" && (
-              <div className="sub-filter-panel" style={{ display: "flex" }}>
+              <div className="sub-filter-panel" style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
                 <div className="input-group">
                   <label>Select Year :</label>
                   <select
@@ -400,14 +585,32 @@ export default function TotalSalesPage() {
                     ))}
                   </select>
                 </div>
-                <button className="btn-action-teal" onClick={loadYearSales}>
+                <button
+                  className="btn-action-teal"
+                  onClick={() => {
+                    setHasSearched(true);
+                    setPageNumber(1);
+                    loadYearSales(1, pageSize);
+                  }}
+                >
                   GET DATA
+                </button>
+                <button
+                  className="btn-action"
+                  onClick={exportToExcel}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  EXPORT TO EXCEL
                 </button>
               </div>
             )}
 
             {activeTab === "custom" && (
-              <div className="sub-filter-panel" style={{ display: "flex" }}>
+              <div className="sub-filter-panel" style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
                 <div className="input-group">
                   <label>From</label>
                   <input
@@ -426,97 +629,124 @@ export default function TotalSalesPage() {
                     onChange={(e) => setCustomTo(e.target.value)}
                   />
                 </div>
-                <button className="btn-action-teal" onClick={() => { setPageNumber(1); loadCustomSales(1, pageSize); }}>
+                <button
+                  className="btn-action-teal"
+                  onClick={() => {
+                    setHasSearched(true);
+                    setPageNumber(1);
+                    loadCustomSales();
+                  }}
+                >
                   GET DATA
+                </button>
+                <button
+                  className="btn-action"
+                  onClick={exportToExcel}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  EXPORT TO EXCEL
                 </button>
               </div>
             )}
 
-            <div id="metrics-container" className="metrics-grid">
-              <div className="metric-card">
-                <div className="metric-icon"><i className="fas fa-chart-line" /></div>
-                <div className="metric-info"><h4>Total Sales</h4><p>Rs. {metrics.salesAmount}</p></div>
-              </div>
-              <div className="metric-card">
-                <div className="metric-icon"><i className="fas fa-shopping-cart" /></div>
-                <div className="metric-info"><h4>Total Order Count</h4><p>{metrics.orderCount}</p></div>
-              </div>
-              <div className="metric-card">
-                <div className="metric-icon"><i className="fas fa-file-invoice-dollar" /></div>
-                <div className="metric-info"><h4>Total Tax Amount</h4><p>Rs. {metrics.taxAmount}</p></div>
-              </div>
-            </div>
+            {shouldShowResults && (
+              <>
+                <div id="metrics-container" className="metrics-grid">
+                  <div className="metric-card">
+                    <div className="metric-icon"><i className="fas fa-chart-line" /></div>
+                    <div className="metric-info"><h4>Total Sales</h4><p>Rs. {metrics.salesAmount}</p></div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-icon"><i className="fas fa-shopping-cart" /></div>
+                    <div className="metric-info"><h4>Total Order Count</h4><p>{metrics.orderCount}</p></div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-icon"><i className="fas fa-file-invoice-dollar" /></div>
+                    <div className="metric-info"><h4>Total Tax Amount</h4><p>Rs. {metrics.taxAmount}</p></div>
+                  </div>
+                </div>
 
-            <h3 style={{ fontSize: "17px", color: "var(--text-dark)", margin: "18px 0", fontFamily: "'Poppins', sans-serif", fontWeight: 700 }}>
-              Description
-            </h3>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "18px 0" }}>
+                  <h3 style={{ fontSize: "17px", color: "#0aa89e", margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700 }}>
+                    Description
+                  </h3>
+                </div>
 
-            <div className="table-wrapper">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Order ID</th>
-                    <th>Status</th>
-                    <th>Customer Name</th>
-                    <th>Mobile No</th>
-                    <th>Payment Method</th>
-                    <th>Order Type</th>
-                    <th>Split Payment</th>
-                    <th>Total Amount (Rs.)</th>
-                    <th>Total tax (Rs.)</th>
-                    <th>Total Charge (Rs.)</th>
-                    <th>Total Discount (Rs.)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={12} style={{ textAlign: "center", padding: "32px" }}>
-                        Loading...
-                      </td>
-                    </tr>
-                  ) : paginatedRecords.length === 0 ? (
-                    <tr>
-                      <td colSpan={12} style={{ textAlign: "center", padding: "32px" }}>
-                        No records found
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedRecords.map((r, idx) => (
-                      <tr key={idx}>
-                        <td>{r.date}</td>
-                        <td>{r.id}</td>
-                        <td>{r.status}</td>
-                        <td>{r.name}</td>
-                        <td>{r.phone}</td>
-                        <td>{r.payment}</td>
-                        <td>{r.type}</td>
-                        <td>{r.split}</td>
-                        <td>{r.amount}</td>
-                        <td>{r.tax}</td>
-                        <td>{r.charge}</td>
-                        <td>{r.discount}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                <ReportTableState loading={loading} hasData={paginatedRecords.length > 0} columns={12}>
+                  <div className="table-wrapper">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Order ID</th>
+                          <th>Status</th>
+                          <th>Customer Name</th>
+                          <th>Mobile No</th>
+                          <th>Payment Method</th>
+                          <th>Order Type</th>
+                          <th>Split Payment</th>
+                          <th>Total Amount (Rs.)</th>
+                          <th>Total tax (Rs.)</th>
+                          <th>Total Charge (Rs.)</th>
+                          <th>Total Discount (Rs.)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {loading ? (
+                          <tr>
+                            <td colSpan={12} style={{ textAlign: "center", padding: "40px" }}>
+                              Loading data...
+                            </td>
+                          </tr>
+                        ) : paginatedRecords.length === 0 ? (
+                          <tr>
+                            <td colSpan={12} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
+                              No Records Found
+                            </td>
+                          </tr>
+                        ) : (
+                          paginatedRecords.map((r, idx) => (
+                            <tr key={idx}>
+                              <td>{r.date}</td>
+                              <td>{r.id}</td>
+                              <td>{r.status}</td>
+                              <td>{r.name}</td>
+                              <td>{r.phone}</td>
+                              <td>{r.payment}</td>
+                              <td>{r.type}</td>
+                              <td>{r.split}</td>
+                              <td>{r.amount}</td>
+                              <td>{r.tax}</td>
+                              <td>{r.charge}</td>
+                              <td>{r.discount}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
 
-            <div style={{ width: "100%" }}>
-              <ReportPagination
-                currentPage={pageNumber}
-                totalPages={totalPages}
-                totalRecords={totalRecords}
-                pageSize={pageSize}
-                onPageSizeChange={(size) => handlePageSizeChange(size)}
-                onPageChange={(page) => handlePageChange(page)}
-              />
-            </div>
+                  <ReportTableFooter
+                    currentPage={pageNumber}
+                    totalPages={totalPages}
+                    totalRecords={totalRecords}
+                    pageSize={pageSize}
+                    onPageChange={(page) => handlePageChange(page)}
+                    onPageSizeChange={(size) => handlePageSizeChange(size)}
+                    disabled={loading}
+                  />
+                </ReportTableState>
+              </>
+            )}
           </div>
+          <ReportStepFooter currentStepOverride={1} totalStepsOverride={25} />
         </main>
       </div>
     </div>
   );
 }
+

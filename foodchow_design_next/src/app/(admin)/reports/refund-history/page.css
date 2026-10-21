@@ -593,10 +593,11 @@
 
   /* ===== NO RECORD ===== */
   .no-record {
-  font-size: var(--text-label); line-height: var(--lh-label);
-  font-weight: var(--weight-semibold);
-    color: #888;
+    font-size: 15px !important;
+    font-weight: 500 !important;
+    color: black !important;
     padding: 32px 0 8px;
+    text-align: center;
   }
 
   /* ===== MODAL ===== */

@@ -29,14 +29,24 @@ export default function RealTimeOfferPage() {
               </p>
 
               <div className="store-buttons">
-                <a href="#" className="store-btn">
+                <a
+                  href="https://play.google.com/store/apps/details?id=com.tenacioustechies.foodchow.rms&hl=en"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="store-btn"
+                >
                   <i className="fab fa-google-play" />
                   <div className="store-btn-text">
                     <span className="small">GET IT ON</span>
                     <span className="large">Google Play</span>
                   </div>
                 </a>
-                <a href="#" className="store-btn">
+                <a
+                  href="https://apps.apple.com/in/app/foodchow-restaurant-management/id1625054139"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="store-btn"
+                >
                   <i className="fab fa-apple" />
                   <div className="store-btn-text">
                     <span className="small">Download on the</span>

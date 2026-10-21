@@ -460,7 +460,7 @@
 //                         EXPORT TO EXCEL
 //                       </button>
 //                     </div>
-//                     <div className="table-card">
+//                     {getActiveLoading() ? (<p className="no-record" style={{ textAlign: "center", padding: "40px" }}>Loading data...</p>) : displayedRecords.length === 0 ? (<p className="no-record" style={{ textAlign: "center", padding: "40px" }}>No Record Found</p>) : (<div className="table-card">
 //                       <div className="table-card-header">
 //                         <span>Top Selling Items</span>
 //                       </div>
@@ -539,7 +539,7 @@
 //                         EXPORT TO EXCEL
 //                       </button>
 //                     </div>
-//                     <div className="table-card">
+//                     {getActiveLoading() ? (<p className="no-record" style={{ textAlign: "center", padding: "40px" }}>Loading data...</p>) : displayedRecords.length === 0 ? (<p className="no-record" style={{ textAlign: "center", padding: "40px" }}>No Record Found</p>) : (<div className="table-card">
 //                       <div className="table-card-header">
 //                         <span>Top Selling Items</span>
 //                       </div>
@@ -657,15 +657,15 @@
 //   );
 // }
 
-
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Script from "next/script";
 import "./page.css";
 import { reportsService, TopSellingItem } from "@/api/services/report.service";
-import ReportPagination from "@/components/shared/ReportPagination";
-import { useShopId } from "@/utils/shop";
+import ReportTableFooter from "@/components/shared/ReportTableFooter";
+import ReportStepFooter from "@/components/shared/ReportStepFooter";
+import { useShopId, getShopId } from "@/utils/shop";
 
 interface XlsxWorkSheet {
   "!cols"?: Array<{ wch: number }>;
@@ -696,7 +696,7 @@ interface DisplayItem {
 
 export default function TopSellingItemsPage() {
   const shopId = useShopId();
-  const lastFetchParamsRef = useRef<string>("");
+  const activeShopId = shopId || getShopId() || 0;
 
   // State for each tab's data
   const [todayData, setTodayData] = useState<DisplayItem[]>([]);
@@ -704,6 +704,11 @@ export default function TopSellingItemsPage() {
   const [daywiseData, setDaywiseData] = useState<DisplayItem[]>([]);
   const [monthData, setMonthData] = useState<DisplayItem[]>([]);
   const [yearData, setYearData] = useState<DisplayItem[]>([]);
+
+  // Track if GET DATA has been clicked for filter tabs
+  const [hasSearchedDaywise, setHasSearchedDaywise] = useState(false);
+  const [hasSearchedMonth, setHasSearchedMonth] = useState(false);
+  const [hasSearchedYear, setHasSearchedYear] = useState(false);
 
   // Server-side pagination state for Today, Daywise & Week
   const [todayTotalRecords, setTodayTotalRecords] = useState<number>(0);
@@ -731,8 +736,8 @@ export default function TopSellingItemsPage() {
   const [errorYear, setErrorYear] = useState<string | null>(null);
 
   // Loading states
-  const [loadingToday, setLoadingToday] = useState(true);
-  const [loadingWeek, setLoadingWeek] = useState(true);
+  const [loadingToday, setLoadingToday] = useState(false);
+  const [loadingWeek, setLoadingWeek] = useState(false);
   const [loadingDaywise, setLoadingDaywise] = useState(false);
   const [loadingMonth, setLoadingMonth] = useState(false);
   const [loadingYear, setLoadingYear] = useState(false);
@@ -742,64 +747,8 @@ export default function TopSellingItemsPage() {
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const getActiveData = (): DisplayItem[] => {
-    switch (activeTab) {
-      case "today": return todayData;
-      case "daywise": return daywiseData;
-      case "week": return weekData;
-      case "month": return monthData;
-      case "year": return yearData;
-      default: return todayData;
-    }
-  };
-
-  const getActiveLoading = (): boolean => {
-    switch (activeTab) {
-      case "today": return loadingToday;
-      case "daywise": return loadingDaywise;
-      case "week": return loadingWeek;
-      case "month": return loadingMonth;
-      case "year": return loadingYear;
-      default: return false;
-    }
-  };
-
-  const activeRecords = getActiveData();
-  const totalRecords = activeTab === "today"
-    ? todayTotalRecords
-    : activeTab === "daywise"
-      ? daywiseTotalRecords
-      : activeTab === "week"
-        ? weekTotalRecords
-        : activeTab === "month"
-          ? monthTotalRecords
-          : activeTab === "year"
-            ? yearTotalRecords
-            : activeRecords.length;
-
-  const totalPages = activeTab === "today"
-    ? todayTotalPages
-    : activeTab === "daywise"
-      ? daywiseTotalPages
-      : activeTab === "week"
-        ? weekTotalPages
-        : activeTab === "month"
-          ? monthTotalPages
-          : activeTab === "year"
-            ? yearTotalPages
-            : Math.max(1, Math.ceil(activeRecords.length / pageSize));
-
-  const displayedRecords = activeTab === "today"
-    ? todayData
-    : activeTab === "daywise"
-      ? daywiseData
-      : activeTab === "week"
-        ? weekData
-        : activeTab === "month"
-          ? monthData
-          : activeTab === "year"
-            ? yearData
-            : activeRecords.slice((pageNumber - 1) * pageSize, pageNumber * pageSize);
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 10 }, (_, i) => String(currentYear - i));
 
   // Helper to format date
   const formatDate = (transDate: any): string => {
@@ -837,271 +786,144 @@ export default function TopSellingItemsPage() {
     }));
   };
 
-  // Fetch Today's Top Selling Items from server with pagination & deduplication
-  useEffect(() => {
-    if (activeTab !== "today") return;
-
-    const currentKey = `${shopId}-${pageNumber}-${pageSize}-today`;
-    if (lastFetchParamsRef.current === currentKey) {
-      return;
+  // Fetch Today's Top Selling Items
+  const fetchTodayData = useCallback(async (page: number = pageNumber, size: number = pageSize) => {
+    if (!activeShopId) return;
+    setLoadingToday(true);
+    setErrorToday(null);
+    try {
+      const res = await reportsService.getTodayTopSellingItems(activeShopId, page, size);
+      setTodayData(transformData(res?.items || []));
+      setTodayTotalRecords(res?.totalRecords || 0);
+      setTodayTotalPages(res?.totalPages || 1);
+    } catch (err) {
+      console.error("Error fetching today's top selling items:", err);
+      setErrorToday("Failed to fetch top selling items.");
+      setTodayData([]);
+      setTodayTotalRecords(0);
+      setTodayTotalPages(1);
+    } finally {
+      setLoadingToday(false);
     }
-    lastFetchParamsRef.current = currentKey;
+  }, [activeShopId, pageNumber, pageSize]);
 
-    let isSubscribed = true;
-
-    const fetchTodayData = async () => {
-      try {
-        setLoadingToday(true);
-        setErrorToday(null);
-        const res = await reportsService.getTodayTopSellingItems(
-          shopId,
-          pageNumber,
-          pageSize
-        );
-
-        if (isSubscribed) {
-          setTodayData(transformData(res.items));
-          setTodayTotalRecords(res.totalRecords);
-          setTodayTotalPages(res.totalPages || 1);
-        }
-      } catch (err) {
-        if (isSubscribed) {
-          console.error("Error fetching today's top selling items:", err);
-          setErrorToday("Failed to fetch top selling items.");
-          setTodayData([]);
-          setTodayTotalRecords(0);
-          setTodayTotalPages(1);
-        }
-      } finally {
-        if (isSubscribed) {
-          setLoadingToday(false);
-        }
-      }
-    };
-
-    fetchTodayData();
-
-    return () => {
-      isSubscribed = false;
-    };
-  }, [shopId, pageNumber, pageSize, activeTab]);
-
-  // Fetch Daywise Top Selling Items from server with pagination & deduplication
-  useEffect(() => {
-    if (activeTab !== "daywise") return;
-    if (!selectedDate) return;
-
-    const currentKey = `${shopId}-${selectedDate}-${pageNumber}-${pageSize}-daywise`;
-    if (lastFetchParamsRef.current === currentKey) {
-      return;
+  // Fetch Daywise Top Selling Items
+  const fetchDaywiseData = useCallback(async (date: string = selectedDate, page: number = 1, size: number = pageSize) => {
+    if (!activeShopId || !date) return;
+    setLoadingDaywise(true);
+    setErrorDaywise(null);
+    try {
+      const res = await reportsService.getDayWiseTopSellingItems(activeShopId, date, page, size);
+      setDaywiseData(transformData(res?.items || []));
+      setDaywiseTotalRecords(res?.totalRecords || 0);
+      setDaywiseTotalPages(res?.totalPages || 1);
+    } catch (err) {
+      console.error("Error fetching daywise top selling items:", err);
+      setErrorDaywise("Failed to fetch daywise top selling items.");
+      setDaywiseData([]);
+      setDaywiseTotalRecords(0);
+      setDaywiseTotalPages(1);
+    } finally {
+      setLoadingDaywise(false);
     }
-    lastFetchParamsRef.current = currentKey;
+  }, [activeShopId, selectedDate, pageSize]);
 
-    let isSubscribed = true;
-
-    const fetchDaywiseData = async () => {
-      try {
-        setLoadingDaywise(true);
-        setErrorDaywise(null);
-        const res = await reportsService.getDayWiseTopSellingItems(
-          shopId,
-          selectedDate,
-          pageNumber,
-          pageSize
-        );
-
-        if (isSubscribed) {
-          setDaywiseData(transformData(res.items));
-          setDaywiseTotalRecords(res.totalRecords);
-          setDaywiseTotalPages(res.totalPages || 1);
-        }
-      } catch (err) {
-        if (isSubscribed) {
-          console.error("Error fetching daywise top selling items:", err);
-          setErrorDaywise("Failed to fetch daywise top selling items.");
-          setDaywiseData([]);
-          setDaywiseTotalRecords(0);
-          setDaywiseTotalPages(1);
-        }
-      } finally {
-        if (isSubscribed) {
-          setLoadingDaywise(false);
-        }
-      }
-    };
-
-    fetchDaywiseData();
-
-    return () => {
-      isSubscribed = false;
-    };
-  }, [shopId, selectedDate, pageNumber, pageSize, activeTab]);
-
-  // Fetch Week Top Selling Items from server with pagination & deduplication
-  useEffect(() => {
-    if (activeTab !== "week") return;
-
-    const currentKey = `${shopId}-${pageNumber}-${pageSize}-week`;
-    if (lastFetchParamsRef.current === currentKey) {
-      return;
+  // Fetch Week Top Selling Items
+  const fetchWeekData = useCallback(async (page: number = pageNumber, size: number = pageSize) => {
+    if (!activeShopId) return;
+    setLoadingWeek(true);
+    setErrorWeek(null);
+    try {
+      const res = await reportsService.getWeekTopSellingItems(activeShopId, page, size);
+      setWeekData(transformData(res?.items || []));
+      setWeekTotalRecords(res?.totalRecords || 0);
+      setWeekTotalPages(res?.totalPages || 1);
+    } catch (err) {
+      console.error("Error fetching week's top selling items:", err);
+      setErrorWeek("Failed to fetch week's top selling items.");
+      setWeekData([]);
+      setWeekTotalRecords(0);
+      setWeekTotalPages(1);
+    } finally {
+      setLoadingWeek(false);
     }
-    lastFetchParamsRef.current = currentKey;
+  }, [activeShopId, pageNumber, pageSize]);
 
-    let isSubscribed = true;
-
-    const fetchWeekData = async () => {
-      try {
-        setLoadingWeek(true);
-        setErrorWeek(null);
-        const res = await reportsService.getWeekTopSellingItems(
-          shopId,
-          pageNumber,
-          pageSize
-        );
-
-        if (isSubscribed) {
-          setWeekData(transformData(res.items));
-          setWeekTotalRecords(res.totalRecords);
-          setWeekTotalPages(res.totalPages || 1);
-        }
-      } catch (err) {
-        if (isSubscribed) {
-          console.error("Error fetching week's top selling items:", err);
-          setErrorWeek("Failed to fetch week's top selling items.");
-          setWeekData([]);
-          setWeekTotalRecords(0);
-          setWeekTotalPages(1);
-        }
-      } finally {
-        if (isSubscribed) {
-          setLoadingWeek(false);
-        }
-      }
-    };
-
-    fetchWeekData();
-
-    return () => {
-      isSubscribed = false;
-    };
-  }, [shopId, pageNumber, pageSize, activeTab]);
-
-  // Fetch Month Top Selling Items from server with pagination & deduplication
-  useEffect(() => {
-    if (activeTab !== "month") return;
-    if (!selectedMonth || !selectedMonthYear) return;
-
-    const currentKey = `${shopId}-${selectedMonth}-${selectedMonthYear}-${pageNumber}-${pageSize}-month`;
-    if (lastFetchParamsRef.current === currentKey) {
-      return;
+  // Fetch Month Top Selling Items
+  const fetchMonthData = useCallback(async (m: string = selectedMonth, y: string = selectedMonthYear, page: number = 1, size: number = pageSize) => {
+    if (!activeShopId || !m || !y) return;
+    setLoadingMonth(true);
+    setErrorMonth(null);
+    try {
+      const res = await reportsService.getMonthTopSellingItems(activeShopId, m, y, page, size);
+      setMonthData(transformData(res?.items || []));
+      setMonthTotalRecords(res?.totalRecords || 0);
+      setMonthTotalPages(res?.totalPages || 1);
+    } catch (err) {
+      console.error("Error fetching month's top selling items:", err);
+      setErrorMonth("Failed to fetch month's top selling items.");
+      setMonthData([]);
+      setMonthTotalRecords(0);
+      setMonthTotalPages(1);
+    } finally {
+      setLoadingMonth(false);
     }
-    lastFetchParamsRef.current = currentKey;
+  }, [activeShopId, selectedMonth, selectedMonthYear, pageSize]);
 
-    let isSubscribed = true;
-
-    const fetchMonthData = async () => {
-      try {
-        setLoadingMonth(true);
-        setErrorMonth(null);
-        const res = await reportsService.getMonthTopSellingItems(
-          shopId,
-          selectedMonth,
-          selectedMonthYear,
-          pageNumber,
-          pageSize
-        );
-
-        if (isSubscribed) {
-          setMonthData(transformData(res.items));
-          setMonthTotalRecords(res.totalRecords);
-          setMonthTotalPages(res.totalPages || 1);
-        }
-      } catch (err) {
-        if (isSubscribed) {
-          console.error("Error fetching month's top selling items:", err);
-          setErrorMonth("Failed to fetch month's top selling items.");
-          setMonthData([]);
-          setMonthTotalRecords(0);
-          setMonthTotalPages(1);
-        }
-      } finally {
-        if (isSubscribed) {
-          setLoadingMonth(false);
-        }
-      }
-    };
-
-    fetchMonthData();
-
-    return () => {
-      isSubscribed = false;
-    };
-  }, [shopId, selectedMonth, selectedMonthYear, pageNumber, pageSize, activeTab]);
-
-
-
-
-
-  // Fetch Year Top Selling Items from server with pagination & deduplication
-  useEffect(() => {
-    if (activeTab !== "year") return;
-    if (!selectedYear) return;
-
-    const currentKey = `${shopId}-${selectedYear}-${pageNumber}-${pageSize}-year`;
-    if (lastFetchParamsRef.current === currentKey) {
-      return;
+  // Fetch Year Top Selling Items
+  const fetchYearData = useCallback(async (y: string = selectedYear, page: number = 1, size: number = pageSize) => {
+    if (!activeShopId || !y) return;
+    setLoadingYear(true);
+    setErrorYear(null);
+    try {
+      const res = await reportsService.getYearTopSellingItems(activeShopId, y, page, size);
+      setYearData(transformData(res?.items || []));
+      setYearTotalRecords(res?.totalRecords || 0);
+      setYearTotalPages(res?.totalPages || 1);
+    } catch (err) {
+      console.error("Error fetching year's top selling items:", err);
+      setErrorYear("Failed to fetch year's top selling items.");
+      setYearData([]);
+      setYearTotalRecords(0);
+      setYearTotalPages(1);
+    } finally {
+      setLoadingYear(false);
     }
-    lastFetchParamsRef.current = currentKey;
+  }, [activeShopId, selectedYear, pageSize]);
 
-    let isSubscribed = true;
+  // Initial load / tab change for auto-loaded tabs (Today & Week)
+  useEffect(() => {
+    if (!activeShopId) return;
+    if (activeTab === "today") {
+      fetchTodayData(pageNumber, pageSize);
+    } else if (activeTab === "week") {
+      fetchWeekData(pageNumber, pageSize);
+    }
+  }, [activeTab, activeShopId, pageNumber, pageSize]);
 
-    const fetchYearData = async () => {
-      try {
-        setLoadingYear(true);
-        setErrorYear(null);
-        const res = await reportsService.getYearTopSellingItems(
-          shopId,
-          selectedYear,
-          pageNumber,
-          pageSize
-        );
+  // Pagination updates when pageNumber or pageSize changes on searched tabs
+  useEffect(() => {
+    if (!activeShopId) return;
+    if (activeTab === "daywise" && hasSearchedDaywise && pageNumber > 1) {
+      fetchDaywiseData(selectedDate, pageNumber, pageSize);
+    } else if (activeTab === "month" && hasSearchedMonth && pageNumber > 1) {
+      fetchMonthData(selectedMonth, selectedMonthYear, pageNumber, pageSize);
+    } else if (activeTab === "year" && hasSearchedYear && pageNumber > 1) {
+      fetchYearData(selectedYear, pageNumber, pageSize);
+    }
+  }, [activeTab, activeShopId, pageNumber, pageSize]);
 
-        if (isSubscribed) {
-          setYearData(transformData(res.items));
-          setYearTotalRecords(res.totalRecords);
-          setYearTotalPages(res.totalPages || 1);
-        }
-      } catch (err) {
-        if (isSubscribed) {
-          console.error("Error fetching year's top selling items:", err);
-          setErrorYear("Failed to fetch year's top selling items.");
-          setYearData([]);
-          setYearTotalRecords(0);
-          setYearTotalPages(1);
-        }
-      } finally {
-        if (isSubscribed) {
-          setLoadingYear(false);
-        }
-      }
-    };
-
-    fetchYearData();
-
-    return () => {
-      isSubscribed = false;
-    };
-  }, [shopId, selectedYear, pageNumber, pageSize, activeTab]);
-
-  // Export to Excel
+  // EXPORT TO EXCEL
   const exportToExcel = (data: DisplayItem[], tab: string): void => {
     if (!data || data.length === 0) {
-      alert("No records to export.");
+      alert("No data available to export");
       return;
     }
 
     const XLSX = (window as unknown as { XLSX?: XlsxLike }).XLSX;
-    if (!XLSX) return;
+    if (!XLSX) {
+      return;
+    }
 
     const hasDate = tab === "today" || tab === "daywise";
     const headers = hasDate
@@ -1128,7 +950,12 @@ export default function TopSellingItemsPage() {
   };
 
   // Render table function
-  const renderTable = (data: DisplayItem[], hasDate: boolean, loading: boolean, errMessage?: string | null) => {
+  const renderTable = (
+    data: DisplayItem[],
+    hasDate: boolean,
+    loading: boolean,
+    errMessage?: string | null
+  ) => {
     if (loading) {
       return (
         <tr>
@@ -1152,8 +979,12 @@ export default function TopSellingItemsPage() {
     if (!data || data.length === 0) {
       return (
         <tr>
-          <td colSpan={hasDate ? 4 : 3} style={{ textAlign: "center", padding: "40px" }}>
-            No records found
+          <td
+            colSpan={hasDate ? 4 : 3}
+            className="report-no-records"
+            style={{ textAlign: "center", padding: "40px" }}
+          >
+            No Records Found
           </td>
         </tr>
       );
@@ -1171,149 +1002,23 @@ export default function TopSellingItemsPage() {
 
   // Switch tab
   const switchTab = (tab: string) => {
-    lastFetchParamsRef.current = "";
     setActiveTab(tab);
     setPageNumber(1);
-    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
-    document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
-    document.getElementById(`tab-${tab}`)?.classList.add("active");
-    document.getElementById(`panel-${tab}`)?.classList.add("active");
+    if (tab === "today") {
+      fetchTodayData(1, pageSize);
+    } else if (tab === "week") {
+      fetchWeekData(1, pageSize);
+    } else if (tab === "daywise") {
+      setHasSearchedDaywise(false);
+      setDaywiseData([]);
+    } else if (tab === "month") {
+      setHasSearchedMonth(false);
+      setMonthData([]);
+    } else if (tab === "year") {
+      setHasSearchedYear(false);
+      setYearData([]);
+    }
   };
-
-  // Populate year dropdowns
-  useEffect(() => {
-    const currentYear = new Date().getFullYear();
-    const yearSelects = ["select-month-year", "select-year"];
-    yearSelects.forEach((id) => {
-      const el = document.getElementById(id) as HTMLSelectElement | null;
-      if (!el) return;
-      el.innerHTML = "";
-      for (let y = currentYear; y >= currentYear - 9; y--) {
-        const opt = document.createElement("option");
-        opt.value = String(y);
-        opt.textContent = String(y);
-        if (y === currentYear) opt.selected = true;
-        el.appendChild(opt);
-      }
-    });
-
-    // Set today's date
-    const dateInput = document.getElementById("input-daywise-date") as HTMLInputElement | null;
-    if (dateInput) {
-      dateInput.value = new Date().toISOString().split("T")[0];
-    }
-
-    // Set current month
-    const monthSelect = document.getElementById("select-month") as HTMLSelectElement | null;
-    if (monthSelect) {
-      monthSelect.value = String(new Date().getMonth() + 1);
-    }
-  }, []);
-
-  // Wire up event listeners
-  useEffect(() => {
-    // Tab buttons
-    const tabs = ["today", "daywise", "week", "month", "year"];
-    const tabHandlers: Array<[HTMLElement | null, () => void]> = tabs.map((t) => [
-      document.getElementById(`tab-${t}`),
-      () => switchTab(t),
-    ]);
-    tabHandlers.forEach(([el, fn]) => el?.addEventListener("click", fn));
-
-    // Get data buttons
-    const daywiseBtn = document.getElementById("btn-getdata-daywise");
-    const monthBtn = document.getElementById("btn-getdata-month");
-    const yearBtn = document.getElementById("btn-getdata-year");
-
-    daywiseBtn?.addEventListener("click", () => {
-      const dateInput = document.getElementById("input-daywise-date") as HTMLInputElement | null;
-      const dateVal = dateInput?.value || selectedDate;
-      if (dateVal) {
-        setSelectedDate(dateVal);
-        setPageNumber(1);
-        lastFetchParamsRef.current = "";
-      }
-    });
-
-    monthBtn?.addEventListener("click", () => {
-      const monthSelect = document.getElementById("select-month") as HTMLSelectElement | null;
-      const yearSelect = document.getElementById("select-month-year") as HTMLSelectElement | null;
-      const mVal = monthSelect?.value || selectedMonth;
-      const yVal = yearSelect?.value || selectedMonthYear;
-      if (mVal && yVal) {
-        setSelectedMonth(mVal);
-        setSelectedMonthYear(yVal);
-        setPageNumber(1);
-        lastFetchParamsRef.current = "";
-      }
-    });
-
-    yearBtn?.addEventListener("click", () => {
-      const yearSelect = document.getElementById("select-year") as HTMLSelectElement | null;
-      const yVal = yearSelect?.value || selectedYear;
-      if (yVal) {
-        setSelectedYear(yVal);
-        setPageNumber(1);
-        lastFetchParamsRef.current = "";
-      }
-    });
-
-    // Export buttons - event delegation
-    const content = document.querySelector(".content-area");
-    const exportDelegate = (e: Event): void => {
-      const btn = (e.target as HTMLElement).closest("[data-export]") as HTMLElement | null;
-      if (btn) {
-        const tab = btn.getAttribute("data-export") || "";
-        const dataMap: Record<string, DisplayItem[]> = {
-          today: todayData,
-          week: weekData,
-          daywise: daywiseData,
-          month: monthData,
-          year: yearData,
-        };
-        exportToExcel(dataMap[tab] || [], tab);
-      }
-    };
-    content?.addEventListener("click", exportDelegate);
-
-    // Help button
-    const helpBtn = document.getElementById("helpBtnCard");
-    helpBtn?.addEventListener("click", () => alert("Help & Support - Top Selling Items"));
-
-    // Step navigation
-    let currentStep = 6;
-    const totalSteps = 25;
-    const stepValue = document.getElementById("stepValue");
-    const prevBtn = document.getElementById("prevBtn");
-    const nextBtn = document.getElementById("nextBtn");
-
-    const onPrev = () => {
-      if (currentStep > 1) {
-        currentStep--;
-        if (stepValue) stepValue.textContent = `${currentStep}/${totalSteps}`;
-      }
-    };
-    const onNext = () => {
-      if (currentStep < totalSteps) {
-        currentStep++;
-        if (stepValue) stepValue.textContent = `${currentStep}/${totalSteps}`;
-      }
-    };
-
-    prevBtn?.addEventListener("click", onPrev);
-    nextBtn?.addEventListener("click", onNext);
-
-    return () => {
-      tabHandlers.forEach(([el, fn]) => el?.removeEventListener("click", fn));
-      daywiseBtn?.removeEventListener("click", () => { });
-      monthBtn?.removeEventListener("click", () => { });
-      yearBtn?.removeEventListener("click", () => { });
-      content?.removeEventListener("click", exportDelegate);
-      helpBtn?.removeEventListener("click", () => { });
-      prevBtn?.removeEventListener("click", onPrev);
-      nextBtn?.removeEventListener("click", onNext);
-    };
-  }, [todayData, weekData, daywiseData, monthData, yearData]);
 
   return (
     <div id="pg-reports-top-selling-items">
@@ -1335,7 +1040,11 @@ export default function TopSellingItemsPage() {
           <div className="content-area">
             <div className="card">
               <div className="card-actions">
-                <button className="btn-help" id="helpBtnCard">
+                <button
+                  className="btn-help"
+                  id="helpBtnCard"
+                  onClick={() => alert("Help & Support - Top Selling Items")}
+                >
                   <svg viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="10" />
                     <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
@@ -1350,19 +1059,57 @@ export default function TopSellingItemsPage() {
               </div>
 
               <div className="tab-row">
-                <button className="tab-btn active" id="tab-today">Today</button>
-                <button className="tab-btn" id="tab-daywise">Day Wise</button>
-                <button className="tab-btn" id="tab-week">This Week</button>
-                <button className="tab-btn" id="tab-month">Month Wise</button>
-                <button className="tab-btn" id="tab-year">Year Wise</button>
+                <button
+                  className={`tab-btn ${activeTab === "today" ? "active" : ""}`}
+                  id="tab-today"
+                  onClick={() => switchTab("today")}
+                >
+                  Today
+                </button>
+                <button
+                  className={`tab-btn ${activeTab === "daywise" ? "active" : ""}`}
+                  id="tab-daywise"
+                  onClick={() => switchTab("daywise")}
+                >
+                  Day Wise
+                </button>
+                <button
+                  className={`tab-btn ${activeTab === "week" ? "active" : ""}`}
+                  id="tab-week"
+                  onClick={() => switchTab("week")}
+                >
+                  This Week
+                </button>
+                <button
+                  className={`tab-btn ${activeTab === "month" ? "active" : ""}`}
+                  id="tab-month"
+                  onClick={() => switchTab("month")}
+                >
+                  Month Wise
+                </button>
+                <button
+                  className={`tab-btn ${activeTab === "year" ? "active" : ""}`}
+                  id="tab-year"
+                  onClick={() => switchTab("year")}
+                >
+                  Year Wise
+                </button>
               </div>
 
               {/* Today Panel */}
-              <div className="tab-panel active" id="panel-today">
+              <div
+                className={`tab-panel ${activeTab === "today" ? "active" : ""}`}
+                id="panel-today"
+                style={{ display: activeTab === "today" ? "block" : "none" }}
+              >
                 <div className="results-section">
                   <div className="results-header">
                     <div className="results-title">Description</div>
-                    <button className="btn-action" data-export="today">
+                    <button
+                      className="btn-action"
+                      data-export="today"
+                      onClick={() => exportToExcel(todayData, "today")}
+                    >
                       <svg viewBox="0 0 24 24">
                         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
                         <polyline points="7 10 12 15 17 10" />
@@ -1372,30 +1119,8 @@ export default function TopSellingItemsPage() {
                     </button>
                   </div>
                   <div className="table-card">
-                    <div className="table-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div className="table-card-header">
                       <span>Top Selling Items</span>
-                      <div style={{ fontSize: "13px", color: "var(--text-secondary, #666)", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span>Show</span>
-                        <select
-                          className="input-control"
-                          style={{ width: "auto", padding: "2px 6px", fontSize: "13px" }}
-                          value={pageSize}
-                          onChange={(e) => {
-                            setPageSize(Number(e.target.value));
-                            setPageNumber(1);
-                          }}
-                        >
-                          <option value={10}>10</option>
-                          <option value={20}>20</option>
-                          <option value={50}>50</option>
-                        </select>
-                        <span>entries</span>
-                        {totalRecords > 0 && (
-                          <span style={{ marginLeft: "8px" }}>
-                            ({(pageNumber - 1) * pageSize + 1} - {Math.min(pageNumber * pageSize, totalRecords)} of {totalRecords})
-                          </span>
-                        )}
-                      </div>
                     </div>
                     <div className="table-wrap">
                       <table className="data-table">
@@ -1408,22 +1133,29 @@ export default function TopSellingItemsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {renderTable(displayedRecords, true, getActiveLoading(), activeTab === "today" ? errorToday : null)}
+                          {renderTable(todayData, true, loadingToday, errorToday)}
                         </tbody>
                       </table>
                     </div>
                   </div>
                 </div>
-                <ReportPagination
+                <ReportTableFooter
                   currentPage={pageNumber}
-                  totalPages={totalPages}
+                  totalPages={todayTotalPages}
                   onPageChange={(page) => setPageNumber(page)}
-                  disabled={getActiveLoading()}
+                  pageSize={pageSize}
+                  onPageSizeChange={(size) => setPageSize(size)}
+                  totalRecords={todayTotalRecords}
+                  disabled={loadingToday}
                 />
               </div>
 
               {/* Day Wise Panel */}
-              <div className="tab-panel" id="panel-daywise">
+              <div
+                className={`tab-panel ${activeTab === "daywise" ? "active" : ""}`}
+                id="panel-daywise"
+                style={{ display: activeTab === "daywise" ? "block" : "none" }}
+              >
                 <div className="filter-row">
                   <div className="filter-group">
                     <label className="filter-label">Date :</label>
@@ -1434,7 +1166,6 @@ export default function TopSellingItemsPage() {
                       value={selectedDate}
                       onChange={(e) => {
                         setSelectedDate(e.target.value);
-                        setPageNumber(1);
                       }}
                     />
                   </div>
@@ -1444,81 +1175,80 @@ export default function TopSellingItemsPage() {
                     onClick={() => {
                       if (!selectedDate) return;
                       setPageNumber(1);
-                      lastFetchParamsRef.current = "";
+                      setHasSearchedDaywise(true);
+                      fetchDaywiseData(selectedDate, 1, pageSize);
                     }}
                   >
                     GET DATA
                   </button>
+                  <button
+                    className="btn-action"
+                    data-export="daywise"
+                    onClick={() => exportToExcel(daywiseData, "daywise")}
+                  >
+                    <svg viewBox="0 0 24 24">
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    EXPORT TO EXCEL
+                  </button>
                 </div>
-                <div className="results-section">
-                  <div className="results-header">
-                    <div className="results-title">Description</div>
-                    <button className="btn-action" data-export="daywise">
-                      <svg viewBox="0 0 24 24">
-                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                        <polyline points="7 10 12 15 17 10" />
-                        <line x1="12" y1="15" x2="12" y2="3" />
-                      </svg>
-                      EXPORT TO EXCEL
-                    </button>
-                  </div>
-                  <div className="table-card">
-                    <div className="table-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span>Top Selling Items</span>
-                      <div style={{ fontSize: "13px", color: "var(--text-secondary, #666)", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span>Show</span>
-                        <select
-                          className="input-control"
-                          style={{ width: "auto", padding: "2px 6px", fontSize: "13px" }}
-                          value={pageSize}
-                          onChange={(e) => {
-                            setPageSize(Number(e.target.value));
-                            setPageNumber(1);
-                          }}
-                        >
-                          <option value={10}>10</option>
-                          <option value={20}>20</option>
-                          <option value={50}>50</option>
-                        </select>
-                        <span>entries</span>
-                        {totalRecords > 0 && (
-                          <span style={{ marginLeft: "8px" }}>
-                            ({(pageNumber - 1) * pageSize + 1} - {Math.min(pageNumber * pageSize, totalRecords)} of {totalRecords})
-                          </span>
-                        )}
+
+                {hasSearchedDaywise && (
+                  <>
+                    <div className="results-section">
+                      <div className="results-header">
+                        <div className="results-title">Description</div>
+                      </div>
+                      <div className="table-card">
+                        <div className="table-card-header">
+                          <span>Top Selling Items</span>
+                        </div>
+                        <div className="table-wrap">
+                          <table className="data-table">
+                            <thead>
+                              <tr>
+                                <th>Date</th>
+                                <th>Item Name</th>
+                                <th>Quantity</th>
+                                <th>Total Amount (Rs.)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {renderTable(daywiseData, true, loadingDaywise, errorDaywise)}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     </div>
-                    <div className="table-wrap">
-                      <table className="data-table">
-                        <thead>
-                          <tr>
-                            <th>Date</th>
-                            <th>Item Name</th>
-                            <th>Quantity</th>
-                            <th>Total Amount (Rs.)</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {renderTable(displayedRecords, true, getActiveLoading(), activeTab === "today" ? errorToday : activeTab === "daywise" ? errorDaywise : null)}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-                <ReportPagination
-                  currentPage={pageNumber}
-                  totalPages={totalPages}
-                  onPageChange={(page) => setPageNumber(page)}
-                  disabled={getActiveLoading()}
-                />
+                    <ReportTableFooter
+                      currentPage={pageNumber}
+                      totalPages={daywiseTotalPages}
+                      onPageChange={(page) => setPageNumber(page)}
+                      pageSize={pageSize}
+                      onPageSizeChange={(size) => setPageSize(size)}
+                      totalRecords={daywiseTotalRecords}
+                      disabled={loadingDaywise}
+                    />
+                  </>
+                )}
               </div>
 
               {/* Week Panel */}
-              <div className="tab-panel" id="panel-week">
+              <div
+                className={`tab-panel ${activeTab === "week" ? "active" : ""}`}
+                id="panel-week"
+                style={{ display: activeTab === "week" ? "block" : "none" }}
+              >
                 <div className="results-section">
                   <div className="results-header">
                     <div className="results-title">Description</div>
-                    <button className="btn-action" data-export="week">
+                    <button
+                      className="btn-action"
+                      data-export="week"
+                      onClick={() => exportToExcel(weekData, "week")}
+                    >
                       <svg viewBox="0 0 24 24">
                         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
                         <polyline points="7 10 12 15 17 10" />
@@ -1528,30 +1258,8 @@ export default function TopSellingItemsPage() {
                     </button>
                   </div>
                   <div className="table-card">
-                    <div className="table-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div className="table-card-header">
                       <span>Top Selling Items</span>
-                      <div style={{ fontSize: "13px", color: "var(--text-secondary, #666)", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span>Show</span>
-                        <select
-                          className="input-control"
-                          style={{ width: "auto", padding: "2px 6px", fontSize: "13px" }}
-                          value={pageSize}
-                          onChange={(e) => {
-                            setPageSize(Number(e.target.value));
-                            setPageNumber(1);
-                          }}
-                        >
-                          <option value={10}>10</option>
-                          <option value={20}>20</option>
-                          <option value={50}>50</option>
-                        </select>
-                        <span>entries</span>
-                        {totalRecords > 0 && (
-                          <span style={{ marginLeft: "8px" }}>
-                            ({(pageNumber - 1) * pageSize + 1} - {Math.min(pageNumber * pageSize, totalRecords)} of {totalRecords})
-                          </span>
-                        )}
-                      </div>
                     </div>
                     <div className="table-wrap">
                       <table className="data-table">
@@ -1563,22 +1271,29 @@ export default function TopSellingItemsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {renderTable(displayedRecords, false, getActiveLoading(), activeTab === "today" ? errorToday : activeTab === "daywise" ? errorDaywise : activeTab === "week" ? errorWeek : null)}
+                          {renderTable(weekData, false, loadingWeek, errorWeek)}
                         </tbody>
                       </table>
                     </div>
                   </div>
                 </div>
-                <ReportPagination
+                <ReportTableFooter
                   currentPage={pageNumber}
-                  totalPages={totalPages}
+                  totalPages={weekTotalPages}
                   onPageChange={(page) => setPageNumber(page)}
-                  disabled={getActiveLoading()}
+                  pageSize={pageSize}
+                  onPageSizeChange={(size) => setPageSize(size)}
+                  totalRecords={weekTotalRecords}
+                  disabled={loadingWeek}
                 />
               </div>
 
               {/* Month Panel */}
-              <div className="tab-panel" id="panel-month">
+              <div
+                className={`tab-panel ${activeTab === "month" ? "active" : ""}`}
+                id="panel-month"
+                style={{ display: activeTab === "month" ? "block" : "none" }}
+              >
                 <div className="filter-row">
                   <div className="filter-group">
                     <label className="filter-label">Select Month :</label>
@@ -1588,8 +1303,6 @@ export default function TopSellingItemsPage() {
                       value={selectedMonth}
                       onChange={(e) => {
                         setSelectedMonth(e.target.value);
-                        setPageNumber(1);
-                        lastFetchParamsRef.current = "";
                       }}
                     >
                       <option value="1">January</option>
@@ -1614,90 +1327,84 @@ export default function TopSellingItemsPage() {
                       value={selectedMonthYear}
                       onChange={(e) => {
                         setSelectedMonthYear(e.target.value);
-                        setPageNumber(1);
-                        lastFetchParamsRef.current = "";
                       }}
-                    />
+                    >
+                      {yearOptions.map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
                   </div>
                   <button
                     className="btn-action"
                     id="btn-getdata-month"
                     onClick={() => {
-                      const mSelect = document.getElementById("select-month") as HTMLSelectElement | null;
-                      const ySelect = document.getElementById("select-month-year") as HTMLSelectElement | null;
-                      if (mSelect) setSelectedMonth(mSelect.value);
-                      if (ySelect) setSelectedMonthYear(ySelect.value);
+                      if (!selectedMonth || !selectedMonthYear) return;
                       setPageNumber(1);
-                      lastFetchParamsRef.current = "";
+                      setHasSearchedMonth(true);
+                      fetchMonthData(selectedMonth, selectedMonthYear, 1, pageSize);
                     }}
                   >
-                    GETDATA
+                    GET DATA
+                  </button>
+                  <button
+                    className="btn-action"
+                    data-export="month"
+                    onClick={() => exportToExcel(monthData, "month")}
+                  >
+                    <svg viewBox="0 0 24 24">
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    EXPORT TO EXCEL
                   </button>
                 </div>
-                <div className="results-section">
-                  <div className="results-header">
-                    <div className="results-title">Description</div>
-                    <button className="btn-action" data-export="month">
-                      <svg viewBox="0 0 24 24">
-                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                        <polyline points="7 10 12 15 17 10" />
-                        <line x1="12" y1="15" x2="12" y2="3" />
-                      </svg>
-                      EXPORT TO EXCEL
-                    </button>
-                  </div>
-                  <div className="table-card">
-                    <div className="table-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span>Top Selling Items</span>
-                      <div style={{ fontSize: "13px", color: "var(--text-secondary, #666)", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span>Show</span>
-                        <select
-                          className="input-control"
-                          style={{ width: "auto", padding: "2px 6px", fontSize: "13px" }}
-                          value={pageSize}
-                          onChange={(e) => {
-                            setPageSize(Number(e.target.value));
-                            setPageNumber(1);
-                          }}
-                        >
-                          <option value={10}>10</option>
-                          <option value={20}>20</option>
-                          <option value={50}>50</option>
-                        </select>
-                        <span>entries</span>
-                        {totalRecords > 0 && (
-                          <span style={{ marginLeft: "8px" }}>
-                            ({(pageNumber - 1) * pageSize + 1} - {Math.min(pageNumber * pageSize, totalRecords)} of {totalRecords})
-                          </span>
-                        )}
+
+                {hasSearchedMonth && (
+                  <>
+                    <div className="results-section">
+                      <div className="results-header">
+                        <div className="results-title">Description</div>
+                      </div>
+                      <div className="table-card">
+                        <div className="table-card-header">
+                          <span>Top Selling Items</span>
+                        </div>
+                        <div className="table-wrap">
+                          <table className="data-table">
+                            <thead>
+                              <tr>
+                                <th>Item Name</th>
+                                <th>Quantity</th>
+                                <th>Total Amount (Rs.)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {renderTable(monthData, false, loadingMonth, errorMonth)}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     </div>
-                    <div className="table-wrap">
-                      <table className="data-table">
-                        <thead>
-                          <tr>
-                            <th>Item Name</th>
-                            <th>Quantity</th>
-                            <th>Total Amount (Rs.)</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {renderTable(displayedRecords, false, getActiveLoading(), activeTab === "today" ? errorToday : activeTab === "daywise" ? errorDaywise : activeTab === "week" ? errorWeek : activeTab === "month" ? errorMonth : null)}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-                <ReportPagination
-                  currentPage={pageNumber}
-                  totalPages={totalPages}
-                  onPageChange={(page) => setPageNumber(page)}
-                  disabled={getActiveLoading()}
-                />
+                    <ReportTableFooter
+                      currentPage={pageNumber}
+                      totalPages={monthTotalPages}
+                      onPageChange={(page) => setPageNumber(page)}
+                      pageSize={pageSize}
+                      onPageSizeChange={(size) => setPageSize(size)}
+                      totalRecords={monthTotalRecords}
+                      disabled={loadingMonth}
+                    />
+                  </>
+                )}
               </div>
 
               {/* Year Panel */}
-              <div className="tab-panel" id="panel-year">
+              <div
+                className={`tab-panel ${activeTab === "year" ? "active" : ""}`}
+                id="panel-year"
+                style={{ display: activeTab === "year" ? "block" : "none" }}
+              >
                 <div className="filter-row">
                   <div className="filter-group">
                     <label className="filter-label">Select Year :</label>
@@ -1707,103 +1414,87 @@ export default function TopSellingItemsPage() {
                       value={selectedYear}
                       onChange={(e) => {
                         setSelectedYear(e.target.value);
-                        setPageNumber(1);
-                        lastFetchParamsRef.current = "";
                       }}
-                    />
+                    >
+                      {yearOptions.map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
                   </div>
                   <button
                     className="btn-action"
                     id="btn-getdata-year"
                     onClick={() => {
-                      const ySelect = document.getElementById("select-year") as HTMLSelectElement | null;
-                      if (ySelect) setSelectedYear(ySelect.value);
+                      if (!selectedYear) return;
                       setPageNumber(1);
-                      lastFetchParamsRef.current = "";
+                      setHasSearchedYear(true);
+                      fetchYearData(selectedYear, 1, pageSize);
                     }}
                   >
-                    GETDATA
+                    GET DATA
+                  </button>
+                  <button
+                    className="btn-action"
+                    data-export="year"
+                    onClick={() => exportToExcel(yearData, "year")}
+                  >
+                    <svg viewBox="0 0 24 24">
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    EXPORT TO EXCEL
                   </button>
                 </div>
-                <div className="results-section">
-                  <div className="results-header">
-                    <div className="results-title">Description</div>
-                    <button className="btn-action" data-export="year">
-                      <svg viewBox="0 0 24 24">
-                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                        <polyline points="7 10 12 15 17 10" />
-                        <line x1="12" y1="15" x2="12" y2="3" />
-                      </svg>
-                      EXPORT TO EXCEL
-                    </button>
-                  </div>
-                  <div className="table-card">
-                    <div className="table-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span>Top Selling Items</span>
-                      <div style={{ fontSize: "13px", color: "var(--text-secondary, #666)", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span>Show</span>
-                        <select
-                          className="input-control"
-                          style={{ width: "auto", padding: "2px 6px", fontSize: "13px" }}
-                          value={pageSize}
-                          onChange={(e) => {
-                            setPageSize(Number(e.target.value));
-                            setPageNumber(1);
-                          }}
-                        >
-                          <option value={10}>10</option>
-                          <option value={20}>20</option>
-                          <option value={50}>50</option>
-                        </select>
-                        <span>entries</span>
-                        {totalRecords > 0 && (
-                          <span style={{ marginLeft: "8px" }}>
-                            ({(pageNumber - 1) * pageSize + 1} - {Math.min(pageNumber * pageSize, totalRecords)} of {totalRecords})
-                          </span>
-                        )}
+
+                {hasSearchedYear && (
+                  <>
+                    <div className="results-section">
+                      <div className="results-header">
+                        <div className="results-title">Description</div>
+                      </div>
+                      <div className="table-card">
+                        <div className="table-card-header">
+                          <span>Top Selling Items</span>
+                        </div>
+                        <div className="table-wrap">
+                          <table className="data-table">
+                            <thead>
+                              <tr>
+                                <th>Item Name</th>
+                                <th>Quantity</th>
+                                <th>Total Amount (Rs.)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {renderTable(yearData, false, loadingYear, errorYear)}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     </div>
-                    <div className="table-wrap">
-                      <table className="data-table">
-                        <thead>
-                          <tr>
-                            <th>Item Name</th>
-                            <th>Quantity</th>
-                            <th>Total Amount (Rs.)</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {renderTable(displayedRecords, false, getActiveLoading(), activeTab === "today" ? errorToday : activeTab === "daywise" ? errorDaywise : activeTab === "week" ? errorWeek : activeTab === "month" ? errorMonth : activeTab === "year" ? errorYear : null)}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-                <ReportPagination
-                  currentPage={pageNumber}
-                  totalPages={totalPages}
-                  onPageChange={(page) => setPageNumber(page)}
-                  disabled={getActiveLoading()}
-                />
+                    <ReportTableFooter
+                      currentPage={pageNumber}
+                      totalPages={yearTotalPages}
+                      onPageChange={(page) => setPageNumber(page)}
+                      pageSize={pageSize}
+                      onPageSizeChange={(size) => setPageSize(size)}
+                      totalRecords={yearTotalRecords}
+                      disabled={loadingYear}
+                    />
+                  </>
+                )}
               </div>
             </div>
 
             {/* STEP FOOTER */}
-            <div className="step-footer">
-              <button className="btn-prev" id="prevBtn">
-                <i className="fas fa-chevron-left" /> PREVIOUS
-              </button>
-              <div className="step-indicator">
-                <span className="step-label">STEP</span>
-                <span className="step-value" id="stepValue">6/25</span>
-              </div>
-              <button className="btn-next" id="nextBtn">
-                NEXT <i className="fas fa-chevron-right" />
-              </button>
-            </div>
+            <ReportStepFooter currentStepOverride={8} totalStepsOverride={25} />
           </div>
         </div>
       </div>
     </div>
   );
 }
+
+
+
