@@ -130,6 +130,13 @@ export default function ItemsPage() {
   const [filterCategoryId, setFilterCategoryId] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
 
+  // Add item image state
+  const [addBase64Image, setAddBase64Image] = useState<string>("");
+  const setAddBase64ImageRef = useRef(setAddBase64Image);
+  useEffect(() => {
+    setAddBase64ImageRef.current = setAddBase64Image;
+  }, []);
+
   // Ref so the useEffect crop logic can push the cropped base64 back to React state
   const setEditBase64ImageRef = useRef(setEditBase64Image);
   useEffect(() => {
@@ -1133,9 +1140,6 @@ export default function ItemsPage() {
           ucmPreviewImg.style.display === "none"
         )
           return;
-        const editThumb = document.getElementById("editThumbFrame");
-        if (editThumb)
-          editThumb.innerHTML = `<img src="${ucmPreviewImg.src}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;">`;
         // Bridge base64 to React state (strip data URI prefix)
         setEditBase64ImageRef.current(
           ucmPreviewImg.src.replace(/^data:image\/[a-z]+;base64,/, "")
@@ -1155,11 +1159,6 @@ export default function ItemsPage() {
       if (currentAddImgBtn) {
         const row = (currentAddImgBtn as HTMLElement).closest("tr");
         if (row) {
-          const placeholderDiv =
-            row.querySelector<HTMLElement>(".placeholder-img");
-          if (placeholderDiv)
-            placeholderDiv.innerHTML = `<img src="${ucmPreviewImg.src}" style="width:52px;height:52px;object-fit:cover;border-radius:4px;">`;
-
           const rowItemId = Number(row.dataset.itemId || "0");
           const rowCateId = Number(row.dataset.cateId || "0");
           const rowItemName = row.querySelector<HTMLElement>(".item-name")?.innerText || "";
@@ -1184,11 +1183,9 @@ export default function ItemsPage() {
           }
         }
       } else {
-        const formThumb = document.querySelector<HTMLElement>(
-          "#pg-menu-items .uploader-thumbnail-frame"
+        setAddBase64ImageRef.current(
+          ucmPreviewImg.src.replace(/^data:image\/[a-z]+;base64,/, "")
         );
-        if (formThumb)
-          formThumb.innerHTML = `<img src="${ucmPreviewImg.src}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;">`;
       }
       uploadCropOverlay?.classList.remove("open");
       currentAddImgBtn = null;
@@ -1615,16 +1612,7 @@ export default function ItemsPage() {
         activeBtn?.classList.remove("active-segment");
         deactiveBtn?.classList.add("active-segment");
       }
-      const existingImg = currentEditRow.querySelector<HTMLImageElement>(
-        ".placeholder-img img"
-      );
-      const editThumb = document.getElementById("editThumbFrame");
-      if (editThumb) {
-        if (existingImg)
-          editThumb.innerHTML = `<img src="${existingImg.src}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;">`;
-        else
-          editThumb.innerHTML = `<i class="fa-solid fa-concierge-bell" style="font-size:32px;"></i><span style="font-size:9px;">No Image</span>`;
-      }
+
 
       // Populate Categories dynamically (use ref to avoid stale closure)
       const editCategoryInput = document.getElementById("editCategoryInput") as HTMLSelectElement | null;
@@ -2732,8 +2720,18 @@ export default function ItemsPage() {
                   <label className="form-label">Choose Image</label>
                   <div className="uploader-box-frame">
                     <div className="uploader-thumbnail-frame">
-                      <i className="fa-solid fa-concierge-bell"></i>
-                      <span>No Image</span>
+                      {addBase64Image ? (
+                        <img
+                          src={`data:image/jpeg;base64,${addBase64Image}`}
+                          style={{ width: "64px", height: "64px", objectFit: "cover", borderRadius: "8px" }}
+                          alt="Preview"
+                        />
+                      ) : (
+                        <>
+                          <i className="fa-solid fa-concierge-bell"></i>
+                          <span>No Image</span>
+                        </>
+                      )}
                     </div>
                     <button className="btn-upload-action">Upload Image</button>
                   </div>
@@ -3118,8 +3116,27 @@ export default function ItemsPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: "100%", maxWidth: "420px" }}>
                   <div style={{ border: "1.5px dashed #ccc", borderRadius: "8px", padding: "20px", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", background: "#fafafa" }}>
                     <div className="uploader-thumbnail-frame edit-thumb" id="editThumbFrame" style={{ width: "80px", height: "80px", borderRadius: "8px" }}>
-                      <i className="fa-solid fa-concierge-bell" style={{ fontSize: "32px" }}></i>
-                      <span style={{ fontSize: "9px" }}>No Image</span>
+                      {editBase64Image ? (
+                        <img
+                          src={`data:image/jpeg;base64,${editBase64Image}`}
+                          style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "8px" }}
+                          alt="Preview"
+                        />
+                      ) : editItemImage ? (
+                        <img
+                          src={`https://www.foodchow.com/ItemImages/${editItemImage}`}
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = "none";
+                          }}
+                          style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "8px" }}
+                          alt="Item"
+                        />
+                      ) : (
+                        <>
+                          <i className="fa-solid fa-concierge-bell" style={{ fontSize: "32px" }}></i>
+                          <span style={{ fontSize: "9px" }}>No Image</span>
+                        </>
+                      )}
                     </div>
                     <button className="btn-upload-action" id="editUploadImageBtn">
                       Upload Image
