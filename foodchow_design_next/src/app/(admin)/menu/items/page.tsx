@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   AddItemPayload,
   menuService,
@@ -14,7 +14,7 @@ import {
 import Swal from "sweetalert2";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import { useShopId } from "@/utils/shop";
-import ReportPagination from "@/components/shared/ReportPagination";
+import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 
 import "./page.css";
@@ -128,7 +128,24 @@ export default function ItemsPage() {
   const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
   const [filterCategoryId, setFilterCategoryId] = useState("all");
+  const filterCategoryIdRef = useRef(filterCategoryId);
+  useEffect(() => {
+    filterCategoryIdRef.current = filterCategoryId;
+  }, [filterCategoryId]);
   const [searchTerm, setSearchTerm] = useState("");
+
+  const allAvailableCategories = useMemo(() => {
+    const list: MenuCategory[] = [];
+    const seen = new Set<number>();
+    for (const c of [...categories, ...items]) {
+      const id = Number(c?.id);
+      if (id && !seen.has(id) && c?.cate_name) {
+        seen.add(id);
+        list.push(c);
+      }
+    }
+    return list;
+  }, [categories, items]);
 
   // Add item image state
   const [addBase64Image, setAddBase64Image] = useState<string>("");
@@ -1291,86 +1308,152 @@ export default function ItemsPage() {
       });
     }
 
-    const openQuickEditHandler = () => {
-      if (!mainItemsTable || !quickEditTableBody || !quickEditModal) return;
+    const populateQuickEditTable = (selectedCateId: string) => {
+      if (!quickEditTableBody) return;
       quickEditTableBody.innerHTML = "";
-      const allItems = itemsRef.current.flatMap((c) => c.item_list || []);
-      const rows = mainItemsTable.querySelectorAll<HTMLElement>("tbody tr");
 
-      rows.forEach((row, index) => {
-        const itemId = Number(row.dataset.itemId);
-        const item = allItems.find((i: any) => {
-          const id = i?.item_Id ?? i?.Item_Id ?? i?.item_id ?? i?.id;
-          return String(id) === String(itemId);
-        });
-        const itemName = row.querySelector<HTMLElement>(".item-name")?.innerText ?? "";
+      const allCategories = itemsRef.current;
+      let targetItems: Array<{ item: any; category: MenuCategory }> = [];
 
-        let sizesHtml = "";
-        let inputsHtml = "";
+      if (!selectedCateId || selectedCateId === "all") {
+        targetItems = allCategories.flatMap((category) =>
+          (category.item_list || []).map((item: any) => ({ item, category }))
+        );
+      } else {
+        const matchedCategory = allCategories.find(
+          (c) => String(c.id) === String(selectedCateId)
+        );
+        if (matchedCategory) {
+          targetItems = (matchedCategory.item_list || []).map((item: any) => ({
+            item,
+            category: matchedCategory,
+          }));
+        }
+      }
+
+      if (targetItems.length === 0) {
+        quickEditTableBody.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align: center; padding: 40px; color: #64748b; font-size: 14px;">
+              No items found in this category
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      targetItems.forEach(({ item, category }, index) => {
+        const itemId = item?.item_Id ?? item?.Item_Id ?? item?.item_id ?? item?.id;
+        const itemName = String(item?.item_Name ?? item?.Item_Name ?? "");
+        const itemDesc = String(item?.description ?? item?.Description ?? "");
+        const cateId = item?.cate_Id ?? item?.Cate_Id ?? category?.id ?? "";
 
         const sizesList = getItemSizeList(item);
         const hasSizes = sizesList.length > 0;
 
+        let sizesHtml = "";
+        let inputsHtml = "";
+        let weightHtml = "";
+
         if (hasSizes) {
           sizesList.forEach((size: any) => {
-            const sName = String(size.size_name ?? size.Size_Name ?? size.Size_name ?? "Size");
-            const rawSizeId = size.Size_Id ?? size.size_id ?? size.sizeId ?? size.id;
+            const sName = String(
+              size.size_name ?? size.Size_Name ?? size.Size_name ?? "Size"
+            );
+            const rawSizeId =
+              size.Size_Id ?? size.size_id ?? size.sizeId ?? size.id;
             const matchedVariant = variantsRef.current.find((variant) => {
-              const vId = variant.id ?? (variant as any).Size_Id ?? (variant as any).size_id;
-              return (rawSizeId != null && String(vId) === String(rawSizeId)) ||
-                variant.size_name.trim().toLowerCase() === sName.trim().toLowerCase();
+              const vId =
+                variant.id ??
+                (variant as any).Size_Id ??
+                (variant as any).size_id;
+              return (
+                (rawSizeId != null && String(vId) === String(rawSizeId)) ||
+                variant.size_name.trim().toLowerCase() ===
+                  sName.trim().toLowerCase()
+              );
             });
             const sizeId = matchedVariant?.id ?? rawSizeId ?? "";
             const sPrice = getItemSizePrice(size, item?.price ?? item?.Price);
+            const sWeight = size.Weight ?? size.weight ?? 0;
+
             sizesHtml += `<div style="margin-bottom: 6px;">${escapeHtml(sName)}</div>`;
             inputsHtml += `<input type="number" min="0" step="0.01" class="table-input item-price-input" data-is-variant="true" data-size-id="${escapeHtml(String(sizeId))}" style="margin-bottom: 6px;" value="${escapeHtml(String(sPrice))}">`;
+            weightHtml += `<input type="text" class="table-input" value="${escapeHtml(String(sWeight))}" style="margin-bottom: 6px;">`;
           });
         } else {
-          const priceValue = row.querySelector<HTMLElement>(".item-price")?.innerText.replace(/[^\d.]/g, "") ?? "0";
+          const priceValue = item?.price ?? item?.Price ?? "0";
           sizesHtml = "No Size Available";
-          inputsHtml += `<input type="number" min="0" step="0.01" class="table-input item-price-input" value="${escapeHtml(priceValue)}">`;
+          inputsHtml += `<input type="number" min="0" step="0.01" class="table-input item-price-input" value="${escapeHtml(String(priceValue))}">`;
+          weightHtml = `<input type="text" class="table-input" value="0">`;
         }
-
-        const itemDesc = String(item?.description ?? item?.Description ?? "");
 
         quickEditTableBody.insertAdjacentHTML(
           "beforeend",
           `
-                <tr data-item-id="${itemId}" data-cate-id="${row.dataset.cateId ?? ""}">
-                    <td style="font-weight: 600; color: #64748b; padding-top: 14px;">${index + 1}</td>
-                    <td class="edit-item-name" style="width: 260px; min-width: 240px; padding: 10px 12px;">
-                        <textarea class="form-input item-name-textarea" style="resize: vertical; min-height: 38px; height: 38px; margin-bottom: 6px; width: 100%; border-radius: 8px; border: 1px solid #cbd5e1; padding: 6px 10px; font-size: 13px; font-family: inherit; box-sizing: border-box; outline: none; transition: border-color 0.2s;">${escapeHtml(itemName)}</textarea>
-                        <textarea class="form-input item-desc-textarea" style="resize: vertical; min-height: 44px; height: 44px; width: 100%; border-radius: 8px; border: 1px solid #cbd5e1; padding: 6px 10px; font-size: 12px; font-family: inherit; box-sizing: border-box; outline: none; transition: border-color 0.2s;" placeholder="Description">${escapeHtml(itemDesc)}</textarea>
-                    </td>
-                    <td class="edit-item-size" style="vertical-align: middle; font-weight: 600;">${sizesHtml}</td>
-                    <td style="vertical-align: middle;"><div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">${inputsHtml}</div></td>
-                    <td style="vertical-align: middle;">
-                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                           ${sizesHtml === "No Size Available" ? `<input type="text" class="table-input" value="0" style="margin-bottom:6px;">` : item.FoodItemSizeList?.map((s: any) => `<input type="text" class="table-input" value="${s.Weight ?? 0}" style="margin-bottom:6px;">`).join('') || `<input type="text" class="table-input" value="0">`}
-                        </div>
-                    </td>
-                    <td style="vertical-align: middle;">
-                        <div class="dropdown-container">
-                            <div class="dropdown-trigger"><span>Select Unit</span><i class="fa-solid fa-caret-down"></i></div>
-                            <div class="dropdown-menu">
-                                <div class="dropdown-item">Select Unit</div>
-                                <div class="dropdown-item">KiloGram</div>
-                                <div class="dropdown-item">Gram</div>
-                                <div class="dropdown-item">Pound</div>
-                                <div class="dropdown-item">Ounce</div>
-                            </div>
-                        </div>
-                    </td>
-                    <td style="vertical-align: middle;">
-                        <input type="number" class="table-input" placeholder="Min Qty" value="1">
-                    </td>
-                </tr>`
+            <tr data-item-id="${escapeHtml(String(itemId))}" data-cate-id="${escapeHtml(String(cateId))}">
+              <td style="font-weight: 600; color: #64748b; padding-top: 14px;">${index + 1}</td>
+              <td class="edit-item-name" style="width: 260px; min-width: 240px; padding: 10px 12px;">
+                <textarea class="form-input item-name-textarea" style="resize: vertical; min-height: 38px; height: 38px; margin-bottom: 6px; width: 100%; border-radius: 8px; border: 1px solid #cbd5e1; padding: 6px 10px; font-size: 13px; font-family: inherit; box-sizing: border-box; outline: none; transition: border-color 0.2s;">${escapeHtml(itemName)}</textarea>
+                <textarea class="form-input item-desc-textarea" style="resize: vertical; min-height: 44px; height: 44px; width: 100%; border-radius: 8px; border: 1px solid #cbd5e1; padding: 6px 10px; font-size: 12px; font-family: inherit; box-sizing: border-box; outline: none; transition: border-color 0.2s;" placeholder="Description">${escapeHtml(itemDesc)}</textarea>
+              </td>
+              <td class="edit-item-size" style="vertical-align: middle; font-weight: 600;">${sizesHtml}</td>
+              <td style="vertical-align: middle;"><div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">${inputsHtml}</div></td>
+              <td style="vertical-align: middle;"><div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">${weightHtml}</div></td>
+              <td style="vertical-align: middle;">
+                <div class="dropdown-container">
+                  <div class="dropdown-trigger"><span>${escapeHtml(String(item?.unit || "Select Unit"))}</span><i class="fa-solid fa-caret-down"></i></div>
+                  <div class="dropdown-menu">
+                    <div class="dropdown-item">Select Unit</div>
+                    <div class="dropdown-item">KiloGram</div>
+                    <div class="dropdown-item">Gram</div>
+                    <div class="dropdown-item">Pound</div>
+                    <div class="dropdown-item">Ounce</div>
+                  </div>
+                </div>
+              </td>
+              <td style="vertical-align: middle;">
+                <input type="number" class="table-input" placeholder="Min Qty" value="${escapeHtml(String(item?.min_order_qty ?? item?.min_order_quantity ?? 1))}">
+              </td>
+            </tr>`
         );
       });
+
       initCustomDropdowns();
+    };
+
+    const openQuickEditHandler = () => {
+      if (!quickEditTableBody || !quickEditModal) return;
+      const quickEditCategorySelect = document.getElementById(
+        "quickEditCategorySelect"
+      ) as HTMLSelectElement | null;
+
+      const currentFilter = filterCategoryIdRef.current || "all";
+      if (quickEditCategorySelect) {
+        const optionExists = Array.from(quickEditCategorySelect.options).some(
+          (opt) => String(opt.value) === String(currentFilter)
+        );
+        quickEditCategorySelect.value = optionExists ? currentFilter : "all";
+      }
+
+      const activeCategoryId = quickEditCategorySelect?.value || currentFilter;
+      populateQuickEditTable(activeCategoryId);
       quickEditModal.style.display = "flex";
     };
     openQuickEditBtn?.addEventListener("click", openQuickEditHandler);
+
+    const quickEditCategorySelect = document.getElementById(
+      "quickEditCategorySelect"
+    ) as HTMLSelectElement | null;
+
+    const quickEditCategoryChangeHandler = () => {
+      if (!quickEditCategorySelect) return;
+      populateQuickEditTable(quickEditCategorySelect.value);
+    };
+    quickEditCategorySelect?.addEventListener(
+      "change",
+      quickEditCategoryChangeHandler
+    );
 
     const cancelQuickHandler = () => {
       if (quickEditModal) quickEditModal.style.display = "none";
@@ -1424,6 +1507,7 @@ export default function ItemsPage() {
 
       for (const editRow of Array.from(editRows)) {
         const itemId = Number(editRow.dataset.itemId);
+        if (!itemId || isNaN(itemId)) continue;
         const item = allItems.find((candidate) => {
           const id = candidate?.item_Id ?? candidate?.Item_Id ?? candidate?.item_id ?? candidate?.id;
           return String(id) === String(itemId);
@@ -2049,6 +2133,10 @@ export default function ItemsPage() {
       segmentedCleanups.forEach((fn) => fn());
       document.removeEventListener("click", closeDropdownsHandler);
       openQuickEditBtn?.removeEventListener("click", openQuickEditHandler);
+      quickEditCategorySelect?.removeEventListener(
+        "change",
+        quickEditCategoryChangeHandler
+      );
       cancelQuickChangesBtn?.removeEventListener("click", cancelQuickHandler);
       saveQuickChangesBtn?.removeEventListener("click", saveQuickHandler);
       confirmCancelBtn?.removeEventListener("click", confirmCancelHandler);
@@ -2095,7 +2183,7 @@ export default function ItemsPage() {
                 >
                   <option value="all">ALL CATEGORIES</option>
 
-                  {categories.map((category) => (
+                  {allAvailableCategories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.cate_name}
                     </option>
@@ -2481,52 +2569,52 @@ export default function ItemsPage() {
                   </table>
                 </div>
 
-                <div className="table-footer" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", minHeight: "50px", width: "100%" }}>
-                  <div id="showingEntriesText" style={{ width: "100%" }}>
-                    {(() => {
-                      const filteredCategories = filterCategoryId === "all"
-                        ? items
-                        : items.filter(c => String(c.id) === filterCategoryId);
+                {(() => {
+                  const filteredCategories = filterCategoryId === "all"
+                    ? items
+                    : items.filter(c => String(c.id) === filterCategoryId);
 
-                      const normalizedSearch = searchTerm.trim().toLowerCase();
+                  const normalizedSearch = searchTerm.trim().toLowerCase();
 
-                      const allItems = filteredCategories
-                        .flatMap((c) => c.item_list || [])
-                        .filter((item: any) => {
-                          if (!normalizedSearch) return true;
-                          const name = String(item.item_Name ?? item.Item_Name ?? "").toLowerCase();
-                          return name.includes(normalizedSearch);
-                        });
+                  const allItems = filteredCategories
+                    .flatMap((c) => c.item_list || [])
+                    .filter((item: any) => {
+                      if (!normalizedSearch) return true;
+                      const name = String(item.item_Name ?? item.Item_Name ?? "").toLowerCase();
+                      return name.includes(normalizedSearch);
+                    });
 
-                      const totalItems = allItems.length;
-                      const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+                  const totalItems = allItems.length;
+                  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
-                      return (
-                        <ReportPagination
-                          currentPage={page}
-                          totalPages={totalPages}
-                          totalRecords={totalItems}
-                          pageSize={pageSize}
-                          onPageChange={(p) => setPage(p)}
-                          onPageSizeChange={(size) => {
-                            setPageSize(size);
-                            setPage(1);
-                          }}
-                        />
-                      );
-                    })()}
-                  </div>
-                  <div className="custom-scrollbar-container">
-                    <span className="scrollbar-arrow" id="scrollLeftBtn">
-                      <i className="fa-solid fa-caret-left"></i>
-                    </span>
-                    <div className="custom-scrollbar-track" id="scrollTrack">
-                      <div className="custom-scrollbar-thumb" id="scrollThumb"></div>
+                  if (totalItems === 0) return null;
+
+                  return (
+                    <div style={{ padding: "0 20px 14px", borderTop: "1px solid var(--line)", marginTop: "auto" }}>
+                      <ReportTableFooter
+                        currentPage={page}
+                        totalPages={totalPages}
+                        totalRecords={totalItems}
+                        pageSize={pageSize}
+                        onPageChange={(p) => setPage(p)}
+                        onPageSizeChange={(size) => {
+                          setPageSize(size);
+                          setPage(1);
+                        }}
+                      />
                     </div>
-                    <span className="scrollbar-arrow" id="scrollRightBtn">
-                      <i className="fa-solid fa-caret-right"></i>
-                    </span>
+                  );
+                })()}
+                <div className="custom-scrollbar-container" style={{ display: "none" }}>
+                  <span className="scrollbar-arrow" id="scrollLeftBtn">
+                    <i className="fa-solid fa-caret-left"></i>
+                  </span>
+                  <div className="custom-scrollbar-track" id="scrollTrack">
+                    <div className="custom-scrollbar-thumb" id="scrollThumb"></div>
                   </div>
+                  <span className="scrollbar-arrow" id="scrollRightBtn">
+                    <i className="fa-solid fa-caret-right"></i>
+                  </span>
                 </div>
               </div>
             </div>
@@ -3441,10 +3529,13 @@ export default function ItemsPage() {
           <div className="quick-edit-header">
             <h2>Quick Edit</h2>
             <div className="category-dropdown">
-              <select name="category" defaultValue="PASTA">
-                <option value="PASTA">PASTA</option>
-                <option value="PIZZA">PIZZA</option>
-                <option value="DRINKS">DRINKS</option>
+              <select name="category" id="quickEditCategorySelect" defaultValue="all">
+                <option value="all">ALL CATEGORIES</option>
+                {allAvailableCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.cate_name}
+                  </option>
+                ))}
               </select>
             </div>
           </div>

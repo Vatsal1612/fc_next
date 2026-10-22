@@ -32,7 +32,7 @@ export default function SalesbyCategoryPage() {
     String(new Date().getFullYear())
   );
   const [activeTab, setActiveTab] = useState<string>("today");
-  const lastFetched = useRef<{ tab: string; shopId: number | null; page: number }>({ tab: "", shopId: null, page: 0 });
+  const lastFetched = useRef<{ tab: string; shopId: number | null; page: number; size: number }>({ tab: "", shopId: null, page: 0, size: 0 });
 
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -51,16 +51,17 @@ export default function SalesbyCategoryPage() {
       if (
         lastFetched.current.tab === activeTab &&
         lastFetched.current.shopId === shopId &&
-        lastFetched.current.page === pageNumber
+        lastFetched.current.page === pageNumber &&
+        lastFetched.current.size === pageSize
       ) {
         return;
       }
-      lastFetched.current = { tab: activeTab, shopId, page: pageNumber };
+      lastFetched.current = { tab: activeTab, shopId, page: pageNumber, size: pageSize };
       triggerFilterDataFetch(activeTab);
     } else if (hasSearched) {
       triggerFilterDataFetch(activeTab);
     }
-  }, [shopId, activeTab, pageNumber, hasSearched]);
+  }, [shopId, activeTab, pageNumber, pageSize, hasSearched]);
 
   async function triggerFilterDataFetch(type: string) {
     if (!shopId) return;

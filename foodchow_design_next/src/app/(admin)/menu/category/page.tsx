@@ -5,7 +5,7 @@ import { menuService, type MenuCategory } from "@/api";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import Swal from "sweetalert2";
 import { useShopId, getShopId } from "@/utils/shop";
-import ReportPagination from "@/components/shared/ReportPagination";
+import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import "./page.css";
 
 function getCategoryImageUrl(imagePath?: string | null): string | null {
@@ -76,6 +76,15 @@ export default function CategoryPage() {
   const totalPages = Math.max(1, Math.ceil(filteredCategories.length / pageSize));
   const pageStart = (page - 1) * pageSize;
   const pagedCategories = filteredCategories.slice(pageStart, pageStart + pageSize);
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setPage(1);
+  };
 
   const loadCategories = async () => {
     const currentShop = SHOP_ID || getShopId();
@@ -296,12 +305,6 @@ export default function CategoryPage() {
     const nextBtn = $("nextBtn");
     const fileInput = $<HTMLInputElement>("fileInput");
 
-    function updateFooter() {
-      const total = document.querySelectorAll("#catTableBody tr").length;
-      const tf = $("tableFooter");
-      if (tf) tf.textContent = `Showing 1 to ${total} of ${total} entries`;
-    }
-
     function resetImgPreview() {
       const prev = $<HTMLImageElement>("previewImg");
       if (prev) {
@@ -321,8 +324,6 @@ export default function CategoryPage() {
       if (fileInput) fileInput.value = "";
     }
 
-    // ── Search handled by React state (searchQuery) ──
-
     const onSelectAll = function (this: HTMLInputElement) {
       document
         .querySelectorAll<HTMLInputElement>(".row-cb")
@@ -337,7 +338,6 @@ export default function CategoryPage() {
         return;
       }
       checked.forEach((cb) => cb.closest("tr")?.remove());
-      updateFooter();
       if (selectAll) selectAll.checked = false;
     };
     deleteAllBtn?.addEventListener("click", onDeleteAll);
@@ -765,13 +765,13 @@ export default function CategoryPage() {
                   <table id="catTable">
                     <thead>
                       <tr>
-                        <th style={{ width: "40px" }}></th>
+                        <th style={{ width: "48px" }}></th>
                         <th style={{ width: "50px" }}>
                           <input type="checkbox" className="cb" id="selectAll" />
                         </th>
-                        <th>Image</th>
+                        <th style={{ width: "80px" }}>Image</th>
                         <th>Category Name</th>
-                        <th>Action</th>
+                        <th style={{ width: "160px" }}>Action</th>
                       </tr>
                     </thead>
                     <tbody id="catTableBody">
@@ -834,8 +834,8 @@ export default function CategoryPage() {
                                   src={getCategoryImageUrl(cat.cate_image)!}
                                   alt={cat.cate_name}
                                   style={{
-                                    width: 52,
-                                    height: 52,
+                                    width: 44,
+                                    height: 44,
                                     borderRadius: "50%",
                                     objectFit: "cover",
                                   }}
@@ -902,27 +902,20 @@ export default function CategoryPage() {
                         ))}
                     </tbody>
                   </table>
-                  <div
-                    className="table-footer"
-                    id="tableFooter"
-                    style={{ width: "100%" }}
-                  >
-                    {!loading && !error && filteredCategories.length > 0 && (
-                      <ReportPagination
-                        currentPage={page}
-                        totalPages={totalPages}
-                        totalRecords={filteredCategories.length}
-                        pageSize={pageSize}
-                        onPageChange={(p) => setPage(p)}
-                        onPageSizeChange={(newSize) => {
-                          setPageSize(newSize);
-                          setPage(1);
-                        }}
-                        pageSizeOptions={[10, 25, 50, 100]}
-                      />
-                    )}
-                  </div>
                 </div>
+
+                {!loading && !error && filteredCategories.length > 0 && (
+                  <div style={{ padding: "0 20px 14px", borderTop: "1px solid var(--line)", marginTop: "auto" }}>
+                    <ReportTableFooter
+                      currentPage={page}
+                      totalPages={totalPages}
+                      totalRecords={filteredCategories.length}
+                      pageSize={pageSize}
+                      onPageChange={handlePageChange}
+                      onPageSizeChange={handlePageSizeChange}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 

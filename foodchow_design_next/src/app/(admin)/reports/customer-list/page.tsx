@@ -255,7 +255,7 @@ export default function CustomerListPage() {
   const [loading, setLoading] = useState(true);
 
   const [pageNumber, setPageNumber] = useState(1);
-  const [pageSize] = useState(5);
+  const [pageSize, setPageSize] = useState(10);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -429,8 +429,9 @@ export default function CustomerListPage() {
                 totalRecords={totalRecords}
                 pageSize={pageSize}
                 onPageChange={(page) => handlePaginationClick(page)}
-                onPageSizeChange={() => {
-                  // Not supported in this component's state yet, but we provide it
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setPageNumber(1);
                 }}
                 disabled={loading}
               />

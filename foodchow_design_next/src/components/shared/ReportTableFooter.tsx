@@ -1,8 +1,12 @@
 "use client";
 
-import React from "react";
 import ReportPagination from "./ReportPagination";
+import PageSizeDropup from "./PageSizeDropup";
+import { DEFAULT_PAGE_SIZE_OPTIONS } from "./pagination.constants";
 import "./ReportTableFooter.css";
+
+export { DEFAULT_PAGE_SIZE_OPTIONS } from "./pagination.constants";
+export { PageSizeDropup } from "./PageSizeDropup";
 
 export interface ReportTableFooterProps {
   /** Current page (1-indexed). */
@@ -21,6 +25,8 @@ export interface ReportTableFooterProps {
   disabled?: boolean;
   /** Extra class applied to the root element. */
   className?: string;
+  /** Options for entries per page. Defaults to [10, 20, 50]. */
+  pageSizeOptions?: number[];
 }
 
 /**
@@ -44,26 +50,23 @@ export const ReportTableFooter: React.FC<ReportTableFooterProps> = ({
   onPageSizeChange,
   disabled = false,
   className = "",
+  pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
 }) => {
   if (totalRecords === 0) return null;
 
-  // startIndex and endIndex removed as they are unused
+  const validOptions = Array.from(new Set([...pageSizeOptions, pageSize])).sort((a, b) => a - b);
 
   return (
     <div className={`report-table-footer ${className}`.trim()}>
       <div className="rtf-left">
         <div className="rtf-show-entries">
           <span className="rtf-label">Show</span>
-          <select
-            className="rtf-select"
+          <PageSizeDropup
             value={pageSize}
+            options={validOptions}
+            onChange={onPageSizeChange}
             disabled={disabled}
-            onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-          </select>
+          />
           <span className="rtf-label">entries</span>
         </div>
       </div>

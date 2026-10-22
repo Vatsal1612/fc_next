@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { menuService } from "@/api";
 import { WizardFooter } from "@/components/shared/WizardFooter";
+import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import "./page.css";
 import type { ChoiceOption, MenuChoice } from "@/api/services/menu.service";
 import Swal from "sweetalert2";
@@ -30,6 +31,10 @@ export default function ChoicePage() {
   // ADD THESE NEW STATES FOR SEARCH AND VIEW MODE
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState("list"); // 'list' or 'grid'
+
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     const fetchChoices = async () => {
@@ -227,6 +232,12 @@ export default function ChoicePage() {
   const filteredChoices = choices.filter((choice) =>
     choice.preference_name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+  const totalPages = Math.max(1, Math.ceil(filteredChoices.length / pageSize));
+  const pageStart = (page - 1) * pageSize;
+  const paginatedChoices = filteredChoices.slice(
+    pageStart,
+    pageStart + pageSize,
+  );
 
   return (
     <div id="pg-menu-choice">
@@ -303,7 +314,10 @@ export default function ChoicePage() {
                               className="search-input-field"
                               placeholder="Search choices..."
                               value={searchQuery}
-                              onChange={(e) => setSearchQuery(e.target.value)}
+                              onChange={(e) => {
+                                setSearchQuery(e.target.value);
+                                setPage(1);
+                              }}
                             />
                           </div>
 
@@ -380,8 +394,8 @@ export default function ChoicePage() {
 
                           {!loading &&
                             !error &&
-                            filteredChoices.length > 0 &&
-                            filteredChoices.map((choice) => (
+                            paginatedChoices.length > 0 &&
+                            paginatedChoices.map((choice) => (
                               <div
                                 className="list-row"
                                 key={choice.preference_id}
@@ -481,6 +495,22 @@ export default function ChoicePage() {
                               </div>
                             ))}
                         </div>
+
+                        {!loading && !error && filteredChoices.length > 0 && (
+                          <div style={{ padding: "0 0 14px", borderTop: "1px solid var(--line)", marginTop: "auto" }}>
+                            <ReportTableFooter
+                              currentPage={page}
+                              totalPages={totalPages}
+                              totalRecords={filteredChoices.length}
+                              pageSize={pageSize}
+                              onPageChange={(p) => setPage(p)}
+                              onPageSizeChange={(size) => {
+                                setPageSize(size);
+                                setPage(1);
+                              }}
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
                     {view === "add" && (

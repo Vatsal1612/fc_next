@@ -1692,7 +1692,6 @@ export default function ApplyTaxPage() {
                       setPageSize(newSize);
                       setPage(1);
                     }}
-                    pageSizeOptions={[10, 25, 50, 100]}
                   />
                 </div>
               )}

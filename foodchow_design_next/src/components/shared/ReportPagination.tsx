@@ -1,7 +1,12 @@
 "use client";
 
 import React from "react";
+import PageSizeDropup from "./PageSizeDropup";
+import { DEFAULT_PAGE_SIZE_OPTIONS } from "./pagination.constants";
 import "./ReportPagination.css";
+import "./ReportTableFooter.css";
+
+export { DEFAULT_PAGE_SIZE_OPTIONS } from "./pagination.constants";
 
 export interface ReportPaginationProps {
   currentPage: number;
@@ -11,6 +16,8 @@ export interface ReportPaginationProps {
   className?: string;
   totalRecords?: number;
   pageSize?: number;
+  onPageSizeChange?: (size: number) => void;
+  pageSizeOptions?: number[];
 }
 
 export const ReportPagination: React.FC<ReportPaginationProps> = ({
@@ -19,6 +26,9 @@ export const ReportPagination: React.FC<ReportPaginationProps> = ({
   onPageChange,
   disabled = false,
   className = "",
+  pageSize,
+  onPageSizeChange,
+  pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
 }) => {
   if (totalPages <= 0) return null;
 
@@ -43,9 +53,9 @@ export const ReportPagination: React.FC<ReportPaginationProps> = ({
 
   const pageNumbers = getPageNumbers();
 
-  return (
+  const paginationNav = (
     <nav
-      className={`report-pagination-container ${className}`.trim()}
+      className={`report-pagination-container ${onPageSizeChange ? "rtf-pagination" : className}`.trim()}
       aria-label="Report table pagination"
     >
       <button
@@ -97,6 +107,31 @@ export const ReportPagination: React.FC<ReportPaginationProps> = ({
       </button>
     </nav>
   );
+
+  if (onPageSizeChange && pageSize) {
+    const validOptions = Array.from(new Set([...pageSizeOptions, pageSize])).sort((a, b) => a - b);
+
+    return (
+      <div className={`report-table-footer ${className}`.trim()}>
+        <div className="rtf-left">
+          <div className="rtf-show-entries">
+            <span className="rtf-label">Show</span>
+            <PageSizeDropup
+              value={pageSize}
+              options={validOptions}
+              onChange={onPageSizeChange}
+              disabled={disabled}
+            />
+            <span className="rtf-label">entries</span>
+          </div>
+        </div>
+
+        {paginationNav}
+      </div>
+    );
+  }
+
+  return paginationNav;
 };
 
 export default ReportPagination;

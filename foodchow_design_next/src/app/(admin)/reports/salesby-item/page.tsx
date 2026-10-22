@@ -234,10 +234,10 @@ export default function SalesbyItemPage() {
   };
 
   useEffect(() => {
-    if (activeTab === "today" || activeTab === "this-week") {
+    if (activeTab === "today" || activeTab === "this-week" || hasSearched) {
       loadData();
     }
-  }, [shopId, activeTab, pageNumber, pageSize]);
+  }, [shopId, activeTab, pageNumber, pageSize, hasSearched]);
 
   const handleTabClick = (filterKey: string) => {
     lastFetchParamsRef.current = "";

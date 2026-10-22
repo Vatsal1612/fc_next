@@ -891,27 +891,33 @@ export default function TopSellingItemsPage() {
     }
   }, [activeShopId, selectedYear, pageSize]);
 
-  // Initial load / tab change for auto-loaded tabs (Today & Week)
+  // Load data when activeTab, activeShopId, pageNumber, or pageSize changes
   useEffect(() => {
     if (!activeShopId) return;
     if (activeTab === "today") {
       fetchTodayData(pageNumber, pageSize);
     } else if (activeTab === "week") {
       fetchWeekData(pageNumber, pageSize);
-    }
-  }, [activeTab, activeShopId, pageNumber, pageSize]);
-
-  // Pagination updates when pageNumber or pageSize changes on searched tabs
-  useEffect(() => {
-    if (!activeShopId) return;
-    if (activeTab === "daywise" && hasSearchedDaywise && pageNumber > 1) {
+    } else if (activeTab === "daywise" && hasSearchedDaywise) {
       fetchDaywiseData(selectedDate, pageNumber, pageSize);
-    } else if (activeTab === "month" && hasSearchedMonth && pageNumber > 1) {
+    } else if (activeTab === "month" && hasSearchedMonth) {
       fetchMonthData(selectedMonth, selectedMonthYear, pageNumber, pageSize);
-    } else if (activeTab === "year" && hasSearchedYear && pageNumber > 1) {
+    } else if (activeTab === "year" && hasSearchedYear) {
       fetchYearData(selectedYear, pageNumber, pageSize);
     }
-  }, [activeTab, activeShopId, pageNumber, pageSize]);
+  }, [
+    activeTab,
+    activeShopId,
+    pageNumber,
+    pageSize,
+    hasSearchedDaywise,
+    hasSearchedMonth,
+    hasSearchedYear,
+    selectedDate,
+    selectedMonth,
+    selectedMonthYear,
+    selectedYear,
+  ]);
 
   // EXPORT TO EXCEL
   const exportToExcel = (data: DisplayItem[], tab: string): void => {
@@ -1144,7 +1150,7 @@ export default function TopSellingItemsPage() {
                   totalPages={todayTotalPages}
                   onPageChange={(page) => setPageNumber(page)}
                   pageSize={pageSize}
-                  onPageSizeChange={(size) => setPageSize(size)}
+                  onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
                   totalRecords={todayTotalRecords}
                   disabled={loadingToday}
                 />
@@ -1227,7 +1233,7 @@ export default function TopSellingItemsPage() {
                       totalPages={daywiseTotalPages}
                       onPageChange={(page) => setPageNumber(page)}
                       pageSize={pageSize}
-                      onPageSizeChange={(size) => setPageSize(size)}
+                      onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
                       totalRecords={daywiseTotalRecords}
                       disabled={loadingDaywise}
                     />
@@ -1282,7 +1288,7 @@ export default function TopSellingItemsPage() {
                   totalPages={weekTotalPages}
                   onPageChange={(page) => setPageNumber(page)}
                   pageSize={pageSize}
-                  onPageSizeChange={(size) => setPageSize(size)}
+                  onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
                   totalRecords={weekTotalRecords}
                   disabled={loadingWeek}
                 />
@@ -1391,7 +1397,7 @@ export default function TopSellingItemsPage() {
                       totalPages={monthTotalPages}
                       onPageChange={(page) => setPageNumber(page)}
                       pageSize={pageSize}
-                      onPageSizeChange={(size) => setPageSize(size)}
+                      onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
                       totalRecords={monthTotalRecords}
                       disabled={loadingMonth}
                     />
@@ -1478,7 +1484,7 @@ export default function TopSellingItemsPage() {
                       totalPages={yearTotalPages}
                       onPageChange={(page) => setPageNumber(page)}
                       pageSize={pageSize}
-                      onPageSizeChange={(size) => setPageSize(size)}
+                      onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
                       totalRecords={yearTotalRecords}
                       disabled={loadingYear}
                     />

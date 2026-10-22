@@ -398,7 +398,6 @@ export default function ItemCodePage() {
                     totalPages={totalPages}
                     totalRecords={filteredItems.length}
                     pageSize={pageSize}
-                    pageSizeOptions={[10, 25, 50, 100]}
                     onPageChange={(page) => setCurrentPage(page)}
                     onPageSizeChange={(size) => {
                       setPageSize(size);

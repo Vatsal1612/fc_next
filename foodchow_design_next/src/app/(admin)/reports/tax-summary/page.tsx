@@ -182,13 +182,13 @@ export default function TaxSummaryPage() {
     ]
   );
 
-  // Auto-fetch for Today & Weekly tabs when shopId or tab changes
+  // Auto-fetch when tab or pagination changes
   useEffect(() => {
     if (!shopId) return;
-    if (activeTab === "today" || activeTab === "weekly") {
+    if (activeTab === "today" || activeTab === "weekly" || hasSearched) {
       fetchData(activeTab, pageNumber, pageSize);
     }
-  }, [shopId, activeTab, pageNumber, pageSize, fetchData]);
+  }, [shopId, activeTab, pageNumber, pageSize, hasSearched, fetchData]);
 
   // Export to Excel
   const exportToExcel = (tab?: Tab) => {

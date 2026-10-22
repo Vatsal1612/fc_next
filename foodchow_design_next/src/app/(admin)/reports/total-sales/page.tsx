@@ -443,9 +443,9 @@ export default function TotalSalesPage() {
     }
   };
 
-  const totalRecords = serverTotalRecords;
-  const totalPages = serverTotalPages;
-  const paginatedRecords = records;
+  const totalRecords = activeTab === "year-wise" ? serverTotalRecords : records.length;
+  const totalPages = activeTab === "year-wise" ? serverTotalPages : Math.max(1, Math.ceil(records.length / pageSize));
+  const paginatedRecords = activeTab === "year-wise" ? records : records.slice((pageNumber - 1) * pageSize, pageNumber * pageSize);
   const shouldShowResults = activeTab === "today" || activeTab === "this-week" || hasSearched;
 
   return (

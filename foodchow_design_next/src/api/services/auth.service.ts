@@ -59,7 +59,8 @@ export const authService = {
     console.log("API Response =>", data);
 
     // Save JWT token if the backend provided it to resolve IDOR
-    const token = data.token || data.jwt || (data.result && data.result.token) || (data.data && data.data[0] && data.data[0].token);
+    const d = data as any;
+    const token = d.token || d.jwt || d.result?.token || d.data?.[0]?.token;
     if (token) {
       tokenStorage.setAccessToken(token);
     }

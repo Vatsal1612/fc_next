@@ -524,7 +524,7 @@
         background: var(--white);
         border: 1px solid var(--line);
         border-radius: var(--radius);
-        padding: 26px 28px;
+        padding: 24px 28px 20px;
         position: relative;
     }
 
@@ -603,6 +603,10 @@
         border-radius: var(--radius);
         overflow: hidden;
         margin-top: 8px;
+        margin-bottom: 0 !important;
+        display: flex;
+        flex-direction: column;
+        min-height: 720px;
     }
 
     .table-card-header {
@@ -653,21 +657,25 @@
 
     .table-wrap {
         overflow-x: auto;
+        margin-bottom: 0 !important;
+        flex: 1;
     }
 
     table {
         width: 100%;
         border-collapse: collapse;
+        table-layout: fixed;
   font-size: var(--text-helper); line-height: var(--lh-helper);
     }
 
     thead tr {
         background: #f0faf9;
         border-bottom: 2px solid var(--teal-light);
+        height: 48px;
     }
 
     thead th {
-        padding: 13px 16px;
+        padding: 12px 16px;
         text-align: left;
   font-size: var(--text-table);
   font-weight: var(--weight-semibold); line-height: var(--lh-table);
@@ -675,6 +683,7 @@
         white-space: nowrap;
         letter-spacing: .04em;
         text-transform: uppercase;
+        box-sizing: border-box;
     }
 
     thead th:nth-child(1),
@@ -685,6 +694,7 @@
     }
 
     tbody tr {
+        height: 60px;
         border-bottom: 1px solid var(--line);
         transition: background .1s;
     }
@@ -698,10 +708,12 @@
     }
 
     tbody td {
-        padding: 14px 16px;
+        height: 60px;
+        padding: 8px 16px;
         color: var(--ink);
         text-align: center;
         vertical-align: middle;
+        box-sizing: border-box;
     }
 
     /* Category Name column left-aligned */
@@ -768,8 +780,8 @@
 
     /* ── No Image placeholder ── */
     .no-img {
-        width: 52px;
-        height: 52px;
+        width: 44px;
+        height: 44px;
         border-radius: 50%;
         background: #d0d5db;
         display: inline-flex;
@@ -799,6 +811,11 @@
   font-weight: var(--weight-medium);
         color: var(--ink);
         letter-spacing: .02em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+        max-width: 100%;
     }
 
     /* ── Action Buttons ── */

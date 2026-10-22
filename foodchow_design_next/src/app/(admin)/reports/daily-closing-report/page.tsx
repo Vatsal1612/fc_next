@@ -27,10 +27,16 @@ interface DailyClosingResponse {
 
 function ReportResultsView({
   reportData,
+  currentPage = 1,
+  pageSize = 10,
   onPageChange,
+  onPageSizeChange,
 }: {
   reportData: DailyClosingResponse | null;
+  currentPage?: number;
+  pageSize?: number;
   onPageChange?: (page: number) => void;
+  onPageSizeChange?: (size: number) => void;
 }) {
   const items = reportData?.items ?? [];
 
@@ -119,12 +125,12 @@ function ReportResultsView({
       {items.length > 0 && (
         <div style={{ marginTop: "24px" }}>
           <ReportTableFooter
-            currentPage={reportData?.currentPage ?? 1}
+            currentPage={reportData?.currentPage ?? currentPage}
             totalPages={reportData?.totalPages ?? 1}
             totalRecords={reportData?.totalRecords ?? items.length}
-            pageSize={reportData?.pageSize ?? 10}
+            pageSize={pageSize}
             onPageChange={onPageChange || (() => { })}
-            onPageSizeChange={() => { }}
+            onPageSizeChange={onPageSizeChange || (() => { })}
           />
         </div>
       )}
@@ -134,10 +140,16 @@ function ReportResultsView({
 
 function MonthlyReportView({
   reportData,
+  currentPage = 1,
+  pageSize = 10,
   onPageChange,
+  onPageSizeChange,
 }: {
   reportData: DailyClosingResponse | null;
+  currentPage?: number;
+  pageSize?: number;
   onPageChange?: (page: number) => void;
+  onPageSizeChange?: (size: number) => void;
 }) {
   const items = reportData?.items ?? [];
 
@@ -224,12 +236,12 @@ function MonthlyReportView({
       {items.length > 0 && (
         <div style={{ marginTop: "24px" }}>
           <ReportTableFooter
-            currentPage={reportData?.currentPage ?? 1}
+            currentPage={reportData?.currentPage ?? currentPage}
             totalPages={reportData?.totalPages ?? 1}
             totalRecords={reportData?.totalRecords ?? items.length}
-            pageSize={reportData?.pageSize ?? 10}
+            pageSize={pageSize}
             onPageChange={onPageChange || (() => { })}
-            onPageSizeChange={() => { }}
+            onPageSizeChange={onPageSizeChange || (() => { })}
           />
         </div>
       )}
@@ -249,6 +261,14 @@ export default function DailyClosingReportPage() {
   const [selectedYear, setSelectedYear] = useState<string>(() =>
     String(new Date().getFullYear())
   );
+
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [pageNumber, setPageNumber] = useState<number>(1);
+  const [activeTab, setActiveTab] = useState<"day" | "month" | "custom">("day");
+
+  const searchedDayDate = useRef<string>("");
+  const searchedMonthData = useRef<{ month: string; year: string }>({ month: "", year: "" });
+  const searchedCustomData = useRef<{ from: string; to: string }>({ from: "", to: "" });
 
   const monthlyReportRef = useRef(monthlyReportData);
   monthlyReportRef.current = monthlyReportData;
@@ -283,14 +303,15 @@ export default function DailyClosingReportPage() {
     return dataObj as DailyClosingResponse;
   };
 
-  const loadDailyReport = async (date: string) => {
+  const loadDailyReport = async (date: string, page = 1, size = pageSize) => {
     const activeShopId = getShopId() || shopId;
     if (!activeShopId) {
       console.warn("Daily Closing Report: Dynamic shopId not available yet.");
       return;
     }
+    searchedDayDate.current = date;
     try {
-      const res = await reportsService.getDailyClosingReport(Number(activeShopId), date, 1, 10);
+      const res = await reportsService.getDailyClosingReport(Number(activeShopId), date, page, size);
       setDailyReportData(extractReportData(res));
       const resultsEl = document.getElementById("results-day");
       if (resultsEl) resultsEl.style.display = "block";
@@ -302,20 +323,21 @@ export default function DailyClosingReportPage() {
     }
   };
 
-  const loadMonthReport = async (month: string, year: string) => {
+  const loadMonthReport = async (month: string, year: string, page = 1, size = pageSize) => {
     const activeShopId = getShopId() || shopId;
     if (!activeShopId) {
       console.warn("Daily Closing Report: Dynamic shopId not available yet.");
       return;
     }
     const formattedMonth = String(month).padStart(2, "0");
+    searchedMonthData.current = { month: formattedMonth, year };
     const requestId = `${activeShopId}-${formattedMonth}-${year}-${Date.now()}`;
     latestMonthRequestRef.current = requestId;
 
     setMonthlyReportData(null);
 
     try {
-      const res = await reportsService.getDailyClosingReportByMonth(Number(activeShopId), formattedMonth, year, 1, 10);
+      const res = await reportsService.getDailyClosingReportByMonth(Number(activeShopId), formattedMonth, year, page, size);
       if (latestMonthRequestRef.current === requestId) {
         setMonthlyReportData(extractReportData(res));
         const resultsEl = document.getElementById("results-month");
@@ -333,14 +355,15 @@ export default function DailyClosingReportPage() {
     }
   };
 
-  const loadCustomReport = async (startDate: string, endDate: string) => {
+  const loadCustomReport = async (startDate: string, endDate: string, page = 1, size = pageSize) => {
     const activeShopId = getShopId() || shopId;
     if (!activeShopId) {
       console.warn("Daily Closing Report: Dynamic shopId not available yet.");
       return;
     }
+    searchedCustomData.current = { from: startDate, to: endDate };
     try {
-      const res = await reportsService.getDailyClosingReportByDate(Number(activeShopId), startDate, endDate, 1, 10);
+      const res = await reportsService.getDailyClosingReportByDate(Number(activeShopId), startDate, endDate, page, size);
       setCustomReportData(extractReportData(res));
       const resultsEl = document.getElementById("results-custom");
       if (resultsEl) resultsEl.style.display = "block";
@@ -352,6 +375,29 @@ export default function DailyClosingReportPage() {
     }
   };
 
+  const handlePageChange = (newPage: number) => {
+    setPageNumber(newPage);
+    if (activeTab === "day" && searchedDayDate.current) {
+      loadDailyReport(searchedDayDate.current, newPage, pageSize);
+    } else if (activeTab === "month" && searchedMonthData.current.month) {
+      loadMonthReport(searchedMonthData.current.month, searchedMonthData.current.year, newPage, pageSize);
+    } else if (activeTab === "custom" && searchedCustomData.current.from) {
+      loadCustomReport(searchedCustomData.current.from, searchedCustomData.current.to, newPage, pageSize);
+    }
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setPageNumber(1);
+    if (activeTab === "day" && searchedDayDate.current) {
+      loadDailyReport(searchedDayDate.current, 1, newSize);
+    } else if (activeTab === "month" && searchedMonthData.current.month) {
+      loadMonthReport(searchedMonthData.current.month, searchedMonthData.current.year, 1, newSize);
+    } else if (activeTab === "custom" && searchedCustomData.current.from) {
+      loadCustomReport(searchedCustomData.current.from, searchedCustomData.current.to, 1, newSize);
+    }
+  };
+
   useEffect(() => {
     type Tab = "day" | "month" | "custom";
 
@@ -359,6 +405,8 @@ export default function DailyClosingReportPage() {
 
     /* ── Tab switch ── */
     const switchTab = (tab: Tab, btn: HTMLElement): void => {
+      setActiveTab(tab);
+      setPageNumber(1);
       document
         .querySelectorAll<HTMLElement>(".tab-btn")
         .forEach((b) => b.classList.remove("active"));
@@ -616,7 +664,13 @@ export default function DailyClosingReportPage() {
                 </button>
               </div>
               <div className="results-section" id="results-day">
-                <ReportResultsView reportData={dailyReportData} />
+                <ReportResultsView
+                  reportData={dailyReportData}
+                  currentPage={pageNumber}
+                  pageSize={pageSize}
+                  onPageChange={handlePageChange}
+                  onPageSizeChange={handlePageSizeChange}
+                />
               </div>
             </div>
 
@@ -674,7 +728,13 @@ export default function DailyClosingReportPage() {
               </div>
 
               <div className="results-section" id="results-month">
-                <MonthlyReportView reportData={monthlyReportData} />
+                <MonthlyReportView
+                  reportData={monthlyReportData}
+                  currentPage={pageNumber}
+                  pageSize={pageSize}
+                  onPageChange={handlePageChange}
+                  onPageSizeChange={handlePageSizeChange}
+                />
               </div>
             </div>
 
@@ -701,7 +761,13 @@ export default function DailyClosingReportPage() {
               </div>
 
               <div className="results-section" id="results-custom">
-                <ReportResultsView reportData={customReportData} />
+                <ReportResultsView
+                  reportData={customReportData}
+                  currentPage={pageNumber}
+                  pageSize={pageSize}
+                  onPageChange={handlePageChange}
+                  onPageSizeChange={handlePageSizeChange}
+                />
               </div>
             </div>
           </div>

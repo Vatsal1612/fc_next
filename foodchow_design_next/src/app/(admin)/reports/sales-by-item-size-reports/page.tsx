@@ -418,11 +418,11 @@ export default function SalesByItemSizeReportsPage() {
     // and whenever pagination changes.
     useEffect(() => {
         if (shopId) {
-            if (activeTab === "today" || activeTab === "weekly") {
+            if (activeTab === "today" || activeTab === "weekly" || hasSearched) {
                 fetchData(activeTab);
             }
         }
-    }, [shopId, activeTab, pageNumber, pageSize]);
+    }, [shopId, activeTab, pageNumber, pageSize, hasSearched]);
 
     // Transform API data to display format
     const transformData = (items: SalesByItemSize[]): ReportRow[] => {

@@ -836,11 +836,11 @@ export default function SalesByPosUserPage() {
     // and whenever pagination changes.
     useEffect(() => {
         if (selectedUser && activeShopId) {
-            if (activeTab === "today" || activeTab === "week") {
+            if (activeTab === "today" || activeTab === "week" || hasSearched) {
                 fetchData(activeTab);
             }
         }
-    }, [activeShopId, selectedUser, activeTab, pageNumber, pageSize]);
+    }, [activeShopId, selectedUser, activeTab, pageNumber, pageSize, hasSearched]);
 
     // Transform API data to display format
     // const transformData = (data: SalesByPosUser[]): RowData[] => {

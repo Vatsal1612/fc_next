@@ -628,8 +628,8 @@ export default function SalesByTradingSessionPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  // Server pagination (moved from inside IIFE to comply with Rules of Hooks)
-  const [serverTotalPages] = useState(1);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
+  const [serverTotalRecords, setServerTotalRecords] = useState(0);
 
   // Helper to format date
   const formatDate = (item: TradingSession): string => {
@@ -651,12 +651,14 @@ export default function SalesByTradingSessionPage() {
   };
 
   // Fetch today's data
-  const fetchToday = async (page = 1) => {
+  const fetchToday = async (page = pageNumber, size = pageSize) => {
     if (!shopId) return;
     try {
       setLoadingToday(true);
-      const res = await reportsService.fetchTradingSessionToday(shopId, page, 10);
+      const res = await reportsService.fetchTradingSessionToday(shopId, page, size);
       setTodayData(transformData(res.records));
+      setServerTotalRecords(res.totalRecords);
+      setServerTotalPages(res.totalPages || 1);
     } catch (err) {
       console.error("Error fetching today's trading session data:", err);
       setTodayData([]);
@@ -666,12 +668,14 @@ export default function SalesByTradingSessionPage() {
   };
 
   // Fetch week data
-  const fetchWeek = async (page = 1) => {
+  const fetchWeek = async (page = pageNumber, size = pageSize) => {
     if (!shopId) return;
     try {
       setLoadingWeek(true);
-      const res = await reportsService.fetchTradingSessionWeek(shopId, page, 10);
+      const res = await reportsService.fetchTradingSessionWeek(shopId, page, size);
       setWeekData(transformData(res.records));
+      setServerTotalRecords(res.totalRecords);
+      setServerTotalPages(res.totalPages || 1);
     } catch (err) {
       console.error("Error fetching week's trading session data:", err);
       setWeekData([]);
@@ -680,30 +684,46 @@ export default function SalesByTradingSessionPage() {
     }
   };
 
-  const lastFetched = useRef<{ tab: string; shopId: number | null; page: number }>({ tab: "", shopId: null, page: 0 });
+  const lastFetched = useRef<{ tab: string; shopId: number | null; page: number; size: number }>({ tab: "", shopId: null, page: 0, size: 0 });
 
   useEffect(() => {
     if (!shopId) return;
-    if (lastFetched.current.tab === activeTab && lastFetched.current.shopId === shopId && lastFetched.current.page === pageNumber) return;
+    if (
+      lastFetched.current.tab === activeTab &&
+      lastFetched.current.shopId === shopId &&
+      lastFetched.current.page === pageNumber &&
+      lastFetched.current.size === pageSize
+    ) return;
+
+    lastFetched.current = { tab: activeTab, shopId, page: pageNumber, size: pageSize };
 
     if (activeTab === "today") {
-      lastFetched.current = { tab: activeTab, shopId, page: pageNumber };
-      fetchToday(pageNumber);
+      fetchToday(pageNumber, pageSize);
     } else if (activeTab === "week") {
-      lastFetched.current = { tab: activeTab, shopId, page: pageNumber };
-      fetchWeek(pageNumber);
+      fetchWeek(pageNumber, pageSize);
+    } else if (activeTab === "daywise" && hasSearched) {
+      const dateEl = (document.getElementById("dayDate") as HTMLInputElement)?.value;
+      if (dateEl) fetchDaywise(dateEl, pageNumber, pageSize);
+    } else if (activeTab === "month" && hasSearched) {
+      const monthEl = (document.getElementById("monthMonth") as HTMLSelectElement)?.value;
+      const yearEl = (document.getElementById("monthYear") as HTMLSelectElement)?.value;
+      if (monthEl && yearEl) fetchMonth(monthEl, Number(yearEl), pageNumber, pageSize);
+    } else if (activeTab === "year" && hasSearched) {
+      const yearEl = (document.getElementById("yearYear") as HTMLSelectElement)?.value;
+      if (yearEl) fetchYear(Number(yearEl), pageNumber, pageSize);
     }
-  }, [shopId, activeTab, pageNumber]);
+  }, [shopId, activeTab, pageNumber, pageSize, hasSearched]);
 
   // Fetch daywise data
-  const fetchDaywise = async (date: string, page = 1) => {
+  const fetchDaywise = async (date: string, page = pageNumber, size = pageSize) => {
     if (!date) return;
     setHasSearched(true);
     try {
       setLoadingDaywise(true);
-      setPageNumber(1);
-      const res = await reportsService.fetchTradingSessionDayWise(shopId, date, page, 10);
+      const res = await reportsService.fetchTradingSessionDayWise(shopId, date, page, size);
       setDaywiseData(transformData(res.records));
+      setServerTotalRecords(res.totalRecords);
+      setServerTotalPages(res.totalPages || 1);
     } catch (err) {
       console.error("Error fetching daywise trading session data:", err);
       setDaywiseData([]);
@@ -713,14 +733,15 @@ export default function SalesByTradingSessionPage() {
   };
 
   // Fetch month data
-  const fetchMonth = async (month: string, year: number, page = 1) => {
+  const fetchMonth = async (month: string, year: number, page = pageNumber, size = pageSize) => {
     if (!month || !year) return;
     setHasSearched(true);
     try {
       setLoadingMonth(true);
-      setPageNumber(1);
-      const res = await reportsService.fetchTradingSessionMonth(shopId, month, year, page, 10);
+      const res = await reportsService.fetchTradingSessionMonth(shopId, month, year, page, size);
       setMonthData(transformData(res.records));
+      setServerTotalRecords(res.totalRecords);
+      setServerTotalPages(res.totalPages || 1);
     } catch (err) {
       console.error("Error fetching month's trading session data:", err);
       setMonthData([]);
@@ -730,14 +751,15 @@ export default function SalesByTradingSessionPage() {
   };
 
   // Fetch year data
-  const fetchYear = async (year: number, page = 1) => {
+  const fetchYear = async (year: number, page = pageNumber, size = pageSize) => {
     if (!year) return;
     setHasSearched(true);
     try {
       setLoadingYear(true);
-      setPageNumber(1);
-      const res = await reportsService.fetchTradingSessionYear(shopId, year, page, 10);
+      const res = await reportsService.fetchTradingSessionYear(shopId, year, page, size);
       setYearData(transformData(res.records));
+      setServerTotalRecords(res.totalRecords);
+      setServerTotalPages(res.totalPages || 1);
     } catch (err) {
       console.error("Error fetching year's trading session data:", err);
       setYearData([]);
@@ -1199,10 +1221,9 @@ export default function SalesByTradingSessionPage() {
               <div id="tableWrap">
                 <div className="report-table-wrap">
                   {(() => {
-                    const totalRecords = currentData.length;
-                    const totalPages = Math.max(serverTotalPages, Math.ceil((totalRecords || 0) / pageSize) || 1);
-                    const startIndex = (pageNumber - 1) * pageSize;
-                    const paginatedRows = currentData.slice(startIndex, startIndex + pageSize);
+                    const totalRecords = serverTotalRecords || currentData.length;
+                    const totalPages = Math.max(1, serverTotalPages);
+                    const paginatedRows = currentData;
 
                     return (
                       <>
