@@ -297,7 +297,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Script from "next/script";
 import "./page.css";
 import { reportsService, CRMRevenueCustomer } from "@/api/services/report.service";
@@ -309,22 +309,35 @@ import { useShopId } from "@/utils/shop";
 export default function CustomerbyrevenuePage() {
   const shopId = useShopId();
   const [customers, setCustomers] = useState<CRMRevenueCustomer[]>([]);
-  const [filteredCustomers, setFilteredCustomers] = useState<CRMRevenueCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [serverTotalRecords, setServerTotalRecords] = useState(0);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
 
-  const totalRecords = filteredCustomers.length;
-  const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+  // Filter customers using useMemo based on searchTerm
+  const filteredCustomers = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return customers;
+    }
+    const query = searchTerm.toLowerCase();
+    return customers.filter(
+      (customer) =>
+        (customer.name || "").toLowerCase().includes(query) ||
+        (customer.mobile_no || "").includes(query)
+    );
+  }, [searchTerm, customers]);
 
-  const displayedCustomers = filteredCustomers.slice(
-    (pageNumber - 1) * pageSize,
-    pageNumber * pageSize
-  );
+  const isSearching = !!searchTerm.trim();
+  const totalRecords = isSearching ? filteredCustomers.length : serverTotalRecords;
+  const totalPages = isSearching ? Math.max(1, Math.ceil(filteredCustomers.length / pageSize)) : serverTotalPages;
+  const displayedCustomers = isSearching
+    ? filteredCustomers.slice((pageNumber - 1) * pageSize, pageNumber * pageSize)
+    : filteredCustomers;
 
-  // Fetch customers on mount
+  // Fetch customers dynamically based on pageNumber and pageSize
   useEffect(() => {
     const fetchCustomers = async () => {
       if (!shopId) return;
@@ -334,13 +347,14 @@ export default function CustomerbyrevenuePage() {
         console.log("Fetched CRM revenue data:", res);
         
         const list = res?.records || [];
-        const sortedData = [...list].sort((a, b) => b.total_amount - a.total_amount);
-        setCustomers(sortedData);
-        setFilteredCustomers(sortedData);
+        setCustomers(list);
+        setServerTotalRecords(res?.totalRecords ?? list.length);
+        setServerTotalPages(res?.totalPages ?? Math.max(1, Math.ceil((res?.totalRecords ?? list.length) / pageSize)));
       } catch (err) {
         console.error("Error fetching customers:", err);
         setCustomers([]);
-        setFilteredCustomers([]);
+        setServerTotalRecords(0);
+        setServerTotalPages(1);
       } finally {
         setLoading(false);
       }
@@ -349,22 +363,11 @@ export default function CustomerbyrevenuePage() {
     fetchCustomers();
   }, [shopId, pageNumber, pageSize]);
 
-  // Filter customers when search term changes
-  useEffect(() => {
+  // Reset page when search term changes
+  const handleSearchChange = (val: string) => {
+    setSearchTerm(val);
     setPageNumber(1);
-    if (!searchTerm.trim()) {
-      setFilteredCustomers(customers);
-      return;
-    }
-
-    const query = searchTerm.toLowerCase();
-    const filtered = customers.filter(
-      (customer) =>
-        customer.name.toLowerCase().includes(query) ||
-        customer.mobile_no.includes(query)
-    );
-    setFilteredCustomers(filtered);
-  }, [searchTerm, customers]);
+  };
 
   // Helper functions
   const getInitials = (name: string): string => {
@@ -393,41 +396,53 @@ export default function CustomerbyrevenuePage() {
   };
 
   // Export to Excel
-  const exportToExcel = (): void => {
-    if (!customers || customers.length === 0) {
-      alert("No data available to export");
-      return;
+  const exportToExcel = async (): Promise<void> => {
+    if (!shopId) return;
+
+    try {
+      setLoading(true);
+      const res = await reportsService.fetchCRMRevenueReport(shopId, 1, serverTotalRecords > 0 ? serverTotalRecords : 100);
+      const exportList = res?.records?.length ? res.records : customers;
+
+      if (!exportList || exportList.length === 0) {
+        alert("No data available to export");
+        return;
+      }
+
+      const XLSX = (window as any).XLSX;
+      if (!XLSX) {
+        alert("Excel library is loading, please try again.");
+        return;
+      }
+
+      const headers = ["Sr. No.", "Order ID", "Customer Name", "Mobile No.", "Revenue (Rs.)"];
+      const rows = exportList.map((d, index) => [
+        index + 1,
+        d.order_id,
+        d.name || "-",
+        d.mobile_no || "-",
+        Number(d.total_amount || 0),
+      ]);
+
+      const reportTitle = "CRM Report by Revenue";
+      const wsData = [
+        [reportTitle],
+        [`Exported On: ${new Date().toLocaleString()}`],
+        [],
+        headers,
+        ...rows,
+      ];
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws["!cols"] = [{ wch: 10 }, { wch: 15 }, { wch: 25 }, { wch: 18 }, { wch: 18 }];
+      XLSX.utils.book_append_sheet(wb, ws, "Revenue Report");
+      XLSX.writeFile(wb, `crm_report_revenue_${new Date().toISOString().split("T")[0]}.xlsx`);
+    } catch (err) {
+      console.error("Export error:", err);
+    } finally {
+      setLoading(false);
     }
-
-    const XLSX = (window as any).XLSX;
-    if (!XLSX) {
-      alert("Excel library is loading, please try again.");
-      return;
-    }
-
-    const headers = ["Sr. No.", "Order ID", "Customer Name", "Mobile No.", "Revenue (Rs.)"];
-    const rows = customers.map((d, index) => [
-      index + 1,
-      d.order_id,
-      d.name || "-",
-      d.mobile_no || "-",
-      Number(d.total_amount || 0),
-    ]);
-
-    const reportTitle = "CRM Report by Revenue";
-    const wsData = [
-      [reportTitle],
-      [`Exported On: ${new Date().toLocaleString()}`],
-      [],
-      headers,
-      ...rows,
-    ];
-
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws["!cols"] = [{ wch: 10 }, { wch: 15 }, { wch: 25 }, { wch: 18 }, { wch: 18 }];
-    XLSX.utils.book_append_sheet(wb, ws, "Revenue Report");
-    XLSX.writeFile(wb, `crm_report_revenue_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
   return (
@@ -466,7 +481,7 @@ export default function CustomerbyrevenuePage() {
                     id="searchInput"
                     placeholder="Search customers…"
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => handleSearchChange(e.target.value)}
                   />
                 </div>
                 <button className="btn-action btn-export" id="exportBtn" onClick={exportToExcel}>

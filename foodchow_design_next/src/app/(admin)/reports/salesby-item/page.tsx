@@ -47,6 +47,7 @@ export default function SalesbyItemPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("today");
   const [hasSearched, setHasSearched] = useState<boolean>(false);
+  const [exporting, setExporting] = useState<boolean>(false);
 
   // Format date helper supporting all trans_date structures
   const formatDate = (transDate: any): string => {
@@ -234,10 +235,10 @@ export default function SalesbyItemPage() {
   };
 
   useEffect(() => {
-    if (activeTab === "today" || activeTab === "this-week" || hasSearched) {
+    if (activeTab === "today" || activeTab === "this-week") {
       loadData();
     }
-  }, [shopId, activeTab, pageNumber, pageSize, hasSearched]);
+  }, [shopId, activeTab, pageNumber, pageSize]);
 
   const handleTabClick = (filterKey: string) => {
     lastFetchParamsRef.current = "";
@@ -269,39 +270,103 @@ export default function SalesbyItemPage() {
     }
   };
 
-  const exportToExcel = () => {
-    if (!todaySales || todaySales.length === 0) {
-      alert("No data available to export");
+  const exportToExcel = async () => {
+    if (exporting) return;
+    if (!shopId) {
+      alert("Shop ID not available");
       return;
     }
 
     const XLSX = (window as any).XLSX;
     if (!XLSX) {
+      alert("Excel export library is loading, please try again.");
       return;
     }
 
-    const headers = ["Date", "Item Name", "Quantity", "Total Amount (Rs.)"];
-    const rows = todaySales.map((item) => [
-      formatDate(item.trans_date),
-      item.item_name || "-",
-      Number(item.total_quantity || 0),
-      Number(item.total_amount || 0),
-    ]);
+    setExporting(true);
+    try {
+      let exportItems: SalesByItem[] = [];
 
-    const reportTitle = `Sales By Items — ${activeTab.toUpperCase()}`;
-    const wsData = [
-      [reportTitle],
-      [`Exported On: ${new Date().toLocaleString()}`],
-      [],
-      headers,
-      ...rows,
-    ];
+      if (activeTab === "today") {
+        exportItems = await reportsService.getExportSalesByItemsToday(shopId);
+      } else if (activeTab === "this-week") {
+        exportItems = await reportsService.getExportSalesByItemsWeek(shopId);
+      } else if (activeTab === "day-wise") {
+        if (!selectedDate) {
+          alert("Please select a date.");
+          setExporting(false);
+          return;
+        }
+        exportItems = await reportsService.getExportSalesByItemsDayWise(shopId, selectedDate);
+      } else if (activeTab === "month") {
+        if (!selectedMonth || !selectedYear) {
+          alert("Please select month and year.");
+          setExporting(false);
+          return;
+        }
+        exportItems = await reportsService.getExportSalesByItemsMonth(shopId, selectedMonth, selectedYear);
+      } else if (activeTab === "year") {
+        if (!selectedYear) {
+          alert("Please select a year.");
+          setExporting(false);
+          return;
+        }
+        const res = await reportsService.getYearSalesByItems(shopId, selectedYear, 1, totalRecords > 0 ? totalRecords : 100);
+        exportItems = res.items || [];
+      }
 
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws["!cols"] = [{ wch: 18 }, { wch: 32 }, { wch: 15 }, { wch: 22 }];
-    XLSX.utils.book_append_sheet(wb, ws, "Sales By Items");
-    XLSX.writeFile(wb, `sales_by_items_${activeTab}_${new Date().toISOString().split("T")[0]}.xlsx`);
+      if (!exportItems || exportItems.length === 0) {
+        alert("No data available to export");
+        return;
+      }
+
+      const totalQuantity = exportItems.reduce(
+        (sum, item) => sum + Number(item.total_quantity || 0),
+        0
+      );
+      const totalAmount = exportItems.reduce(
+        (sum, item) => sum + Number(item.total_amount || 0),
+        0
+      );
+
+      const headers = ["Date", "Item Name", "Quantity", "Total Amount (Rs.)"];
+      const rows = exportItems.map((item) => [
+        formatDate(item.trans_date),
+        item.item_name || "-",
+        Number(item.total_quantity || 0),
+        Number(item.total_amount || 0),
+      ]);
+
+      const footerRow = [
+        "TOTAL",
+        "",
+        Number(totalQuantity.toFixed(2)),
+        Number(totalAmount.toFixed(2)),
+      ];
+
+      const reportTitle = `Sales By Items — ${activeTab.toUpperCase()}`;
+      const wsData = [
+        [reportTitle],
+        [`Exported On: ${new Date().toLocaleString()}`],
+        [`Total Records: ${exportItems.length}`],
+        [],
+        headers,
+        ...rows,
+        [],
+        footerRow,
+      ];
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws["!cols"] = [{ wch: 18 }, { wch: 32 }, { wch: 15 }, { wch: 22 }];
+      XLSX.utils.book_append_sheet(wb, ws, "Sales By Items");
+      XLSX.writeFile(wb, `sales_by_items_${activeTab}_${new Date().toISOString().split("T")[0]}.xlsx`);
+    } catch (err: any) {
+      console.error("Export to Excel error:", err);
+      alert("Failed to export data to Excel. Please try again.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -372,13 +437,14 @@ export default function SalesbyItemPage() {
                 <button
                   className="btn-action"
                   onClick={exportToExcel}
+                  disabled={loading || exporting}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
-                  EXPORT TO EXCEL
+                  {exporting ? "EXPORTING..." : "EXPORT TO EXCEL"}
                 </button>
               )}
             </div>
@@ -409,13 +475,13 @@ export default function SalesbyItemPage() {
                 >
                   GET DATA
                 </button>
-                <button className="btn-action" onClick={exportToExcel}>
+                <button className="btn-action" onClick={exportToExcel} disabled={loading || exporting}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
-                  EXPORT TO EXCEL
+                  {exporting ? "EXPORTING..." : "EXPORT TO EXCEL"}
                 </button>
               </div>
             )}
@@ -469,13 +535,13 @@ export default function SalesbyItemPage() {
                 >
                   GET DATA
                 </button>
-                <button className="btn-action" onClick={exportToExcel}>
+                <button className="btn-action" onClick={exportToExcel} disabled={loading || exporting}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
-                  EXPORT TO EXCEL
+                  {exporting ? "EXPORTING..." : "EXPORT TO EXCEL"}
                 </button>
               </div>
             )}
@@ -505,13 +571,13 @@ export default function SalesbyItemPage() {
                 >
                   GET DATA
                 </button>
-                <button className="btn-action" onClick={exportToExcel}>
+                <button className="btn-action" onClick={exportToExcel} disabled={loading || exporting}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
-                  EXPORT TO EXCEL
+                  {exporting ? "EXPORTING..." : "EXPORT TO EXCEL"}
                 </button>
               </div>
             )}
@@ -531,59 +597,70 @@ export default function SalesbyItemPage() {
                   </h3>
                 </div>
 
-                <ReportTableState
-                  loading={loading}
-                  hasData={!error && todaySales.length > 0}
-                  emptyMessage={error || "No Record Found"}
-                  columns={4}
-                >
-                  <div className="items-table-wrapper">
-                    <table className="items-table">
-                      <thead id="table-header-root">
-                        <tr>
-                          <th>Date</th>
-                          <th>Item Name</th>
-                          <th>Quantity</th>
-                          <th>Total Amount (Rs.)</th>
-                        </tr>
-                      </thead>
-                      <tbody id="table-body-root">
-                        {loading ? (
-                          <tr>
-                            <td colSpan={4} style={{ textAlign: "center", padding: "40px" }}>
-                              Loading data...
-                            </td>
-                          </tr>
-                        ) : todaySales.length === 0 ? (
-                          <tr>
-                            <td colSpan={4} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
-                              No Records Found
-                            </td>
-                          </tr>
-                        ) : (
-                          todaySales.map((item, index) => (
-                            <tr key={index}>
-                              <td>{formatDate(item.trans_date)}</td>
-                              <td>{item.item_name || "-"}</td>
-                              <td>{item.total_quantity ?? 0}</td>
-                              <td>{item.total_amount ?? 0}</td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                {(() => {
+                  const isServerPaginated = activeTab === "year" && todaySales.length <= pageSize && totalRecords > todaySales.length;
+                  const totalCount = isServerPaginated ? totalRecords : todaySales.length;
+                  const calculatedTotalPages = isServerPaginated ? totalPages : Math.max(1, Math.ceil(totalCount / pageSize));
+                  const paginatedItems = isServerPaginated
+                    ? todaySales
+                    : todaySales.slice((pageNumber - 1) * pageSize, pageNumber * pageSize);
 
-                  <ReportTableFooter
-                    currentPage={pageNumber}
-                    totalPages={totalPages}
-                    totalRecords={totalRecords}
-                    pageSize={pageSize}
-                    onPageChange={(page) => setPageNumber(page)}
-                    onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
-                    disabled={loading}
-                  />
-                </ReportTableState>
+                  return (
+                    <ReportTableState
+                      loading={loading}
+                      hasData={!error && todaySales.length > 0}
+                      emptyMessage={error || "No Record Found"}
+                      columns={4}
+                    >
+                      <div className="items-table-wrapper">
+                        <table className="items-table">
+                          <thead id="table-header-root">
+                            <tr>
+                              <th>Date</th>
+                              <th>Item Name</th>
+                              <th>Quantity</th>
+                              <th>Total Amount (Rs.)</th>
+                            </tr>
+                          </thead>
+                          <tbody id="table-body-root">
+                            {loading ? (
+                              <tr>
+                                <td colSpan={4} style={{ textAlign: "center", padding: "40px" }}>
+                                  Loading data...
+                                </td>
+                              </tr>
+                            ) : paginatedItems.length === 0 ? (
+                              <tr>
+                                <td colSpan={4} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
+                                  No Records Found
+                                </td>
+                              </tr>
+                            ) : (
+                              paginatedItems.map((item, index) => (
+                                <tr key={index}>
+                                  <td>{formatDate(item.trans_date)}</td>
+                                  <td>{item.item_name || "-"}</td>
+                                  <td>{item.total_quantity ?? 0}</td>
+                                  <td>{item.total_amount ?? 0}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <ReportTableFooter
+                        currentPage={pageNumber}
+                        totalPages={calculatedTotalPages}
+                        totalRecords={totalCount}
+                        pageSize={pageSize}
+                        onPageChange={(page) => setPageNumber(page)}
+                        onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
+                        disabled={loading}
+                      />
+                    </ReportTableState>
+                  );
+                })()}
               </>
             )}
           </div>

@@ -629,7 +629,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Script from "next/script";
 import "./page.css";
 import { reportsService, VoidOrder, OrderItemDetail } from "@/api/services/report.service";
@@ -672,7 +672,6 @@ export default function DeclinedOrderPage() {
     const [data, setData] = useState<DisplayOrder[]>([]);
     const [loading, setLoading] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
-    const [totalAmount, setTotalAmount] = useState(0);
     const [selectedOrder, setSelectedOrder] = useState<DisplayOrder | null>(null);
     const [orderItems, setOrderItems] = useState<OrderItemDetail[]>([]);
     const [itemsLoading, setItemsLoading] = useState(false);
@@ -689,20 +688,75 @@ export default function DeclinedOrderPage() {
     const [fromDate, setFromDate] = useState<string>(() => new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0]);
     const [toDate, setToDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
 
-    const isServerPaginated = true;
-    const totalRecords = isServerPaginated ? serverTotalRecords : data.length;
-    const totalPages = isServerPaginated ? serverTotalPages : Math.max(1, Math.ceil(data.length / pageSize));
-    const displayedData = isServerPaginated ? data : data.slice((pageNumber - 1) * pageSize, pageNumber * pageSize);
+    // Dynamic list of payment methods based on loaded data
+    const availablePaymentMethods = useMemo(() => {
+        const defaults = ["Cash", "Card", "Online", "COD"];
+        const specific = new Set<string>();
+
+        data.forEach((row) => {
+            const p = (row.payment || "").trim();
+            if (p && p !== "-") {
+                const lower = p.toLowerCase();
+                const isDefault = ["cash", "card", "online", "cod"].includes(lower);
+                if (!isDefault) {
+                    specific.add(p);
+                }
+            }
+        });
+
+        return {
+            defaults,
+            specific: Array.from(specific).sort(),
+        };
+    }, [data]);
+
+    // Client-side filtering by selected payment method
+    const filteredData = useMemo(() => {
+        if (!paymentMethod) return data;
+        const pm = paymentMethod.trim().toLowerCase();
+
+        return data.filter((row) => {
+            const pay = (row.payment || "").trim().toLowerCase();
+            if (pm === "cash") {
+                return pay === "cash";
+            }
+            if (pm === "card") {
+                return pay.includes("card") || pay.includes("credit") || pay.includes("debit");
+            }
+            if (pm === "cod") {
+                return pay === "cod" || pay.includes("cash on delivery");
+            }
+            if (pm === "online") {
+                return (
+                    pay === "online" ||
+                    ["sbi pay", "phone pe", "gpays", "gpay", "paypal", "upi", "paytm", "net banking"].some((x) =>
+                        pay.includes(x)
+                    )
+                );
+            }
+            return pay === pm || pay.includes(pm);
+        });
+    }, [data, paymentMethod]);
+
+    const filteredTotalAmount = useMemo(() => {
+        return filteredData.reduce((sum, item) => sum + item.fullAmount, 0);
+    }, [filteredData]);
+
+    const isServerPaginated = activeTab === "yearly" && data.length <= pageSize && serverTotalRecords > data.length && !paymentMethod;
+    const totalRecords = isServerPaginated ? serverTotalRecords : filteredData.length;
+    const totalPages = isServerPaginated ? serverTotalPages : Math.max(1, Math.ceil(filteredData.length / pageSize));
+    const displayedData = isServerPaginated
+        ? filteredData
+        : filteredData.slice((pageNumber - 1) * pageSize, pageNumber * pageSize);
 
     // Fetch data automatically for tabs without apply buttons (today, weekly)
-    // and whenever pagination or payment method changes.
     useEffect(() => {
         if (shopId) {
             if (activeTab === "today" || activeTab === "weekly" || hasSearched) {
                 fetchData(activeTab);
             }
         }
-    }, [shopId, activeTab, pageNumber, pageSize, paymentMethod]);
+    }, [shopId, activeTab]);
 
     // Format date from API
     const formatDate = (item: any): string => {
@@ -760,60 +814,49 @@ export default function DeclinedOrderPage() {
         });
     };
 
-    // Calculate total amount
-    const calculateTotal = (items: DisplayOrder[]): number => {
-        return items.reduce((sum, item) => sum + item.fullAmount, 0);
-    };
-
     // Fetch data based on tab
-    const fetchData = async (tab: TabKey) => {
+    const fetchData = async (tab: TabKey, customPage?: number) => {
         if (!shopId) return;
         setHasSearched(true);
         setLoading(true);
         setData([]);
-        setTotalAmount(0);
 
         try {
+            const page = customPage ?? pageNumber;
             if (tab === "today") {
-                const res = await reportsService.getVoidOrdersByToday(shopId, pageNumber, pageSize);
+                const res = await reportsService.getVoidOrdersByToday(shopId, page, pageSize);
                 const transformed = transformVoidOrders(res.items);
                 setData(transformed);
-                setTotalAmount(calculateTotal(transformed));
-                setServerTotalRecords(res.totalRecords);
-                setServerTotalPages(res.totalPages || 1);
+                setServerTotalRecords(res.totalRecords || transformed.length);
+                setServerTotalPages(res.totalPages || Math.max(1, Math.ceil((res.totalRecords || transformed.length) / pageSize)));
             } else if (tab === "weekly") {
-                const res = await reportsService.getVoidOrdersByWeek(shopId, paymentMethod, pageNumber, pageSize);
+                const res = await reportsService.getVoidOrdersByWeek(shopId, paymentMethod, page, pageSize);
                 const transformed = transformVoidOrders(res.items);
                 setData(transformed);
-                setTotalAmount(calculateTotal(transformed));
-                setServerTotalRecords(res.totalRecords);
-                setServerTotalPages(res.totalPages || 1);
+                setServerTotalRecords(res.totalRecords || transformed.length);
+                setServerTotalPages(res.totalPages || Math.max(1, Math.ceil((res.totalRecords || transformed.length) / pageSize)));
             } else if (tab === "monthly") {
-                const res = await reportsService.getVoidOrdersByMonth(shopId, monthlyMonth, monthlyYear, pageNumber, pageSize);
+                const res = await reportsService.getVoidOrdersByMonth(shopId, monthlyMonth, monthlyYear, page, pageSize);
                 const transformed = transformVoidOrders(res.items);
                 setData(transformed);
-                setTotalAmount(calculateTotal(transformed));
-                setServerTotalRecords(res.totalRecords);
-                setServerTotalPages(res.totalPages || 1);
+                setServerTotalRecords(res.totalRecords || transformed.length);
+                setServerTotalPages(res.totalPages || Math.max(1, Math.ceil((res.totalRecords || transformed.length) / pageSize)));
             } else if (tab === "yearly") {
-                const res = await reportsService.getVoidOrdersByYear(shopId, yearlyYear, pageNumber, pageSize);
+                const res = await reportsService.getVoidOrdersByYear(shopId, yearlyYear, page, pageSize);
                 const transformed = transformVoidOrders(res.items);
                 setData(transformed);
-                setTotalAmount(calculateTotal(transformed));
                 setServerTotalRecords(res.totalRecords);
                 setServerTotalPages(res.totalPages || 1);
             } else if (tab === "datewise") {
-                const res = await reportsService.getVoidOrdersByDateWise(shopId, fromDate, toDate, pageNumber, pageSize);
+                const res = await reportsService.getVoidOrdersByDateWise(shopId, fromDate, toDate, page, pageSize);
                 const transformed = transformVoidOrders(res.items);
                 setData(transformed);
-                setTotalAmount(calculateTotal(transformed));
-                setServerTotalRecords(res.totalRecords);
-                setServerTotalPages(res.totalPages || 1);
+                setServerTotalRecords(res.totalRecords || transformed.length);
+                setServerTotalPages(res.totalPages || Math.max(1, Math.ceil((res.totalRecords || transformed.length) / pageSize)));
             }
         } catch (err) {
             console.error(`Error fetching ${tab} declined orders:`, err);
             setData([]);
-            setTotalAmount(0);
             setServerTotalRecords(0);
             setServerTotalPages(1);
         } finally {
@@ -821,13 +864,20 @@ export default function DeclinedOrderPage() {
         }
     };
 
+    const handlePageChange = (page: number) => {
+        setPageNumber(page);
+        if (activeTab === "yearly" && isServerPaginated) {
+            fetchData("yearly", page);
+        }
+    };
+
     // Switch tab
     const switchTab = (tab: TabKey) => {
         if (activeTab === tab) return;
         setActiveTab(tab);
+        setPaymentMethod("");
         setPageNumber(1);
         setData([]);
-        setTotalAmount(0);
         setServerTotalRecords(0);
         setServerTotalPages(1);
         if (tab === "today" || tab === "weekly") {
@@ -870,7 +920,7 @@ export default function DeclinedOrderPage() {
 
     // EXPORT TO EXCEL
     const exportToExcel = () => {
-        if (!data || data.length === 0) {
+        if (!filteredData || filteredData.length === 0) {
             alert("No data available to export");
             return;
         }
@@ -884,7 +934,7 @@ export default function DeclinedOrderPage() {
             ["Date", "Order ID", "Customer Name", "Mobile No", "Payment Method", "Order Type", "Total Amount", "Total Tax (Rs.)", "Total Discount (Rs.)", "Delivery Charge", "Reason"],
         ];
 
-        data.forEach((r) => {
+        filteredData.forEach((r) => {
             wsData.push([
                 r.date,
                 r.orderId,
@@ -956,9 +1006,6 @@ export default function DeclinedOrderPage() {
         ));
     };
 
-
-
-
     // Wire modal click
     useEffect(() => {
         const itemsModal = document.getElementById("itemsModal");
@@ -982,7 +1029,7 @@ export default function DeclinedOrderPage() {
                 <div className="main-content">
                     <div className="report-card">
                         <div className="report-header">
-                            <div className="typ-page-heading report-title">Total Declined Order Reports {totalAmount > 0 ? `(Total: Rs. ${totalAmount.toFixed(2)})` : ""}</div>
+                            <div className="typ-page-heading report-title">Total Declined Order Reports {filteredTotalAmount > 0 ? `(Total: Rs. ${filteredTotalAmount.toFixed(2)})` : ""}</div>
                             <button
                                 className="action-btn action-btn-help"
                                 onClick={() => alert("Help & Support - Declined Orders")}
@@ -1048,10 +1095,12 @@ export default function DeclinedOrderPage() {
                                         }}
                                     >
                                         <option value="">All</option>
-                                        <option value="Cash">Cash</option>
-                                        <option value="Card">Card</option>
-                                        <option value="Online">Online</option>
-                                        <option value="COD">COD</option>
+                                        {availablePaymentMethods.defaults.map((m) => (
+                                            <option key={m} value={m}>{m}</option>
+                                        ))}
+                                        {availablePaymentMethods.specific.map((m) => (
+                                            <option key={m} value={m}>{m}</option>
+                                        ))}
                                     </select>
                                 </div>
                             </div>
@@ -1093,6 +1142,25 @@ export default function DeclinedOrderPage() {
                                         ))}
                                     </select>
                                 </div>
+                                <div className="filter-group">
+                                    <label>Payment Method</label>
+                                    <select
+                                        id="monthly-payment-method"
+                                        value={paymentMethod}
+                                        onChange={(e) => {
+                                            setPaymentMethod(e.target.value);
+                                            setPageNumber(1);
+                                        }}
+                                    >
+                                        <option value="">All</option>
+                                        {availablePaymentMethods.defaults.map((m) => (
+                                            <option key={m} value={m}>{m}</option>
+                                        ))}
+                                        {availablePaymentMethods.specific.map((m) => (
+                                            <option key={m} value={m}>{m}</option>
+                                        ))}
+                                    </select>
+                                </div>
                                 <button
                                     className="btn-apply"
                                     onClick={() => {
@@ -1126,6 +1194,25 @@ export default function DeclinedOrderPage() {
                                     >
                                         {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((y) => (
                                             <option key={y} value={String(y)}>{y}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="filter-group">
+                                    <label>Payment Method</label>
+                                    <select
+                                        id="yearly-payment-method"
+                                        value={paymentMethod}
+                                        onChange={(e) => {
+                                            setPaymentMethod(e.target.value);
+                                            setPageNumber(1);
+                                        }}
+                                    >
+                                        <option value="">All</option>
+                                        {availablePaymentMethods.defaults.map((m) => (
+                                            <option key={m} value={m}>{m}</option>
+                                        ))}
+                                        {availablePaymentMethods.specific.map((m) => (
+                                            <option key={m} value={m}>{m}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -1171,6 +1258,25 @@ export default function DeclinedOrderPage() {
                                         onChange={(e) => setToDate(e.target.value)}
                                     />
                                 </div>
+                                <div className="filter-group">
+                                    <label>Payment Method</label>
+                                    <select
+                                        id="datewise-payment-method"
+                                        value={paymentMethod}
+                                        onChange={(e) => {
+                                            setPaymentMethod(e.target.value);
+                                            setPageNumber(1);
+                                        }}
+                                    >
+                                        <option value="">All</option>
+                                        {availablePaymentMethods.defaults.map((m) => (
+                                            <option key={m} value={m}>{m}</option>
+                                        ))}
+                                        {availablePaymentMethods.specific.map((m) => (
+                                            <option key={m} value={m}>{m}</option>
+                                        ))}
+                                    </select>
+                                </div>
                                 <button
                                     className="btn-apply"
                                     onClick={() => {
@@ -1204,7 +1310,7 @@ export default function DeclinedOrderPage() {
 
                             {/* Total Amount & Pagination Header Controls */}
                             <div className="total-amount" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <span id="total-amount-label">Total Amount: Rs. {totalAmount.toFixed(2)}</span>
+                                <span id="total-amount-label">Total Amount: Rs. {filteredTotalAmount.toFixed(2)}</span>
                             </div>
 
                             {/* Table */}
@@ -1237,7 +1343,7 @@ export default function DeclinedOrderPage() {
                                 totalPages={totalPages}
                                 totalRecords={totalRecords}
                                 pageSize={pageSize}
-                                onPageChange={(page) => setPageNumber(page)}
+                                onPageChange={handlePageChange}
                                 onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
                                 disabled={loading}
                             />

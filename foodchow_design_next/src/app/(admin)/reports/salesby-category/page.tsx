@@ -32,7 +32,7 @@ export default function SalesbyCategoryPage() {
     String(new Date().getFullYear())
   );
   const [activeTab, setActiveTab] = useState<string>("today");
-  const lastFetched = useRef<{ tab: string; shopId: number | null; page: number; size: number }>({ tab: "", shopId: null, page: 0, size: 0 });
+  const lastFetched = useRef<{ tab: string; shopId: number | null; page: number }>({ tab: "", shopId: null, page: 0 });
 
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -40,10 +40,8 @@ export default function SalesbyCategoryPage() {
   const [serverTotalPages, setServerTotalPages] = useState(1);
 
   const [serverTotalRecords, setServerTotalRecords] = useState(0);
-  const totalRecords = serverTotalRecords || categorySales.length;
-  const totalPages = Math.max(serverTotalPages, Math.ceil(totalRecords / pageSize) || 1);
-
   const [hasSearched, setHasSearched] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (!shopId) return;
@@ -51,17 +49,16 @@ export default function SalesbyCategoryPage() {
       if (
         lastFetched.current.tab === activeTab &&
         lastFetched.current.shopId === shopId &&
-        lastFetched.current.page === pageNumber &&
-        lastFetched.current.size === pageSize
+        lastFetched.current.page === pageNumber
       ) {
         return;
       }
-      lastFetched.current = { tab: activeTab, shopId, page: pageNumber, size: pageSize };
+      lastFetched.current = { tab: activeTab, shopId, page: pageNumber };
       triggerFilterDataFetch(activeTab);
     } else if (hasSearched) {
       triggerFilterDataFetch(activeTab);
     }
-  }, [shopId, activeTab, pageNumber, pageSize, hasSearched]);
+  }, [shopId, activeTab, pageNumber, hasSearched]);
 
   async function triggerFilterDataFetch(type: string) {
     if (!shopId) return;
@@ -155,39 +152,103 @@ export default function SalesbyCategoryPage() {
 
   const shouldShowResults = activeTab === "today" || activeTab === "this-week" || hasSearched;
 
-  const exportToExcel = () => {
-    if (!categorySales || categorySales.length === 0) {
-      alert("No data available to export");
+  const exportToExcel = async () => {
+    if (exporting) return;
+    if (!shopId) {
+      alert("Shop ID not available");
       return;
     }
 
     const XLSX = (window as any).XLSX;
     if (!XLSX) {
+      alert("Excel export library is loading, please try again.");
       return;
     }
 
-    const headers = ["Date", "Category Name", "Quantity", "Total Amount (Rs.)"];
-    const rows = categorySales.map((item) => [
-      item.trans_date ? `${item.trans_date.Day}/${item.trans_date.Month}/${item.trans_date.Year}` : "-",
-      item.cate_name || "-",
-      Number(item.total_quantity || 0),
-      Number(item.total_amount || 0),
-    ]);
+    setExporting(true);
+    try {
+      let exportItems: SalesByCategory[] = [];
 
-    const reportTitle = `Sales By Category — ${activeTab.toUpperCase()}`;
-    const wsData = [
-      [reportTitle],
-      [`Exported On: ${new Date().toLocaleString()}`],
-      [],
-      headers,
-      ...rows,
-    ];
+      if (activeTab === "today") {
+        exportItems = await reportsService.getExportSalesByCategoryToday(shopId);
+      } else if (activeTab === "this-week") {
+        exportItems = await reportsService.getExportSalesByCategoryWeek(shopId);
+      } else if (activeTab === "day-wise") {
+        if (!selectedDate) {
+          alert("Please select date");
+          setExporting(false);
+          return;
+        }
+        exportItems = await reportsService.getExportSalesByCategoryDayWise(shopId, selectedDate);
+      } else if (activeTab === "month") {
+        if (!selectedMonth || !selectedYear) {
+          alert("Please select Month and Year");
+          setExporting(false);
+          return;
+        }
+        exportItems = await reportsService.getExportSalesByCategoryMonth(shopId, selectedMonth, selectedYear);
+      } else if (activeTab === "year") {
+        if (!selectedYear) {
+          alert("Please select Year");
+          setExporting(false);
+          return;
+        }
+        const res = await reportsService.getYearSalesByCategory(shopId, selectedYear, 1, serverTotalRecords > 0 ? serverTotalRecords : 100);
+        exportItems = res.items || [];
+      }
 
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws["!cols"] = [{ wch: 18 }, { wch: 30 }, { wch: 15 }, { wch: 22 }];
-    XLSX.utils.book_append_sheet(wb, ws, "Sales By Category");
-    XLSX.writeFile(wb, `sales_by_category_${activeTab}_${new Date().toISOString().split("T")[0]}.xlsx`);
+      if (!exportItems || exportItems.length === 0) {
+        alert("No data available to export");
+        return;
+      }
+
+      const totalQuantity = exportItems.reduce(
+        (sum, item) => sum + Number(item.total_quantity || 0),
+        0
+      );
+      const totalAmount = exportItems.reduce(
+        (sum, item) => sum + Number(item.total_amount || 0),
+        0
+      );
+
+      const headers = ["Date", "Category Name", "Quantity", "Total Amount (Rs.)"];
+      const rows = exportItems.map((item) => [
+        item.trans_date ? `${item.trans_date.Day}/${item.trans_date.Month}/${item.trans_date.Year}` : "-",
+        item.cate_name || "-",
+        Number(item.total_quantity || 0),
+        Number(item.total_amount || 0),
+      ]);
+
+      const footerRow = [
+        "TOTAL",
+        "",
+        Number(totalQuantity.toFixed(2)),
+        Number(totalAmount.toFixed(2)),
+      ];
+
+      const reportTitle = `Sales By Category — ${activeTab.toUpperCase()}`;
+      const wsData = [
+        [reportTitle],
+        [`Exported On: ${new Date().toLocaleString()}`],
+        [`Total Records: ${exportItems.length}`],
+        [],
+        headers,
+        ...rows,
+        [],
+        footerRow,
+      ];
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws["!cols"] = [{ wch: 18 }, { wch: 30 }, { wch: 15 }, { wch: 22 }];
+      XLSX.utils.book_append_sheet(wb, ws, "Sales By Category");
+      XLSX.writeFile(wb, `sales_by_category_${activeTab}_${new Date().toISOString().split("T")[0]}.xlsx`);
+    } catch (err: any) {
+      console.error("Export to Excel error:", err);
+      alert("Failed to export data to Excel. Please try again.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -261,13 +322,14 @@ export default function SalesbyCategoryPage() {
                   <button
                     className="btn-action"
                     onClick={exportToExcel}
+                    disabled={loading || exporting}
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                       <polyline points="7 10 12 15 17 10" />
                       <line x1="12" y1="15" x2="12" y2="3" />
                     </svg>
-                    EXPORT TO EXCEL
+                    {exporting ? "EXPORTING..." : "EXPORT TO EXCEL"}
                   </button>
                 </div>
               )}
@@ -293,13 +355,14 @@ export default function SalesbyCategoryPage() {
                 <button
                   className="btn-action"
                   onClick={exportToExcel}
+                  disabled={loading || exporting}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
-                  EXPORT TO EXCEL
+                  {exporting ? "EXPORTING..." : "EXPORT TO EXCEL"}
                 </button>
               </div>
             )}
@@ -352,13 +415,14 @@ export default function SalesbyCategoryPage() {
                 <button
                   className="btn-action"
                   onClick={exportToExcel}
+                  disabled={loading || exporting}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
-                  EXPORT TO EXCEL
+                  {exporting ? "EXPORTING..." : "EXPORT TO EXCEL"}
                 </button>
               </div>
             )}
@@ -389,13 +453,14 @@ export default function SalesbyCategoryPage() {
                 <button
                   className="btn-action"
                   onClick={exportToExcel}
+                  disabled={loading || exporting}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
-                  EXPORT TO EXCEL
+                  {exporting ? "EXPORTING..." : "EXPORT TO EXCEL"}
                 </button>
               </div>
             )}
@@ -409,55 +474,66 @@ export default function SalesbyCategoryPage() {
                   </h3>
                 </div>
 
-                <ReportTableState loading={loading} hasData={categorySales.length > 0} columns={4}>
-                  <div className="items-table-wrapper">
-                    <table className="items-table">
-                      <thead id="table-header-root">
-                        <tr>
-                          <th style={{ width: "20%" }}>Date</th>
-                          <th style={{ width: "30%" }}>Category Name</th>
-                          <th style={{ width: "25%" }}>Quantity</th>
-                          <th style={{ width: "25%" }}>Total Amount (Rs.)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {loading ? (
-                          <tr>
-                            <td colSpan={4} style={{ textAlign: "center", padding: "40px" }}>
-                              Loading data...
-                            </td>
-                          </tr>
-                        ) : categorySales.length === 0 ? (
-                          <tr>
-                            <td colSpan={4} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
-                              No Records Found
-                            </td>
-                          </tr>
-                        ) : (
-                          categorySales.map((item: any, index: number) => (
-                            <tr key={index}>
-                              <td>
-                                {item.trans_date ? `${item.trans_date.Day}/${item.trans_date.Month}/${item.trans_date.Year}` : "-"}
-                              </td>
-                              <td>{item.cate_name}</td>
-                              <td>{item.total_quantity}</td>
-                              <td>{item.total_amount}</td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                {(() => {
+                  const isServerPaginated = activeTab === "year" && categorySales.length <= pageSize && serverTotalRecords > categorySales.length;
+                  const totalCount = isServerPaginated ? (serverTotalRecords || categorySales.length) : categorySales.length;
+                  const calculatedTotalPages = isServerPaginated ? serverTotalPages : Math.max(1, Math.ceil(totalCount / pageSize));
+                  const paginatedCategories = isServerPaginated
+                    ? categorySales
+                    : categorySales.slice((pageNumber - 1) * pageSize, pageNumber * pageSize);
 
-                  <ReportTableFooter
-                    currentPage={pageNumber}
-                    totalPages={totalPages}
-                    totalRecords={totalRecords}
-                    pageSize={pageSize}
-                    onPageChange={(page) => setPageNumber(page)}
-                    onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
-                  />
-                </ReportTableState>
+                  return (
+                    <ReportTableState loading={loading} hasData={categorySales.length > 0} columns={4}>
+                      <div className="items-table-wrapper">
+                        <table className="items-table">
+                          <thead id="table-header-root">
+                            <tr>
+                              <th style={{ width: "20%" }}>Date</th>
+                              <th style={{ width: "30%" }}>Category Name</th>
+                              <th style={{ width: "25%" }}>Quantity</th>
+                              <th style={{ width: "25%" }}>Total Amount (Rs.)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {loading ? (
+                              <tr>
+                                <td colSpan={4} style={{ textAlign: "center", padding: "40px" }}>
+                                  Loading data...
+                                </td>
+                              </tr>
+                            ) : paginatedCategories.length === 0 ? (
+                              <tr>
+                                <td colSpan={4} className="report-no-records" style={{ textAlign: "center", padding: "40px" }}>
+                                  No Records Found
+                                </td>
+                              </tr>
+                            ) : (
+                              paginatedCategories.map((item: any, index: number) => (
+                                <tr key={index}>
+                                  <td>
+                                    {item.trans_date ? `${item.trans_date.Day}/${item.trans_date.Month}/${item.trans_date.Year}` : "-"}
+                                  </td>
+                                  <td>{item.cate_name}</td>
+                                  <td>{item.total_quantity}</td>
+                                  <td>{item.total_amount}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <ReportTableFooter
+                        currentPage={pageNumber}
+                        totalPages={calculatedTotalPages}
+                        totalRecords={totalCount}
+                        pageSize={pageSize}
+                        onPageChange={(page) => setPageNumber(page)}
+                        onPageSizeChange={(size) => { setPageSize(size); setPageNumber(1); }}
+                      />
+                    </ReportTableState>
+                  );
+                })()}
               </div>
             )}
           </div>

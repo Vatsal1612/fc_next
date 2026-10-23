@@ -52,6 +52,7 @@ export default function TotalSalesPage() {
   const [serverTotalRecords, setServerTotalRecords] = useState<number>(0);
   const [serverTotalPages, setServerTotalPages] = useState<number>(0);
   const [hasSearched, setHasSearched] = useState(false);
+  const [exporting, setExporting] = useState<boolean>(false);
 
   const latestRequestRef = useState<{ current: number }>({ current: 0 })[0];
 
@@ -94,22 +95,24 @@ export default function TotalSalesPage() {
       discount: String(item.discount ?? 0),
     }));
 
-  const loadTodaySales = async () => {
+  const loadTodaySales = async (targetPage = pageNumber, targetSize = pageSize) => {
     if (!shopId) return;
     const requestId = Date.now();
     latestRequestRef.current = requestId;
     try {
       setLoading(true);
-      const response = await reportsService.getTotalSalesByToday(shopId);
+      const response = await reportsService.getTotalSalesByToday(shopId, targetPage, targetSize);
       if (latestRequestRef.current !== requestId) return;
 
       const items = response.items || [];
       const formatted = mapRecords(items);
       setRecords(formatted);
       setServerTotalRecords(response.totalRecords);
-      setServerTotalPages(response.totalPages || (response.totalRecords > 0 ? Math.ceil(response.totalRecords / pageSize) : 0));
+      setServerTotalPages(response.totalPages || (response.totalRecords > 0 ? Math.ceil(response.totalRecords / targetSize) : 0));
 
-      const salesTot = items.reduce((acc, item: any) => acc + Number(item.total_amount ?? item.full_amount ?? 0), 0);
+      const salesTot = (typeof response.totalAmount === "number" && response.totalAmount > 0)
+        ? response.totalAmount
+        : items.reduce((acc, item: any) => acc + Number(item.total_amount ?? item.full_amount ?? 0), 0);
       const taxTot = items.reduce((acc, item: any) => acc + Number(item.total_tax ?? item.tax_amount ?? 0), 0);
       setMetrics({
         salesAmount: salesTot.toFixed(2),
@@ -130,22 +133,24 @@ export default function TotalSalesPage() {
     }
   };
 
-  const loadWeekSales = async () => {
+  const loadWeekSales = async (targetPage = pageNumber, targetSize = pageSize) => {
     if (!shopId) return;
     const requestId = Date.now();
     latestRequestRef.current = requestId;
     try {
       setLoading(true);
-      const response = await reportsService.getTotalSalesByWeek(shopId);
+      const response = await reportsService.getTotalSalesByWeek(shopId, "cash", targetPage, targetSize);
       if (latestRequestRef.current !== requestId) return;
 
       const items = response.items || [];
       const formatted = mapRecords(items);
       setRecords(formatted);
       setServerTotalRecords(response.totalRecords);
-      setServerTotalPages(response.totalPages || (response.totalRecords > 0 ? Math.ceil(response.totalRecords / pageSize) : 0));
+      setServerTotalPages(response.totalPages || (response.totalRecords > 0 ? Math.ceil(response.totalRecords / targetSize) : 0));
 
-      const salesTot = items.reduce((acc, item: any) => acc + Number(item.total_amount ?? item.full_amount ?? 0), 0);
+      const salesTot = (typeof response.totalAmount === "number" && response.totalAmount > 0)
+        ? response.totalAmount
+        : items.reduce((acc, item: any) => acc + Number(item.total_amount ?? item.full_amount ?? 0), 0);
       const taxTot = items.reduce((acc, item: any) => acc + Number(item.total_tax ?? item.tax_amount ?? 0), 0);
       setMetrics({
         salesAmount: salesTot.toFixed(2),
@@ -166,22 +171,24 @@ export default function TotalSalesPage() {
     }
   };
 
-  const loadMonthSales = async () => {
+  const loadMonthSales = async (targetPage = pageNumber, targetSize = pageSize) => {
     if (!shopId || !selectedMonth || !selectedMonthYear) return;
     const requestId = Date.now();
     latestRequestRef.current = requestId;
     try {
       setLoading(true);
-      const response = await reportsService.getTotalSalesByMonth(shopId, selectedMonth, selectedMonthYear);
+      const response = await reportsService.getTotalSalesByMonth(shopId, selectedMonth, selectedMonthYear, targetPage, targetSize);
       if (latestRequestRef.current !== requestId) return;
 
       const items = response.items || [];
       const formatted = mapRecords(items);
       setRecords(formatted);
       setServerTotalRecords(response.totalRecords);
-      setServerTotalPages(response.totalPages || (response.totalRecords > 0 ? Math.ceil(response.totalRecords / pageSize) : 0));
+      setServerTotalPages(response.totalPages || (response.totalRecords > 0 ? Math.ceil(response.totalRecords / targetSize) : 0));
 
-      const salesTot = items.reduce((acc, item: any) => acc + Number(item.total_amount ?? item.full_amount ?? 0), 0);
+      const salesTot = (typeof response.totalAmount === "number" && response.totalAmount > 0)
+        ? response.totalAmount
+        : items.reduce((acc, item: any) => acc + Number(item.total_amount ?? item.full_amount ?? 0), 0);
       const taxTot = items.reduce((acc, item: any) => acc + Number(item.total_tax ?? item.tax_amount ?? 0), 0);
       setMetrics({
         salesAmount: salesTot.toFixed(2),
@@ -217,7 +224,9 @@ export default function TotalSalesPage() {
       setServerTotalRecords(response.totalRecords);
       setServerTotalPages(response.totalPages || (response.totalRecords > 0 ? Math.ceil(response.totalRecords / targetSize) : 0));
 
-      const salesTot = items.reduce((acc, item: any) => acc + Number(item.total_amount ?? item.full_amount ?? 0), 0);
+      const salesTot = (typeof response.totalAmount === "number" && response.totalAmount > 0)
+        ? response.totalAmount
+        : items.reduce((acc, item: any) => acc + Number(item.total_amount ?? item.full_amount ?? 0), 0);
       const taxTot = items.reduce((acc, item: any) => acc + Number(item.total_tax ?? item.tax_amount ?? 0), 0);
       setMetrics({
         salesAmount: salesTot.toFixed(2),
@@ -238,7 +247,7 @@ export default function TotalSalesPage() {
     }
   };
 
-  const loadCustomSales = async () => {
+  const loadCustomSales = async (targetPage = pageNumber, targetSize = pageSize) => {
     if (!customFrom || !customTo || !shopId) return;
     const requestId = Date.now();
     latestRequestRef.current = requestId;
@@ -247,7 +256,9 @@ export default function TotalSalesPage() {
       const response = await reportsService.getTotalSalesByDateWise(
         shopId,
         customFrom,
-        customTo
+        customTo,
+        targetPage,
+        targetSize
       );
 
       if (latestRequestRef.current !== requestId) return;
@@ -257,12 +268,14 @@ export default function TotalSalesPage() {
 
       setRecords(formattedRows);
       setServerTotalRecords(response.totalRecords);
-      setServerTotalPages(response.totalPages || (response.totalRecords > 0 ? Math.ceil(response.totalRecords / pageSize) : 0));
+      setServerTotalPages(response.totalPages || (response.totalRecords > 0 ? Math.ceil(response.totalRecords / targetSize) : 0));
 
-      const salesTot = items.reduce(
-        (acc, item: any) => acc + Number(item.total_amount ?? item.full_amount ?? 0),
-        0
-      );
+      const salesTot = (typeof response.totalAmount === "number" && response.totalAmount > 0)
+        ? response.totalAmount
+        : items.reduce(
+          (acc, item: any) => acc + Number(item.total_amount ?? item.full_amount ?? 0),
+          0
+        );
       const taxTot = items.reduce(
         (acc, item: any) => acc + Number(item.total_tax ?? item.tax_amount ?? 0),
         0
@@ -287,90 +300,122 @@ export default function TotalSalesPage() {
   };
 
   const exportToExcel = async () => {
-    if (!records || records.length === 0) {
-      alert("No data available to export");
-      return;
-    }
+    if (exporting) return;
+    if (!shopId) return;
 
     const XLSX = (window as any).XLSX;
     if (!XLSX) {
+      alert("Excel export library is loading, please try again.");
       return;
     }
 
-    const headers = [
-      "Date",
-      "Order ID",
-      "Status",
-      "Customer Name",
-      "Mobile No",
-      "Payment Method",
-      "Order Type",
-      "Split Payment",
-      "Total Amount (Rs.)",
-      "Total Tax (Rs.)",
-      "Total Charge (Rs.)",
-      "Total Discount (Rs.)"
-    ];
+    setExporting(true);
+    try {
+      let rawItems: any[] = [];
 
-    const rows = records.map((r) => [
-      r.date || "-",
-      r.orderId || r.id || "-",
-      r.status || "-",
-      r.name || "-",
-      r.phone || "-",
-      r.payment || "-",
-      r.type || "-",
-      r.split || "-",
-      parseFloat(r.amount || "0") || 0,
-      parseFloat(r.tax || "0") || 0,
-      parseFloat(r.charge || "0") || 0,
-      parseFloat(r.discount || "0") || 0,
-    ]);
+      if (activeTab === "today") {
+        rawItems = await reportsService.getExportTotalSalesByToday(shopId);
+      } else if (activeTab === "this-week") {
+        rawItems = await reportsService.getExportTotalSalesByWeek(shopId);
+      } else if (activeTab === "month-wise") {
+        rawItems = await reportsService.getExportTotalSalesByMonth(shopId, selectedMonth, selectedMonthYear);
+      } else if (activeTab === "year-wise") {
+        const res = await reportsService.getTotalSalesByYear(shopId, selectedYear, 1, serverTotalRecords > 0 ? serverTotalRecords : 100);
+        rawItems = res.items || [];
+      } else if (activeTab === "custom") {
+        rawItems = await reportsService.getExportTotalSalesByDateWise(shopId, customFrom, customTo);
+      }
 
-    const reportTitle = `Total Sales Report — ${activeTab.toUpperCase()}`;
-    const wsData: any[][] = [
-      [reportTitle],
-      [`Exported On: ${new Date().toLocaleString()}`],
-      [],
-      headers,
-      ...rows,
-      [],
-      [
-        "Total",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        parseFloat(metrics.salesAmount || "0") || 0,
-        parseFloat(metrics.taxAmount || "0") || 0,
-        "",
-        ""
-      ]
-    ];
+      if (!rawItems || rawItems.length === 0) {
+        alert("No data available to export");
+        return;
+      }
 
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws["!cols"] = [
-      { wch: 20 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 22 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 18 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 16 }
-    ];
+      const allRecords = mapRecords(rawItems);
 
-    const fileName = `total_sales_${activeTab}_${new Date().toISOString().split("T")[0]}.xlsx`;
-    XLSX.utils.book_append_sheet(wb, ws, "Total Sales");
-    XLSX.writeFile(wb, fileName);
+      const headers = [
+        "Date",
+        "Order ID",
+        "Status",
+        "Customer Name",
+        "Mobile No",
+        "Payment Method",
+        "Order Type",
+        "Split Payment",
+        "Total Amount (Rs.)",
+        "Total Tax (Rs.)",
+        "Total Charge (Rs.)",
+        "Total Discount (Rs.)"
+      ];
+
+      const rows = allRecords.map((r) => [
+        r.date || "-",
+        r.orderId || r.id || "-",
+        r.status || "-",
+        r.name || "-",
+        r.phone || "-",
+        r.payment || "-",
+        r.type || "-",
+        r.split || "-",
+        parseFloat(r.amount || "0") || 0,
+        parseFloat(r.tax || "0") || 0,
+        parseFloat(r.charge || "0") || 0,
+        parseFloat(r.discount || "0") || 0,
+      ]);
+
+      const totalSalesAmount = allRecords.reduce((acc, r) => acc + (parseFloat(r.amount || "0") || 0), 0);
+      const totalTaxAmount = allRecords.reduce((acc, r) => acc + (parseFloat(r.tax || "0") || 0), 0);
+
+      const reportTitle = `Total Sales Report — ${activeTab.toUpperCase()}`;
+      const wsData: any[][] = [
+        [reportTitle],
+        [`Exported On: ${new Date().toLocaleString()}`],
+        [],
+        headers,
+        ...rows,
+        [],
+        [
+          "Total",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          totalSalesAmount,
+          totalTaxAmount,
+          "",
+          ""
+        ]
+      ];
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws["!cols"] = [
+        { wch: 20 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 22 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 18 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 16 }
+      ];
+
+      const fileName = `total_sales_${activeTab}_${new Date().toISOString().split("T")[0]}.xlsx`;
+      XLSX.utils.book_append_sheet(wb, ws, "Total Sales");
+      XLSX.writeFile(wb, fileName);
+    } catch (err: any) {
+      console.error("Export to Excel error:", err);
+      alert("Failed to export data to Excel. Please try again.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const lastFetched = useRef<{ tab: string; shopId: number | null }>({ tab: "", shopId: null });
@@ -384,9 +429,9 @@ export default function TotalSalesPage() {
     lastFetched.current = { tab: activeTab, shopId };
 
     if (activeTab === "today") {
-      loadTodaySales();
+      loadTodaySales(1, pageSize);
     } else if (activeTab === "this-week") {
-      loadWeekSales();
+      loadWeekSales(1, pageSize);
     }
   }, [shopId, activeTab]);
 
@@ -403,27 +448,30 @@ export default function TotalSalesPage() {
 
     if (tab === "today") {
       setHasSearched(true);
-      loadTodaySales();
+      lastFetched.current = { tab, shopId };
+      loadTodaySales(1, pageSize);
     } else if (tab === "this-week") {
       setHasSearched(true);
-      loadWeekSales();
+      lastFetched.current = { tab, shopId };
+      loadWeekSales(1, pageSize);
     } else {
       setHasSearched(false);
+      lastFetched.current = { tab, shopId };
     }
   };
 
   const handlePageChange = (newPage: number) => {
     setPageNumber(newPage);
     if (activeTab === "today") {
-      loadTodaySales();
+      loadTodaySales(newPage, pageSize);
     } else if (activeTab === "this-week") {
-      loadWeekSales();
+      loadWeekSales(newPage, pageSize);
     } else if (activeTab === "month-wise") {
-      loadMonthSales();
+      loadMonthSales(newPage, pageSize);
     } else if (activeTab === "year-wise") {
       loadYearSales(newPage, pageSize);
     } else if (activeTab === "custom") {
-      loadCustomSales();
+      loadCustomSales(newPage, pageSize);
     }
   };
 
@@ -431,21 +479,21 @@ export default function TotalSalesPage() {
     setPageSize(newSize);
     setPageNumber(1);
     if (activeTab === "today") {
-      loadTodaySales();
+      loadTodaySales(1, newSize);
     } else if (activeTab === "this-week") {
-      loadWeekSales();
+      loadWeekSales(1, newSize);
     } else if (activeTab === "month-wise") {
-      loadMonthSales();
+      loadMonthSales(1, newSize);
     } else if (activeTab === "year-wise") {
       loadYearSales(1, newSize);
     } else if (activeTab === "custom") {
-      loadCustomSales();
+      loadCustomSales(1, newSize);
     }
   };
 
-  const totalRecords = activeTab === "year-wise" ? serverTotalRecords : records.length;
-  const totalPages = activeTab === "year-wise" ? serverTotalPages : Math.max(1, Math.ceil(records.length / pageSize));
-  const paginatedRecords = activeTab === "year-wise" ? records : records.slice((pageNumber - 1) * pageSize, pageNumber * pageSize);
+  const totalRecords = serverTotalRecords;
+  const totalPages = serverTotalPages || (totalRecords > 0 ? Math.ceil(totalRecords / pageSize) : 1);
+  const paginatedRecords = records;
   const shouldShowResults = activeTab === "today" || activeTab === "this-week" || hasSearched;
 
   return (
@@ -497,13 +545,14 @@ export default function TotalSalesPage() {
                 <button
                   className="btn-action"
                   onClick={exportToExcel}
+                  disabled={loading || exporting}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
-                  EXPORT TO EXCEL
+                  {exporting ? "EXPORTING..." : "EXPORT TO EXCEL"}
                 </button>
               )}
             </div>
@@ -550,7 +599,7 @@ export default function TotalSalesPage() {
                   onClick={() => {
                     setHasSearched(true);
                     setPageNumber(1);
-                    loadMonthSales();
+                    loadMonthSales(1, pageSize);
                   }}
                 >
                   GET DATA
@@ -558,13 +607,14 @@ export default function TotalSalesPage() {
                 <button
                   className="btn-action"
                   onClick={exportToExcel}
+                  disabled={loading || exporting}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
-                  EXPORT TO EXCEL
+                  {exporting ? "EXPORTING..." : "EXPORT TO EXCEL"}
                 </button>
               </div>
             )}
@@ -598,13 +648,14 @@ export default function TotalSalesPage() {
                 <button
                   className="btn-action"
                   onClick={exportToExcel}
+                  disabled={loading || exporting}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
-                  EXPORT TO EXCEL
+                  {exporting ? "EXPORTING..." : "EXPORT TO EXCEL"}
                 </button>
               </div>
             )}
@@ -634,7 +685,7 @@ export default function TotalSalesPage() {
                   onClick={() => {
                     setHasSearched(true);
                     setPageNumber(1);
-                    loadCustomSales();
+                    loadCustomSales(1, pageSize);
                   }}
                 >
                   GET DATA
@@ -642,13 +693,14 @@ export default function TotalSalesPage() {
                 <button
                   className="btn-action"
                   onClick={exportToExcel}
+                  disabled={loading || exporting}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: "18px", height: "18px", marginRight: "6px" }}>
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
-                  EXPORT TO EXCEL
+                  {exporting ? "EXPORTING..." : "EXPORT TO EXCEL"}
                 </button>
               </div>
             )}

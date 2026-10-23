@@ -290,6 +290,7 @@ export interface TotalSalesDateWiseResponse {
     totalPages: number;
     currentPage: number;
     pageSize: number;
+    totalAmount?: number;
     dateformat?: string;
 }
 export interface TaxSummaryResponse {
@@ -578,6 +579,14 @@ function parseResponseData<T>(
 
     if (Array.isArray(data.data)) {
         return data.data;
+    }
+
+    if (Array.isArray(data.data?.items)) {
+        return data.data.items;
+    }
+
+    if (Array.isArray(data.items)) {
+        return data.items;
     }
 
     return [];
@@ -2500,93 +2509,215 @@ export const reportsService = {
     async getTotalSalesByDateWise(
         shopId: number | string,
         startDate: string,
-        endDate: string
+        endDate: string,
+        pageNumber: number = 1,
+        pageSize: number = 10
     ): Promise<TotalSalesDateWiseResponse> {
         const { data } = await foodchowClient.get(
-            ENDPOINTS.reports.totalSalesDateWise || "/SalesReportsWithoutPagination/TotalSalesByDateWise",
+            ENDPOINTS.reports.totalSalesDateWise || "/SalesReports/TotalSalesByDateWise",
             {
                 params: {
                     shop_id: shopId,
                     start_date: startDate,
                     end_date: endDate,
+                    pageNumber,
+                    pageSize,
                 },
             }
         );
 
-        const resData = data?.data || data;
-        const rawItems = Array.isArray(resData?.items)
-            ? resData.items
-            : Array.isArray(resData)
-                ? resData
-                : Array.isArray(data)
-                    ? data
-                    : [];
+        const rawData = data?.data ?? data;
+        let resData = rawData;
+        if (typeof resData === "string") {
+            try {
+                resData = JSON.parse(resData);
+            } catch {
+                // keep as is
+            }
+        }
+
+        let items: any[] = [];
+        if (typeof resData?.items === "string") {
+            try {
+                items = JSON.parse(resData.items);
+            } catch {
+                items = [];
+            }
+        } else if (Array.isArray(resData?.items)) {
+            items = resData.items;
+        } else if (Array.isArray(resData)) {
+            items = resData;
+        }
+
+        const totalRecords =
+            typeof resData?.totalRecords === "number"
+                ? resData.totalRecords
+                : items.length;
+
+        const totalPages =
+            typeof resData?.totalPages === "number"
+                ? resData.totalPages
+                : (totalRecords > 0 ? Math.ceil(totalRecords / pageSize) : 0);
+
+        const currentPage =
+            typeof resData?.currentPage === "number"
+                ? resData.currentPage
+                : pageNumber;
+
+        const ps =
+            typeof resData?.pageSize === "number"
+                ? resData.pageSize
+                : pageSize;
+
         return {
-            items: rawItems,
-            totalRecords: typeof resData?.totalRecords === "number" ? resData.totalRecords : rawItems.length,
-            totalPages: 1,
-            currentPage: 1,
-            pageSize: rawItems.length,
+            items,
+            totalRecords,
+            totalPages,
+            currentPage,
+            pageSize: ps,
+            totalAmount: typeof resData?.totalAmount === "number" ? resData.totalAmount : undefined,
             dateformat: resData?.dateformat,
         };
     },
 
     async getTotalSalesByToday(
-        shopId: number | string
+        shopId: number | string,
+        pageNumber: number = 1,
+        pageSize: number = 10
     ): Promise<TotalSalesDateWiseResponse> {
         const { data } = await foodchowClient.get(
-            ENDPOINTS.reports.totalSalesToday || "/SalesReportsWithoutPagination/TotalSalesByToday",
+            ENDPOINTS.reports.totalSalesToday || "/SalesReports/TotalSalesByToday",
             {
                 params: {
                     shop_id: shopId,
+                    pageNumber,
+                    pageSize,
                 },
             }
         );
 
-        const resData = data?.data || data;
-        const rawItems = Array.isArray(resData?.items)
-            ? resData.items
-            : Array.isArray(resData)
-                ? resData
-                : Array.isArray(data)
-                    ? data
-                    : [];
+        const rawData = data?.data ?? data;
+        let resData = rawData;
+        if (typeof resData === "string") {
+            try {
+                resData = JSON.parse(resData);
+            } catch {
+                // keep as is
+            }
+        }
+
+        let items: any[] = [];
+        if (typeof resData?.items === "string") {
+            try {
+                items = JSON.parse(resData.items);
+            } catch {
+                items = [];
+            }
+        } else if (Array.isArray(resData?.items)) {
+            items = resData.items;
+        } else if (Array.isArray(resData)) {
+            items = resData;
+        }
+
+        const totalRecords =
+            typeof resData?.totalRecords === "number"
+                ? resData.totalRecords
+                : items.length;
+
+        const totalPages =
+            typeof resData?.totalPages === "number"
+                ? resData.totalPages
+                : (totalRecords > 0 ? Math.ceil(totalRecords / pageSize) : 0);
+
+        const currentPage =
+            typeof resData?.currentPage === "number"
+                ? resData.currentPage
+                : pageNumber;
+
+        const ps =
+            typeof resData?.pageSize === "number"
+                ? resData.pageSize
+                : pageSize;
+
         return {
-            items: rawItems,
-            totalRecords: typeof resData?.totalRecords === "number" ? resData.totalRecords : rawItems.length,
-            totalPages: 1,
-            currentPage: 1,
-            pageSize: rawItems.length,
+            items,
+            totalRecords,
+            totalPages,
+            currentPage,
+            pageSize: ps,
+            totalAmount: typeof resData?.totalAmount === "number" ? resData.totalAmount : undefined,
             dateformat: resData?.dateformat,
         };
     },
 
     async getTotalSalesByWeek(
-        shopId: number | string
+        shopId: number | string,
+        paymentMethod: string = "cash",
+        pageNumber: number = 1,
+        pageSize: number = 10
     ): Promise<TotalSalesDateWiseResponse> {
         const { data } = await foodchowClient.get(
-            ENDPOINTS.reports.totalSalesWeek || "/SalesReportsWithoutPagination/TotalSalesByWeek",
+            ENDPOINTS.reports.totalSalesWeek || "/SalesReports/TotalSalesByWeek",
             {
                 params: {
                     shop_id: shopId,
+                    paymentMethod: paymentMethod || "cash",
+                    pageNumber,
+                    pageSize,
                 },
             }
         );
 
-        const resData = data?.data || data;
-        const rawItems = Array.isArray(resData?.items)
-            ? resData.items
-            : Array.isArray(resData)
-                ? resData
-                : Array.isArray(data)
-                    ? data
-                    : [];
+        const rawData = data?.data ?? data;
+        let resData = rawData;
+        if (typeof resData === "string") {
+            try {
+                resData = JSON.parse(resData);
+            } catch {
+                // keep as is
+            }
+        }
+
+        let items: any[] = [];
+        if (typeof resData?.items === "string") {
+            try {
+                items = JSON.parse(resData.items);
+            } catch {
+                items = [];
+            }
+        } else if (Array.isArray(resData?.items)) {
+            items = resData.items;
+        } else if (Array.isArray(resData)) {
+            items = resData;
+        }
+
+        const totalRecords =
+            typeof resData?.totalRecords === "number"
+                ? resData.totalRecords
+                : items.length;
+
+        const totalPages =
+            typeof resData?.totalPages === "number"
+                ? resData.totalPages
+                : (totalRecords > 0 ? Math.ceil(totalRecords / pageSize) : 0);
+
+        const currentPage =
+            typeof resData?.currentPage === "number"
+                ? resData.currentPage
+                : pageNumber;
+
+        const ps =
+            typeof resData?.pageSize === "number"
+                ? resData.pageSize
+                : pageSize;
+
         return {
-            items: rawItems,
-            totalRecords: typeof resData?.totalRecords === "number" ? resData.totalRecords : rawItems.length,
-            totalPages: 1,
-            currentPage: 1,
-            pageSize: rawItems.length,
+            items,
+            totalRecords,
+            totalPages,
+            currentPage,
+            pageSize: ps,
+            totalAmount: typeof resData?.totalAmount === "number" ? resData.totalAmount : undefined,
             dateformat: resData?.dateformat,
         };
     },
@@ -2594,33 +2725,73 @@ export const reportsService = {
     async getTotalSalesByMonth(
         shopId: number | string,
         month: string | number,
-        year: string | number
+        year: string | number,
+        pageNumber: number = 1,
+        pageSize: number = 10
     ): Promise<TotalSalesDateWiseResponse> {
         const { data } = await foodchowClient.get(
-            ENDPOINTS.reports.totalSalesMonth || "/SalesReportsWithoutPagination/TotalSalesByMonth",
+            ENDPOINTS.reports.totalSalesMonth || "/SalesReports/TotalSalesByMonth",
             {
                 params: {
                     shop_id: shopId,
                     month,
                     year,
+                    pageNumber,
+                    pageSize,
                 },
             }
         );
 
-        const resData = data?.data || data;
-        const rawItems = Array.isArray(resData?.items)
-            ? resData.items
-            : Array.isArray(resData)
-                ? resData
-                : Array.isArray(data)
-                    ? data
-                    : [];
+        const rawData = data?.data ?? data;
+        let resData = rawData;
+        if (typeof resData === "string") {
+            try {
+                resData = JSON.parse(resData);
+            } catch {
+                // keep as is
+            }
+        }
+
+        let items: any[] = [];
+        if (typeof resData?.items === "string") {
+            try {
+                items = JSON.parse(resData.items);
+            } catch {
+                items = [];
+            }
+        } else if (Array.isArray(resData?.items)) {
+            items = resData.items;
+        } else if (Array.isArray(resData)) {
+            items = resData;
+        }
+
+        const totalRecords =
+            typeof resData?.totalRecords === "number"
+                ? resData.totalRecords
+                : items.length;
+
+        const totalPages =
+            typeof resData?.totalPages === "number"
+                ? resData.totalPages
+                : (totalRecords > 0 ? Math.ceil(totalRecords / pageSize) : 0);
+
+        const currentPage =
+            typeof resData?.currentPage === "number"
+                ? resData.currentPage
+                : pageNumber;
+
+        const ps =
+            typeof resData?.pageSize === "number"
+                ? resData.pageSize
+                : pageSize;
+
         return {
-            items: rawItems,
-            totalRecords: typeof resData?.totalRecords === "number" ? resData.totalRecords : rawItems.length,
-            totalPages: 1,
-            currentPage: 1,
-            pageSize: rawItems.length,
+            items,
+            totalRecords,
+            totalPages,
+            currentPage,
+            pageSize: ps,
+            totalAmount: typeof resData?.totalAmount === "number" ? resData.totalAmount : undefined,
             dateformat: resData?.dateformat,
         };
     },
@@ -2643,15 +2814,217 @@ export const reportsService = {
             }
         );
 
-        const resData = data?.data || data;
+        const rawData = data?.data ?? data;
+        let resData = rawData;
+        if (typeof resData === "string") {
+            try {
+                resData = JSON.parse(resData);
+            } catch {
+                // keep as is
+            }
+        }
+
+        let items: any[] = [];
+        if (typeof resData?.items === "string") {
+            try {
+                items = JSON.parse(resData.items);
+            } catch {
+                items = [];
+            }
+        } else if (Array.isArray(resData?.items)) {
+            items = resData.items;
+        } else if (Array.isArray(resData)) {
+            items = resData;
+        }
+
+        const totalRecords =
+            typeof resData?.totalRecords === "number"
+                ? resData.totalRecords
+                : items.length;
+
+        const totalPages =
+            typeof resData?.totalPages === "number"
+                ? resData.totalPages
+                : (totalRecords > 0 ? Math.ceil(totalRecords / pageSize) : 0);
+
+        const currentPage =
+            typeof resData?.currentPage === "number"
+                ? resData.currentPage
+                : pageNumber;
+
+        const ps =
+            typeof resData?.pageSize === "number"
+                ? resData.pageSize
+                : pageSize;
+
         return {
-            items: Array.isArray(resData?.items) ? resData.items : [],
-            totalRecords: typeof resData?.totalRecords === "number" ? resData.totalRecords : 0,
-            totalPages: typeof resData?.totalPages === "number" ? resData.totalPages : 0,
-            currentPage: typeof resData?.currentPage === "number" ? resData.currentPage : pageNumber,
-            pageSize: typeof resData?.pageSize === "number" ? resData.pageSize : pageSize,
+            items,
+            totalRecords,
+            totalPages,
+            currentPage,
+            pageSize: ps,
+            totalAmount: typeof resData?.totalAmount === "number" ? resData.totalAmount : undefined,
             dateformat: resData?.dateformat,
         };
+    },
+
+    // Helper to parse items array from unpaginated responses
+    parseExportItems(data: any): any[] {
+        const rawData = data?.data ?? data;
+        let resData = rawData;
+        if (typeof resData === "string") {
+            try {
+                resData = JSON.parse(resData);
+            } catch {
+                // keep as is
+            }
+        }
+
+        let items: any[] = [];
+        if (typeof resData?.items === "string") {
+            try {
+                items = JSON.parse(resData.items);
+            } catch {
+                items = [];
+            }
+        } else if (Array.isArray(resData?.items)) {
+            items = resData.items;
+        } else if (Array.isArray(resData)) {
+            items = resData;
+        }
+
+        return items;
+    },
+
+    // ---------------- TOTAL SALES EXPORT (WITHOUT PAGINATION) ----------------
+    async getExportTotalSalesByToday(shopId: number | string): Promise<any[]> {
+        const { data } = await foodchowClient.get(
+            ENDPOINTS.reports.totalSalesTodayWithoutPagination || "/SalesReportsWithoutPagination/TotalSalesByToday",
+            {
+                params: { shop_id: shopId },
+            }
+        );
+        return this.parseExportItems(data);
+    },
+
+    async getExportTotalSalesByWeek(shopId: number | string): Promise<any[]> {
+        const { data } = await foodchowClient.get(
+            ENDPOINTS.reports.totalSalesWeekWithoutPagination || "/SalesReportsWithoutPagination/TotalSalesByWeek",
+            {
+                params: { shop_id: shopId },
+            }
+        );
+        return this.parseExportItems(data);
+    },
+
+    async getExportTotalSalesByMonth(
+        shopId: number | string,
+        month: string | number,
+        year: string | number
+    ): Promise<any[]> {
+        const { data } = await foodchowClient.get(
+            ENDPOINTS.reports.totalSalesMonthWithoutPagination || "/SalesReportsWithoutPagination/TotalSalesByMonth",
+            {
+                params: {
+                    shop_id: shopId,
+                    month,
+                    year,
+                },
+            }
+        );
+        return this.parseExportItems(data);
+    },
+
+    async getExportTotalSalesByDateWise(
+        shopId: number | string,
+        startDate: string,
+        endDate: string
+    ): Promise<any[]> {
+        const { data } = await foodchowClient.get(
+            ENDPOINTS.reports.totalSalesDateWiseWithoutPagination || "/SalesReportsWithoutPagination/TotalSalesByDateWise",
+            {
+                params: {
+                    shop_id: shopId,
+                    start_date: startDate,
+                    end_date: endDate,
+                },
+            }
+        );
+        return this.parseExportItems(data);
+    },
+
+    // ---------------- SALES BY ITEMS EXPORT (WITHOUT PAGINATION) ----------------
+    async getExportSalesByItemsToday(shopId: number | string): Promise<any[]> {
+        const { data } = await foodchowClient.get(
+            "/SalesReportsWithoutPagination/SalesByItemsByToday",
+            { params: { shop_id: shopId } }
+        );
+        return this.parseExportItems(data);
+    },
+
+    async getExportSalesByItemsWeek(shopId: number | string): Promise<any[]> {
+        const { data } = await foodchowClient.get(
+            "/SalesReportsWithoutPagination/SalesByItemsByWeek",
+            { params: { shop_id: shopId } }
+        );
+        return this.parseExportItems(data);
+    },
+
+    async getExportSalesByItemsDayWise(shopId: number | string, date: string): Promise<any[]> {
+        const { data } = await foodchowClient.get(
+            "/SalesReportsWithoutPagination/SalesByItemsByDayWise",
+            { params: { shop_id: shopId, find_date: date } }
+        );
+        return this.parseExportItems(data);
+    },
+
+    async getExportSalesByItemsMonth(
+        shopId: number | string,
+        month: string | number,
+        year: string | number
+    ): Promise<any[]> {
+        const { data } = await foodchowClient.get(
+            "/SalesReportsWithoutPagination/SalesByItemsByMonth",
+            { params: { shop_id: shopId, month, year } }
+        );
+        return this.parseExportItems(data);
+    },
+
+    // ---------------- SALES BY CATEGORY EXPORT (WITHOUT PAGINATION) ----------------
+    async getExportSalesByCategoryToday(shopId: number | string): Promise<any[]> {
+        const { data } = await foodchowClient.get(
+            "/SalesReportsWithoutPagination/SalesByCategoryByToday",
+            { params: { shop_id: shopId } }
+        );
+        return this.parseExportItems(data);
+    },
+
+    async getExportSalesByCategoryWeek(shopId: number | string): Promise<any[]> {
+        const { data } = await foodchowClient.get(
+            "/SalesReportsWithoutPagination/SalesByCategoryByWeek",
+            { params: { shop_id: shopId } }
+        );
+        return this.parseExportItems(data);
+    },
+
+    async getExportSalesByCategoryDayWise(shopId: number | string, date: string): Promise<any[]> {
+        const { data } = await foodchowClient.get(
+            "/SalesReportsWithoutPagination/SalesByCategoryByDayWise",
+            { params: { shop_id: shopId, ssearch_date: date } }
+        );
+        return this.parseExportItems(data);
+    },
+
+    async getExportSalesByCategoryMonth(
+        shopId: number | string,
+        month: string | number,
+        year: string | number
+    ): Promise<any[]> {
+        const { data } = await foodchowClient.get(
+            "/SalesReportsWithoutPagination/SalesByCategoryByMonth",
+            { params: { shop_id: shopId, month, year } }
+        );
+        return this.parseExportItems(data);
     },
 
     // ---------------- EXPENSE TRANSACTIONS ----------------
@@ -4035,8 +4408,8 @@ export const reportsService = {
     ): Promise<TaxSummaryResponse> {
         const endpoints = [
             ENDPOINTS.reports.taxSummaryMonthlySalesReport,
-            "/SalesReports/TotalSalesTaxMonthly",
-            "/FoodChowRMS/TotalSalesTaxMonthly",
+            // "/SalesReports/TotalSalesTaxMonthly",
+            // "/FoodChowRMS/TotalSalesTaxMonthly",
             "/SalesReportsWithoutPagination/TotalSalesTaxMonthly",
         ];
 

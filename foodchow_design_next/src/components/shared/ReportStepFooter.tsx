@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useTransition } from "react";
+import React, { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getReportStepInfo } from "@/constants/reports";
 import "./ReportStepFooter.css";
@@ -26,7 +26,6 @@ export const ReportStepFooter: React.FC<ReportStepFooterProps> = ({
 }) => {
   const pathname = usePathname();
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
 
   const stepInfo = getReportStepInfo(pathname, currentStepOverride, totalStepsOverride);
 
@@ -57,24 +56,22 @@ export const ReportStepFooter: React.FC<ReportStepFooterProps> = ({
   }, [stepInfo.prevStep?.path, stepInfo.nextStep?.path, router, resolvePath]);
 
   const handlePrev = () => {
-    if (isFirstStep || isPending) return;
+    if (isFirstStep) return;
     if (onPrev) {
       onPrev();
     } else if (stepInfo.prevStep) {
-      startTransition(() => {
-        router.push(resolvePath(stepInfo.prevStep!.path));
-      });
+      const target = resolvePath(stepInfo.prevStep.path);
+      router.push(target);
     }
   };
 
   const handleNext = () => {
-    if (isLastStep || isPending) return;
+    if (isLastStep) return;
     if (onNext) {
       onNext();
     } else if (stepInfo.nextStep) {
-      startTransition(() => {
-        router.push(resolvePath(stepInfo.nextStep!.path));
-      });
+      const target = resolvePath(stepInfo.nextStep.path);
+      router.push(target);
     }
   };
 
@@ -84,7 +81,7 @@ export const ReportStepFooter: React.FC<ReportStepFooterProps> = ({
         type="button"
         className="btn-prev"
         id="prevBtn"
-        disabled={isFirstStep || isPending}
+        disabled={isFirstStep}
         onClick={handlePrev}
       >
         <svg
@@ -114,7 +111,7 @@ export const ReportStepFooter: React.FC<ReportStepFooterProps> = ({
         type="button"
         className="btn-next"
         id="nextBtn"
-        disabled={isLastStep || isPending}
+        disabled={isLastStep}
         onClick={handleNext}
       >
         <span>NEXT</span>

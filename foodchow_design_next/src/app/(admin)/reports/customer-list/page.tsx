@@ -259,7 +259,7 @@ export default function CustomerListPage() {
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Fetch customers on mount and page change
+  // Fetch customers dynamically based on pageNumber and pageSize
   useEffect(() => {
     const fetchCustomers = async () => {
       if (!shopId) return;
@@ -274,10 +274,10 @@ export default function CustomerListPage() {
 
         console.log("Fetched customers:", data);
 
-        if (data) {
-          setCustomers(data.records || []);
-          setTotalRecords(data.totalRecords || 0);
-          setTotalPages(data.totalPages || 1);
+        if (data && data.records) {
+          setCustomers(data.records);
+          setTotalRecords(data.totalRecords ?? 0);
+          setTotalPages(data.totalPages ?? 1);
         } else {
           setCustomers([]);
           setTotalRecords(0);
@@ -302,29 +302,46 @@ export default function CustomerListPage() {
   };
 
   /* ── Export ── */
-  const exportToExcel = (): void => {
-    if (!customers || customers.length === 0) {
-      alert("No data available to export");
-      return;
-    }
+  const exportToExcel = async (): Promise<void> => {
+    if (!shopId) return;
 
-    const XLSX = (window as unknown as { XLSX?: XlsxLike }).XLSX;
-    if (!XLSX) {
-      return;
-    }
+    try {
+      setLoading(true);
+      const data = await reportsService.fetchCustomerList(
+        shopId,
+        1,
+        totalRecords > 0 ? totalRecords : 100
+      );
 
-    const wsData: unknown[][] = [
-      ["Customer List Report"],
-      [],
-      ["Sr No.", "Customer Name", "Mobile No."],
-      ...customers.map((c, index) => [index + 1, c.user_name || "N/A", c.mobile_number || "N/A"]),
-    ];
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws["!cols"] = [{ wch: 10 }, { wch: 30 }, { wch: 18 }];
-    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }];
-    XLSX.utils.book_append_sheet(wb, ws, "Customer List");
-    XLSX.writeFile(wb, "customer_list.xlsx");
+      const exportList = data?.records?.length ? data.records : customers;
+
+      if (!exportList || exportList.length === 0) {
+        alert("No data available to export");
+        return;
+      }
+
+      const XLSX = (window as unknown as { XLSX?: XlsxLike }).XLSX;
+      if (!XLSX) {
+        return;
+      }
+
+      const wsData: unknown[][] = [
+        ["Customer List Report"],
+        [],
+        ["Sr No.", "Customer Name", "Mobile No."],
+        ...exportList.map((c, index) => [index + 1, c.user_name || "N/A", c.mobile_number || "N/A"]),
+      ];
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws["!cols"] = [{ wch: 10 }, { wch: 30 }, { wch: 18 }];
+      ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }];
+      XLSX.utils.book_append_sheet(wb, ws, "Customer List");
+      XLSX.writeFile(wb, "customer_list.xlsx");
+    } catch (err) {
+      console.error("Export error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const onHelp = (): void => {
@@ -422,7 +439,7 @@ export default function CustomerListPage() {
               </div>
             </div>
 
-            {customers.length > 0 && (
+            {totalRecords > 0 && (
               <ReportTableFooter
                 currentPage={pageNumber}
                 totalPages={totalPages}
