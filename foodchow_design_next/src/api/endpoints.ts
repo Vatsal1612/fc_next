@@ -28,24 +28,25 @@ export const ENDPOINTS = {
 
     getPlanDetails: "/Marketplace/GetPlanDetails",
 
-    //extra category endpoints
+    // extra category endpoints
     addExtraCategory: "/MenuMaster/AddExtraCategory",
     updateExtraCategory: "/MenuMaster/AddExtraCategory",
     deleteExtraCategory: "/MenuMaster/DeleteExtraCategory",
 
-    //extra item endpoints
+    // extra item endpoints
     addExtraItem: "/MenuMaster/AddExtraCategoryItem",
     deleteExtraItem: "/MenuMaster/DeleteExtraCategoryItem",
     changeExtraItemStatus: "/MenuMaster/ChangeStoreItemExtraCategoryOptionStatus",
     changeCategoryStatus: "/MenuMaster/ChangeStoreItemExtraCategoryStatus", // For categories (if same endpoint)
     updateExtraItem: "/MenuMaster/UpdateExtraOption",
 
-
-
-    //item code
+    // item code
     getItemNames: "/FoodChowRMS/GetItemName",
     getItemCodeTypeSetting: "/FoodChowWD/GetItemCodeTypeSetting",
+    saveItemCodeTypeSetting: "/FoodChowRMS/ItemCodeTypeSetting",
     updateItemCode: "/FoodChowRMS/UpdateItemCode",
+    changeItemPosition: "/FoodItem/ChangeItemPosition",
+    changeCategoryPosition: "/FoodCategory/ChangeCategoryPosition",
 
     // Tax
     getAllTax: "/TaxMaster/GetAllStoreTax",
@@ -55,8 +56,7 @@ export const ENDPOINTS = {
     getTaxType: "/FoodChowWD/GetIncludingExcludingTax",
     getIncludingExcludingTax: "/FoodChowWD/GetIncludingExcludingTax",
 
-
-    //apply tax
+    // apply tax
     getItemListWithSize: "/FoodChowWD/GetItemListWithSize",
     applyTaxOnAllItems: "/FoodChowWD/USP_AddTaxAllItemWithTaxID",
     addTaxAllItemWithTaxID: "/FoodChowWD/USP_AddTaxAllItemWithTaxID",
@@ -66,7 +66,7 @@ export const ENDPOINTS = {
     removeTaxFromSingleItem: "/TaxMaster/DeleteTaxDetailsWithSize",
     getTaxDetailsWithSize: "/FoodChowWD/GetTaxDetailsWithSize",
 
-    //choice
+    // choice
     getChoices: "/BulkEdit/GetChoicesWithOptionWithSoldOut",
     addChoice: "/MenuMaster/AddChoices",
     deleteChoice: "/MenuMaster/DeleteChoices",
@@ -75,13 +75,24 @@ export const ENDPOINTS = {
     changeChoiceStatus: "/MenuMaster/ChangeStoreItemChoiceNameStatus",
     addChoiceOption: "/MenuMaster/AddChoicesOption",
 
-
     variantsByShop: "/MenuMaster/GetVariantList",
     addUpdateVariant: "/MenuMaster/AddUpdateVariant",
     deleteVariant: "/MenuMaster/DeleteVariant",
     addItem: "/MenuMaster/QuickAddStoreItemWithStock",
+    assignVariantToItem: "/MenuMaster/AssignVariantToItem",
     getItems: "/MenuMaster/GetItemDetailsByShopIdMasterWithSoldOUtNew",
     deleteItem: "/MenuMaster/DeleteStoreItem",
+
+    // Store Category CRUD
+    addStoreCategory: "/MenuMaster/AddStoreCategory",
+    categoryImageUpload: "/MenuMaster/CategoryImageUpload",
+    deleteCategory: "/MenuMaster/DeleteCategory",
+    changeStoreCategoryStatus: "/MenuMaster/ChangeStoreCategoryStatus",
+
+    // Store Item CRUD
+    editStoreItem: "/MenuMaster/EditStoreItem",
+    itemImageUpload: "/MenuMaster/ItemImageUpload",
+    changeStoreItemStatus: "/MenuMaster/ChangeStoreItemStatus",
 
     // Additional Menu
     getAllShopMenuType: "/FoodChowWD/GetAllShopMenuTypeWD",
@@ -94,13 +105,21 @@ export const ENDPOINTS = {
     enableMenuForPosOrOnline: "/FoodChowWD/EnableMenuForPosOrOnline",
     addMenuLanguage: "/FoodChowWD/AddMenuLanguage",
 
-    //Item Deal
+    // Item Deal
     addItemDeal: "/FoodChowRMS/AddDealWD",
     getAllItemDeal: "/FoodChowRMS/GetAllDealsByShopIDWD",
 
-    //Menu Language
+    // Menu Language
     getSupportedLanguageList: "/FoodChowWD/GetSupportedLanguageList",
     getAllLanguage: "/FoodChowRMS/GetAllLanguage",
+    getSupportedLanguageForShop: "/FoodChowWD/GetSupportedLanguageForShop",
+    saveLanguageForShop: "/FoodChowWD/SaveLanguageForShop",
+    deleteLanguageForShop: "/FoodChowWD/DeleteLanguageForShop",
+    setDefaultLanguageforShop: "/FoodChowWD/SetDefaultLanguageforShop",
+
+    // Upload Menu Excel
+    uploadMenuExcel: "/MenuMaster/UploadMenuExcel",
+    downloadSampleMenuExcel: "/MenuMaster/DownloadSampleMenuExcel",
   },
 
   orders: {

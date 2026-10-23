@@ -666,6 +666,7 @@ import { reportsService, TopSellingItem } from "@/api/services/report.service";
 import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId, getShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 
 interface XlsxWorkSheet {
   "!cols"?: Array<{ wch: number }>;
@@ -695,6 +696,8 @@ interface DisplayItem {
 }
 
 export default function TopSellingItemsPage() {
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const shopId = useShopId();
   const activeShopId = shopId || getShopId() || 0;
 
@@ -933,8 +936,8 @@ export default function TopSellingItemsPage() {
 
     const hasDate = tab === "today" || tab === "daywise";
     const headers = hasDate
-      ? ["Date", "Item Name", "Quantity", "Total Amount (Rs.)"]
-      : ["Item Name", "Quantity", "Total Amount (Rs.)"];
+      ? ["Date", "Item Name", "Quantity", `Total Amount (${currencySymbol})`]
+      : ["Item Name", "Quantity", `Total Amount (${currencySymbol})`];
 
     const wsData: SheetCell[][] = [
       ["Top Selling Items Report"],
@@ -1135,7 +1138,7 @@ export default function TopSellingItemsPage() {
                             <th>Date</th>
                             <th>Item Name</th>
                             <th>Quantity</th>
-                            <th>Total Amount (Rs.)</th>
+                            <th>Total Amount ({currencySymbol})</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1218,7 +1221,7 @@ export default function TopSellingItemsPage() {
                                 <th>Date</th>
                                 <th>Item Name</th>
                                 <th>Quantity</th>
-                                <th>Total Amount (Rs.)</th>
+                                <th>Total Amount ({currencySymbol})</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1273,7 +1276,7 @@ export default function TopSellingItemsPage() {
                           <tr>
                             <th>Item Name</th>
                             <th>Quantity</th>
-                            <th>Total Amount (Rs.)</th>
+                            <th>Total Amount ({currencySymbol})</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1382,7 +1385,7 @@ export default function TopSellingItemsPage() {
                               <tr>
                                 <th>Item Name</th>
                                 <th>Quantity</th>
-                                <th>Total Amount (Rs.)</th>
+                                <th>Total Amount ({currencySymbol})</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1469,7 +1472,7 @@ export default function TopSellingItemsPage() {
                               <tr>
                                 <th>Item Name</th>
                                 <th>Quantity</th>
-                                <th>Total Amount (Rs.)</th>
+                                <th>Total Amount ({currencySymbol})</th>
                               </tr>
                             </thead>
                             <tbody>

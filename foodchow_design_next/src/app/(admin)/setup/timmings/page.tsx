@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { setupService } from "@/api/services/setup.service";
 import { WizardFooter } from "@/components/shared/WizardFooter";
+import { toast } from "@/components/shared/Toast";
 import Swal from "sweetalert2";
 import { useShopId } from "@/utils/shop";
 import "./page.css";
@@ -80,17 +81,10 @@ export default function TimmingsPage() {
     const response = await setupService.updateShopTimings(payload);
 
     console.log("UPDATE SHOP TIMINGS RESPONSE:", response);
-
-    const toast = document.getElementById("successToast");
-
-    toast?.classList.add("show");
-
-    setTimeout(() => {
-      toast?.classList.remove("show");
-    }, 2000);
-
+    toast.success("Timing Updated", "Timing updated successfully!");
   } catch (error) {
     console.error("UPDATE SHOP TIMINGS ERROR:", error);
+    toast.error("Error", "Failed to update restaurant timings.");
   }
 };
   useEffect(() => {

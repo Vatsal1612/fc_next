@@ -74,7 +74,8 @@
     background: var(--green);
     border-radius: 14px;
     color: white;
-  font-size: var(--text-page-heading); line-height: var(--lh-page-heading);
+    font-size: var(--text-page-heading);
+    line-height: var(--lh-page-heading);
     margin-bottom: 20px;
     box-shadow: 0 4px 10px rgba(37, 211, 102, 0.3);
   }
@@ -90,9 +91,9 @@
   }
 
   .hero-subtitle {
-  font-size: var(--text-body);
+    font-size: var(--text-body);
     color: #64748b;
-  font-weight: var(--weight-medium);
+    font-weight: var(--weight-medium);
     margin-bottom: 40px;
   }
 
@@ -131,33 +132,37 @@
     display: flex;
     justify-content: center;
     align-items: center;
-  font-size: var(--text-section-heading); line-height: var(--lh-section-heading);
+    font-size: var(--text-section-heading);
+    line-height: var(--lh-section-heading);
     margin-bottom: 16px;
   }
 
   .feature-title {
-  font-size: var(--text-label); line-height: var(--lh-label);
-  font-weight: var(--weight-bold);
+    font-size: var(--text-label);
+    line-height: var(--lh-label);
+    font-weight: var(--weight-bold);
     color: #1e293b;
     margin-bottom: 8px;
     line-height: 1.3;
   }
 
   .feature-desc {
-  font-size: var(--text-helper); line-height: var(--lh-helper);
+    font-size: var(--text-helper);
+    line-height: var(--lh-helper);
     color: #64748b;
     line-height: 1.5;
-  font-weight: var(--weight-medium);
+    font-weight: var(--weight-medium);
   }
 
   .btn-primary {
     background: var(--teal);
     color: #fff;
     padding: 14px 32px;
-  font-size: var(--text-button); line-height: var(--lh-button);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
     border-radius: 8px;
     border: none;
-  font-weight: var(--weight-semibold);
+    font-weight: var(--weight-semibold);
     cursor: pointer;
     transition: all 0.2s;
     display: inline-flex;
@@ -192,8 +197,7 @@
       padding: 30px 24px;
     }
 
-    .hero-title {
-    }
+    .hero-title {}
   }
 
   .wizard-navigation-footer {
@@ -209,8 +213,9 @@
 
   .btn-wizard-prev,
   .btn-wizard-next {
-  font-size: var(--text-button); line-height: var(--lh-button);
-  font-weight: var(--weight-semibold);
+    font-size: var(--text-button);
+    line-height: var(--lh-button);
+    font-weight: var(--weight-semibold);
     color: #ffffff;
     background: var(--teal, #0AA89E);
     border: none;

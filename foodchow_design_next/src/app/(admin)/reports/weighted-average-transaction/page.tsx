@@ -11,8 +11,11 @@ import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import ReportTableState from "@/components/shared/ReportTableState";
 import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 
 export default function WeightedAverageTransactionPage() {
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const shopId = useShopId();
   const [activeTab, setActiveTab] = useState<"today" | "monthly">("today");
   const [todayData, setTodayData] = useState<WeightedAverageTransaction[]>([]);
@@ -95,8 +98,8 @@ export default function WeightedAverageTransactionPage() {
     const headers = [
       "Order Type",
       "Total Order Count",
-      "Total Amount (Rs.)",
-      "Weighted Average Transaction (Rs.)",
+      `Total Amount (${currencySymbol})`,
+      `Weighted Average Transaction (${currencySymbol})`,
     ];
 
     const rows = currentRows.map((r) => {
@@ -285,8 +288,8 @@ export default function WeightedAverageTransactionPage() {
                           <tr>
                             <th>Order Type</th>
                             <th>Total Order Count</th>
-                            <th>Total Amount</th>
-                            <th>Weighted average transaction</th>
+                            <th>Total Amount ({currencySymbol})</th>
+                            <th>Weighted average transaction ({currencySymbol})</th>
                           </tr>
                         </thead>
                         <tbody>

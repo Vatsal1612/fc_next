@@ -31,6 +31,32 @@ export default function CategoryMapperPage() {
     let sections: Section[] = [];
 
     const shopId = getShopId();
+    const storageKey = shopId ? `fc_category_mapper_sections_${shopId}` : "fc_category_mapper_sections";
+
+    const loadSavedSections = (): void => {
+      try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            sections = parsed;
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load category mapper sections from storage:", e);
+      }
+    };
+
+    const saveSections = (): void => {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(sections));
+      } catch (e) {
+        console.error("Failed to save category mapper sections to storage:", e);
+      }
+    };
+
+    loadSavedSections();
+
     if (shopId) {
       menuService
         .categoriesByShop(shopId)
@@ -255,6 +281,7 @@ export default function CategoryMapperPage() {
           return;
         }
         section.mappedCategoryIds.push(catId);
+        saveSections();
         showToast(`"${category.name}" successfully mapped to "${section.name}"`);
         renderSectionsList();
       }
@@ -265,6 +292,7 @@ export default function CategoryMapperPage() {
       const category = categories.find((c) => c.id === catId);
       if (section && category) {
         section.mappedCategoryIds = section.mappedCategoryIds.filter((id) => id !== catId);
+        saveSections();
         showToast(`Un-mapped "${category.name}" from "${section.name}"`);
         renderSectionsList();
       }
@@ -274,6 +302,7 @@ export default function CategoryMapperPage() {
       const section = sections.find((s) => s.id === sectionId);
       if (section && confirm(`Are you sure you want to delete the section "${section.name}"?`)) {
         sections = sections.filter((s) => s.id !== sectionId);
+        saveSections();
         showToast(`Section "${section.name}" deleted`);
         renderSectionsList();
       }
@@ -297,11 +326,13 @@ export default function CategoryMapperPage() {
         const idx = sections.findIndex((s) => s.id === id);
         if (idx > -1) {
           sections[idx].name = name;
+          saveSections();
           showToast(`Section renamed to "${name}"`);
         }
       } else {
         const newId = `sec-${Date.now()}`;
         sections.push({ id: newId, name, mappedCategoryIds: [] });
+        saveSections();
         showToast(`Section "${name}" created successfully!`);
       }
 
@@ -311,6 +342,7 @@ export default function CategoryMapperPage() {
 
     const handleNextStep = (e: Event): void => {
       e.preventDefault();
+      saveSections();
       showToast("Category Mapping configuration saved! Next Step...");
     };
 

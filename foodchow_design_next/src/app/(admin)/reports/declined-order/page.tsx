@@ -636,6 +636,7 @@ import { reportsService, VoidOrder, OrderItemDetail } from "@/api/services/repor
 import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 
 interface XlsxLike {
     utils: {
@@ -667,6 +668,8 @@ interface DisplayOrder {
 }
 
 export default function DeclinedOrderPage() {
+    const sessionCurrency = useSessionCurrency();
+    const currencySymbol = sessionCurrency.symbol || "₹";
     const shopId = useShopId();
     const [activeTab, setActiveTab] = useState<TabKey>("today");
     const [data, setData] = useState<DisplayOrder[]>([]);
@@ -931,7 +934,7 @@ export default function DeclinedOrderPage() {
         }
 
         const wsData: any[][] = [
-            ["Date", "Order ID", "Customer Name", "Mobile No", "Payment Method", "Order Type", "Total Amount", "Total Tax (Rs.)", "Total Discount (Rs.)", "Delivery Charge", "Reason"],
+            ["Date", "Order ID", "Customer Name", "Mobile No", "Payment Method", "Order Type", `Total Amount (${currencySymbol})`, `Total Tax (${currencySymbol})`, `Total Discount (${currencySymbol})`, `Delivery Charge (${currencySymbol})`, "Reason"],
         ];
 
         filteredData.forEach((r) => {
@@ -1324,10 +1327,10 @@ export default function DeclinedOrderPage() {
                                             <th>Mobile No</th>
                                             <th>Payment Method</th>
                                             <th>Order Type</th>
-                                            <th>Total Amount</th>
-                                            <th>Total tax (Rs.)</th>
-                                            <th>Total Discount (Rs.)</th>
-                                            <th>Delivery Charge</th>
+                                            <th>Total Amount ({currencySymbol})</th>
+                                            <th>Total tax ({currencySymbol})</th>
+                                            <th>Total Discount ({currencySymbol})</th>
+                                            <th>Delivery Charge ({currencySymbol})</th>
                                             <th>Reason</th>
                                             <th>Details</th>
                                         </tr>

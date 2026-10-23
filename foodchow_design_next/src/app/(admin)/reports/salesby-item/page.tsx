@@ -8,6 +8,7 @@ import {
   SalesByItem,
 } from "@/api/services/report.service";
 import { useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import ReportTableState from "@/components/shared/ReportTableState";
 import ReportStepFooter from "@/components/shared/ReportStepFooter";
@@ -24,6 +25,8 @@ const getTodayDateString = (): string => {
 };
 
 export default function SalesbyItemPage() {
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const shopId = useShopId();
   const lastFetchParamsRef = useRef<string>("");
 
@@ -329,7 +332,7 @@ export default function SalesbyItemPage() {
         0
       );
 
-      const headers = ["Date", "Item Name", "Quantity", "Total Amount (Rs.)"];
+      const headers = ["Date", "Item Name", "Quantity", `Total Amount (${currencySymbol})`];
       const rows = exportItems.map((item) => [
         formatDate(item.trans_date),
         item.item_name || "-",
@@ -619,7 +622,7 @@ export default function SalesbyItemPage() {
                               <th>Date</th>
                               <th>Item Name</th>
                               <th>Quantity</th>
-                              <th>Total Amount (Rs.)</th>
+                              <th>Total Amount ({currencySymbol})</th>
                             </tr>
                           </thead>
                           <tbody id="table-body-root">

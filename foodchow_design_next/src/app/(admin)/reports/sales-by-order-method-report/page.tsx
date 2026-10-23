@@ -452,6 +452,7 @@ import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import ReportTableState from "@/components/shared/ReportTableState";
 import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 
 type WorkBook = unknown;
 type WorkSheet = { [k: string]: unknown };
@@ -521,6 +522,8 @@ function mapToRows(records: OrderMethodRecord[]): ReportRow[] {
 }
 
 export default function SalesByOrderMethodReportPage() {
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const shopId = useShopId();
   const now = new Date();
   const [month, setMonth] = useState(String(now.getMonth() + 1));
@@ -583,10 +586,10 @@ export default function SalesByOrderMethodReportPage() {
       [],
       [
         "Date",
-        "Dine In (Rs.)",
-        "Home Delivery (Rs.)",
-        "Take Away (Rs.)",
-        "Total (Rs.)",
+        `Dine In (${currencySymbol})`,
+        `Home Delivery (${currencySymbol})`,
+        `Take Away (${currencySymbol})`,
+        `Total (${currencySymbol})`,
       ],
     ];
 
@@ -755,10 +758,10 @@ export default function SalesByOrderMethodReportPage() {
                   <thead>
                     <tr>
                       <th>Date</th>
-                      <th>Dine In (Rs.)</th>
-                      <th>Home Delivery (Rs.)</th>
-                      <th>Take Away (Rs.)</th>
-                      <th>Total (Rs.)</th>
+                      <th>Dine In ({currencySymbol})</th>
+                      <th>Home Delivery ({currencySymbol})</th>
+                      <th>Take Away ({currencySymbol})</th>
+                      <th>Total ({currencySymbol})</th>
                     </tr>
                   </thead>
                   <tbody id="table-body">

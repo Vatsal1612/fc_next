@@ -5,6 +5,7 @@ import { WizardFooter } from "@/components/shared/WizardFooter";
 import Swal from "sweetalert2";
 import "./page.css";
 import { marketingService, AddCouponPayload } from "@/api/services/marketing.service";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 /**
  * marketing/coupon.html → React.
  * Same markup/design as before. This version wires the list to the real
@@ -67,6 +68,9 @@ function decodeOrderMethod(raw: string): string[] {
 }
 export default function CouponPage() {
   const [showHelpVideo, setShowHelpVideo] = React.useState(false);
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
+
   useEffect(() => {
     const shopIdStr = sessionStorage.getItem("shop_id");
     const SHOP_ID = shopIdStr ? Number(shopIdStr) : 0;
@@ -123,7 +127,9 @@ export default function CouponPage() {
       setVal("fMinOrder", String(c.minOrder));
       setVal("fDiscount", String(c.discount));
       document.querySelectorAll<HTMLInputElement>('input[name="applyOn"]').forEach((r) => { r.checked = r.value === c.applyOn; });
-      document.querySelectorAll<HTMLInputElement>('input[name="discountIn"]').forEach((r) => { r.checked = r.value === c.discountIn; });
+      document.querySelectorAll<HTMLInputElement>('input[name="discountIn"]').forEach((r) => { 
+        r.checked = (r.value === c.discountIn) || (r.value === "flat" && c.discountIn !== "%"); 
+      });
       document.querySelectorAll<HTMLInputElement>('input[name="autoApply"]').forEach((r) => { r.checked = r.value === c.autoApply; });
       document.querySelectorAll<HTMLInputElement>('input[name="status"]').forEach((r) => { r.checked = r.value === c.status; });
       document.querySelectorAll<HTMLInputElement>('input[name="orderMethod"]').forEach((cb) => { cb.checked = c.orderMethod.includes(cb.value); });
@@ -141,9 +147,9 @@ export default function CouponPage() {
       setText("pvType", type.toUpperCase());
       setText("pvCode", code.toUpperCase());
       let discText = "— discount —";
-      if (discount && discIn) discText = discIn === "%" ? `${discount}% OFF` : `Rs. ${discount} OFF`;
+      if (discount && discIn) discText = discIn === "%" ? `${discount}% OFF` : `${currencySymbol} ${discount} OFF`;
       setText("pvDiscount", discText);
-      setText("pvMinOrder", minOrder ? `Min. order: Rs. ${minOrder}` : "Min. order: —");
+      setText("pvMinOrder", minOrder ? `Min. order: ${currencySymbol} ${minOrder}` : "Min. order: —");
       const tagsEl = $("pvTags");
       if (tagsEl) {
         tagsEl.innerHTML = "";
@@ -185,8 +191,8 @@ export default function CouponPage() {
       empty.style.display = "none";
       tbody.innerHTML = list
         .map((c) => {
-          const disc = c.discountIn === "%" ? `${c.discount}%` : `Rs. ${c.discount}`;
-          return `<tr><td class="type-col">${h(c.type)}</td><td>${h(c.applyOn)}</td><td><span class="coupon-code-pill">${h(c.code)}</span></td><td>${disc}</td><td>Rs. ${c.minOrder}</td><td><span class="badge-${c.autoApply === "Yes" ? "yes" : "no"}">${c.autoApply}</span></td><td><label class="toggle-switch" title="Active / Deactive"><input type="checkbox" ${c.status === "Active" ? "checked" : ""} data-toggle-id="${c.id}"><span class="slider"></span></label></td><td><div class="act-btns"><button class="icon-btn edit-btn" title="Edit" data-edit-id="${c.id}"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="icon-btn delete-btn" title="Delete" data-delete-id="${c.id}"><svg viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button></div></td></tr>`;
+          const disc = c.discountIn === "%" ? `${c.discount}%` : `${currencySymbol} ${c.discount}`;
+          return `<tr><td class="type-col">${h(c.type)}</td><td>${h(c.applyOn)}</td><td><span class="coupon-code-pill">${h(c.code)}</span></td><td>${disc}</td><td>${currencySymbol} ${c.minOrder}</td><td><span class="badge-${c.autoApply === "Yes" ? "yes" : "no"}">${c.autoApply}</span></td><td><label class="toggle-switch" title="Active / Deactive"><input type="checkbox" ${c.status === "Active" ? "checked" : ""} data-toggle-id="${c.id}"><span class="slider"></span></label></td><td><div class="act-btns"><button class="icon-btn edit-btn" title="Edit" data-edit-id="${c.id}"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="icon-btn delete-btn" title="Delete" data-delete-id="${c.id}"><svg viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button></div></td></tr>`;
         })
         .join("");
     }
@@ -568,7 +574,7 @@ export default function CouponPage() {
           desc: item.description,
           applyOn: APPLY_ON_REVERSE[item.applyon] || String(item.applyon),
           code: item.couponcode,
-          discountIn: item.discount_in === 0 ? "Rs." : "%",
+          discountIn: item.discount_in === 0 ? "flat" : "%",
           minOrder: Number(item.min_order_amount),
           discount: item.discount,
           autoApply: item.auto_apply === 1 ? "Yes" : "No",
@@ -758,7 +764,7 @@ export default function CouponPage() {
                       <div className="form-group">
                         <label className="form-label">Discount In <span className="req">*</span></label>
                         <div className="chip-group">
-                          <label className="chip-label"><input type="radio" name="discountIn" value="Rs." /><span>₹ In Rupees</span></label>
+                          <label className="chip-label"><input type="radio" name="discountIn" value="flat" /><span>{currencySymbol} Flat</span></label>
                           <label className="chip-label"><input type="radio" name="discountIn" value="%" /><span>% In Percentage</span></label>
                         </div>
                         <div className="err-msg" id="eDiscountIn">Please select discount type.</div>

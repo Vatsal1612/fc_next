@@ -10,6 +10,7 @@ import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import ReportTableState from "@/components/shared/ReportTableState";
 import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 import "./page.css";
 
 interface TableRow {
@@ -30,6 +31,8 @@ interface TableRow {
 
 export default function TotalSalesPage() {
   const shopId = useShopId();
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const [activeTab, setActiveTab] = useState<"today" | "this-week" | "month-wise" | "year-wise" | "custom">("today");
   const [records, setRecords] = useState<TableRow[]>([]);
   const [metrics, setMetrics] = useState({ salesAmount: "0.00", orderCount: 0, taxAmount: "0.00" });
@@ -342,10 +345,10 @@ export default function TotalSalesPage() {
         "Payment Method",
         "Order Type",
         "Split Payment",
-        "Total Amount (Rs.)",
-        "Total Tax (Rs.)",
-        "Total Charge (Rs.)",
-        "Total Discount (Rs.)"
+        `Total Amount (${currencySymbol})`,
+        `Total Tax (${currencySymbol})`,
+        `Total Charge (${currencySymbol})`,
+        `Total Discount (${currencySymbol})`
       ];
 
       const rows = allRecords.map((r) => [
@@ -710,7 +713,7 @@ export default function TotalSalesPage() {
                 <div id="metrics-container" className="metrics-grid">
                   <div className="metric-card">
                     <div className="metric-icon"><i className="fas fa-chart-line" /></div>
-                    <div className="metric-info"><h4>Total Sales</h4><p>Rs. {metrics.salesAmount}</p></div>
+                    <div className="metric-info"><h4>Total Sales</h4><p>{currencySymbol} {metrics.salesAmount}</p></div>
                   </div>
                   <div className="metric-card">
                     <div className="metric-icon"><i className="fas fa-shopping-cart" /></div>
@@ -718,7 +721,7 @@ export default function TotalSalesPage() {
                   </div>
                   <div className="metric-card">
                     <div className="metric-icon"><i className="fas fa-file-invoice-dollar" /></div>
-                    <div className="metric-info"><h4>Total Tax Amount</h4><p>Rs. {metrics.taxAmount}</p></div>
+                    <div className="metric-info"><h4>Total Tax Amount</h4><p>{currencySymbol} {metrics.taxAmount}</p></div>
                   </div>
                 </div>
 
@@ -741,10 +744,10 @@ export default function TotalSalesPage() {
                           <th>Payment Method</th>
                           <th>Order Type</th>
                           <th>Split Payment</th>
-                          <th>Total Amount (Rs.)</th>
-                          <th>Total tax (Rs.)</th>
-                          <th>Total Charge (Rs.)</th>
-                          <th>Total Discount (Rs.)</th>
+                          <th>Total Amount ({currencySymbol})</th>
+                          <th>Total tax ({currencySymbol})</th>
+                          <th>Total Charge ({currencySymbol})</th>
+                          <th>Total Discount ({currencySymbol})</th>
                         </tr>
                       </thead>
                       <tbody>

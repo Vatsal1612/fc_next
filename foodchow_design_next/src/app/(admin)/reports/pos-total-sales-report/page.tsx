@@ -7,6 +7,7 @@ import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import ReportTableState from "@/components/shared/ReportTableState";
 import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 import "./page.css";
 
 type WorkBook = unknown;
@@ -29,6 +30,8 @@ type Period = "today" | "weekly" | "monthly" | "yearly" | "datewise";
 type Row = { method: string; orders: number; amount: number };
 
 export default function PosTotalSalesReportPage() {
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const shopId = useShopId();
   const [period, setPeriod] = useState<Period>("today");
   const [rows, setRows] = useState<Row[]>([]);
@@ -160,7 +163,7 @@ export default function PosTotalSalesReportPage() {
     const wsData: unknown[][] = [
       [`POS Total Sales Reports — ${label}`],
       [],
-      ["Delivery Method", "Total Orders", "Total Sales Amount (Rs.)"],
+      ["Delivery Method", "Total Orders", `Total Sales Amount (${currencySymbol})`],
       ...rows.map((r) => [
         r.method,
         r.orders,
@@ -393,7 +396,7 @@ export default function PosTotalSalesReportPage() {
                           <tr>
                             <th>Delivery Method</th>
                             <th>Total Orders</th>
-                            <th>Total Sales Amount(Rs.)</th>
+                            <th>Total Sales Amount ({currencySymbol})</th>
                           </tr>
                         </thead>
                         <tbody>

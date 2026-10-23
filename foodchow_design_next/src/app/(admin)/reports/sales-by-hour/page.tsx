@@ -415,6 +415,7 @@ import { reportsService, SalesByHour } from "@/api/services/report.service";
 import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 
 interface DisplayRow {
     hour_interval: string;
@@ -424,6 +425,8 @@ interface DisplayRow {
 }
 
 export default function SalesByHourPage() {
+    const sessionCurrency = useSessionCurrency();
+    const currencySymbol = sessionCurrency.symbol || "₹";
     const shopId = useShopId();
     const [data, setData] = useState<DisplayRow[]>([]);
     const [loading, setLoading] = useState(false);
@@ -513,7 +516,7 @@ export default function SalesByHourPage() {
             "Hour Interval",
             "Item Name",
             "Quantity",
-            "Total Amount (Rs.)",
+            `Total Amount (${currencySymbol})`,
         ];
 
         const rows = data.map((item, i) => [
@@ -707,7 +710,7 @@ export default function SalesByHourPage() {
                                                                 <th>Hour Interval</th>
                                                                 <th>Item Name</th>
                                                                 <th>Quantity</th>
-                                                                <th>Total Amount (Rs.)</th>
+                                                                <th>Total Amount ({currencySymbol})</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -734,7 +737,7 @@ export default function SalesByHourPage() {
                                                                             <span className="qty-pill">{item.total_quantity}</span>
                                                                         </td>
                                                                         <td className="amount-cell">
-                                                                            ₹ {item.total_amount.toFixed(2)}
+                                                                            {currencySymbol} {item.total_amount.toFixed(2)}
                                                                         </td>
                                                                     </tr>
                                                                 ))

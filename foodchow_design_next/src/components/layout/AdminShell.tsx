@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
+import { ToastContainer } from "@/components/shared/Toast";
 import { cn } from "@/utils";
 import styles from "./shell.module.css";
 
@@ -21,6 +22,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         {!collapsed && <Sidebar />}
         <main className={cn(styles.appFrame)}>{children}</main>
       </div>
+      <ToastContainer />
     </>
   );
 }

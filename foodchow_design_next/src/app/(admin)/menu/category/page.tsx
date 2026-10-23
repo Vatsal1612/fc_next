@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { menuService, type MenuCategory } from "@/api";
 import { WizardFooter } from "@/components/shared/WizardFooter";
-import Swal from "sweetalert2";
+import { showToast, toast } from "@/components/shared/Toast";
 import { useShopId, getShopId } from "@/utils/shop";
 import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import "./page.css";
@@ -20,18 +20,6 @@ function getCategoryImageUrl(imagePath?: string | null): string | null {
   }
   return `https://admin.foodchow.com/CategoryImages/${imagePath}`;
 }
-
-const showToast = (icon: "success" | "error" | "warning", title: string) => {
-  Swal.fire({
-    toast: true,
-    position: "top-end",
-    showConfirmButton: false,
-    timer: 3000,
-    timerProgressBar: true,
-    icon,
-    title,
-  });
-};
 
 export default function CategoryPage() {
   const SHOP_ID = useShopId();
@@ -148,15 +136,7 @@ export default function CategoryPage() {
 
     try {
       await menuService.changeCategoryPosition(catIds, posIds);
-      Swal.fire({
-        icon: "success",
-        title: "Position Updated",
-        text: "Category position reordered successfully.",
-        timer: 1500,
-        showConfirmButton: false,
-        toast: true,
-        position: "top-end",
-      });
+      toast.success("Position Updated", "Category position reordered successfully.");
     } catch (err) {
       console.error("Failed to update category position:", err);
       loadCategories();

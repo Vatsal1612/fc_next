@@ -596,6 +596,7 @@ import { reportsService, TradingSession } from "@/api/services/report.service";
 import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 
 
 
@@ -607,6 +608,8 @@ interface DisplayRow {
 }
 
 export default function SalesByTradingSessionPage() {
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const shopId = useShopId();
 
   // State for each tab's data
@@ -782,8 +785,8 @@ export default function SalesByTradingSessionPage() {
 
     const hasDate = tab === "today" || tab === "daywise" || tab === "month";
     const headers = hasDate
-      ? ["Sr No", "Date", "Sessions", "Total Order Count", "Total Amount (Rs.)"]
-      : ["Sr No", "Sessions", "Total Order Count", "Total Amount (Rs.)"];
+      ? ["Sr No", "Date", "Sessions", "Total Order Count", `Total Amount (${currencySymbol})`]
+      : ["Sr No", "Sessions", "Total Order Count", `Total Amount (${currencySymbol})`];
 
     const rows = data.map((item, i) =>
       hasDate
@@ -847,7 +850,7 @@ export default function SalesByTradingSessionPage() {
         {hasDate && <td className="date-col">{item.date}</td>}
         <td><span className="session-pill">{item.session}</span></td>
         <td>{item.orders}</td>
-        <td className="amount-col">₹ {item.amount.toFixed(2)}</td>
+        <td className="amount-col">{currencySymbol} {item.amount.toFixed(2)}</td>
       </tr>
     ));
   };
@@ -1233,7 +1236,7 @@ export default function SalesByTradingSessionPage() {
                               {hasDate && <th>Date</th>}
                               <th>Session</th>
                               <th>Total Orders</th>
-                              <th>Total Amount (Rs.)</th>
+                              <th>Total Amount ({currencySymbol})</th>
                             </tr>
                           </thead>
                           <tbody>

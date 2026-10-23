@@ -5,6 +5,7 @@ import Script from "next/script";
 import "./page.css";
 import { reportsService } from "@/api/services/report.service";
 import { useShopId, getShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import ReportStepFooter from "@/components/shared/ReportStepFooter";
 
@@ -38,6 +39,8 @@ function ReportResultsView({
   onPageChange?: (page: number) => void;
   onPageSizeChange?: (size: number) => void;
 }) {
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const items = reportData?.items ?? [];
 
   const grandTotal = items.reduce((sum, row) => sum + (row.total_amount ?? 0), 0);
@@ -88,7 +91,7 @@ function ReportResultsView({
           <thead>
             <tr>
               <th>DELIVERY METHOD</th>
-              <th>TOTAL AMOUNT</th>
+              <th>TOTAL AMOUNT ({currencySymbol})</th>
               <th>TOTAL ORDERS</th>
             </tr>
           </thead>
@@ -151,6 +154,8 @@ function MonthlyReportView({
   onPageChange?: (page: number) => void;
   onPageSizeChange?: (size: number) => void;
 }) {
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const items = reportData?.items ?? [];
 
   const grandTotal = items.reduce((sum, row) => sum + (row.total_amount ?? 0), 0);
@@ -199,7 +204,7 @@ function MonthlyReportView({
           <thead>
             <tr>
               <th>DELIVERY METHOD</th>
-              <th>TOTAL AMOUNT</th>
+              <th>TOTAL AMOUNT ({currencySymbol})</th>
               <th>TOTAL ORDERS</th>
             </tr>
           </thead>
@@ -250,6 +255,8 @@ function MonthlyReportView({
 }
 
 export default function DailyClosingReportPage() {
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const shopId = useShopId();
   const [dailyReportData, setDailyReportData] = useState<DailyClosingResponse | null>(null);
   const [monthlyReportData, setMonthlyReportData] = useState<DailyClosingResponse | null>(null);
@@ -494,7 +501,7 @@ export default function DailyClosingReportPage() {
         const grandOrders = (currentData.items || []).reduce((s, r) => s + (r.total_orders ?? 0), 0);
         rows.push(["Grand Total", parseFloat(grandTotal.toFixed(2)), grandOrders]);
 
-        const headers = ["Delivery Method", "Total Amount (Rs.)", "Total Orders"];
+        const headers = ["Delivery Method", `Total Amount (${currencySymbol})`, "Total Orders"];
         const wsData = [
           ["Daily Closing Report — Month Wise"],
           [`Exported On: ${new Date().toLocaleString()}`],
@@ -527,7 +534,7 @@ export default function DailyClosingReportPage() {
       const grandOrders = (currentData.items || []).reduce((s: number, r: DailyClosingItem) => s + (r.total_orders ?? 0), 0);
       rows.push(["Grand Total", parseFloat(grandTotal.toFixed(2)), grandOrders]);
 
-      const headers = ["Delivery Method", "Total Amount (Rs.)", "Total Orders"];
+      const headers = ["Delivery Method", `Total Amount (${currencySymbol})`, "Total Orders"];
       const wsData = [
         [`Daily Closing Report — ${tab.toUpperCase()}`],
         [`Exported On: ${new Date().toLocaleString()}`],

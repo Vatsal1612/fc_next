@@ -8,6 +8,7 @@ import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import ReportTableState from "@/components/shared/ReportTableState";
 import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 
 type SalesRecord = {
   date: string;
@@ -21,6 +22,8 @@ type SalesRecord = {
 };
 
 export default function TotalStripeConnectPage() {
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const shopId = useShopId();
   const [records, setRecords] = useState<SalesRecord[]>([]);
   const [salesAmount, setSalesAmount] = useState<string>("0.00");
@@ -303,12 +306,12 @@ export default function TotalStripeConnectPage() {
     const headers = [
       "Date",
       "Order ID",
-      "Amount (Rs.)",
-      "Platform Fee (Rs.)",
-      "Commission (Rs.)",
+      `Amount (${currencySymbol})`,
+      `Platform Fee (${currencySymbol})`,
+      `Commission (${currencySymbol})`,
       "Status",
-      "Shop Received Amount (Rs.)",
-      "Stripe Charge (Rs.)",
+      `Shop Received Amount (${currencySymbol})`,
+      `Stripe Charge (${currencySymbol})`,
     ];
 
     const wsData = [
@@ -569,7 +572,7 @@ export default function TotalStripeConnectPage() {
                       fontWeight: 700,
                     }}
                   >
-                    Description (Total: ${salesAmount})
+                    Description (Total: {currencySymbol}{salesAmount})
                   </h3>
                 </div>
 
@@ -580,12 +583,12 @@ export default function TotalStripeConnectPage() {
                         <tr>
                           <th>Date</th>
                           <th>Order ID</th>
-                          <th>Amount (Rs.)</th>
-                          <th>Platform Fee (Rs.)</th>
-                          <th>Commission (Rs.)</th>
+                          <th>Amount ({currencySymbol})</th>
+                          <th>Platform Fee ({currencySymbol})</th>
+                          <th>Commission ({currencySymbol})</th>
                           <th>Status</th>
-                          <th>Shop Received Amount (Rs.)</th>
-                          <th>Stripe Charge (Rs.)</th>
+                          <th>Shop Received Amount ({currencySymbol})</th>
+                          <th>Stripe Charge ({currencySymbol})</th>
                         </tr>
                       </thead>
                       <tbody>

@@ -282,9 +282,40 @@ export default function PricingPlanPage() {
         lastCurrency.current = currency;
 
         const loadPlans = async () => {
-            try {
-                setLoading(true);
+            const bundleKey = `fc_pricing_bundle_${currency}`;
+            let hasCachedData = false;
 
+            // 1. Immediately restore cached plan prices so page loads with zero delay
+            if (typeof window !== "undefined") {
+                try {
+                    const rawCached = sessionStorage.getItem(bundleKey) || localStorage.getItem(bundleKey);
+                    if (rawCached) {
+                        const cached = JSON.parse(rawCached);
+                        if (cached && Date.now() - cached.timestamp < 24 * 60 * 60 * 1000) {
+                            if (cached.p1) setGrowthPlan(cached.p1);
+                            if (cached.p2) setPosLitePlan(cached.p2);
+                            if (cached.p3) setPosPremiumPlan(cached.p3);
+                            if (cached.p7) setOnlineCommissionPlan(cached.p7);
+                            if (cached.p999) setMarketplaceBundle(cached.p999);
+                            if (cached.p1006) setFixedFreePlan(cached.p1006);
+                            if (cached.p1007) setFixedMonthlyPlan(cached.p1007);
+                            if (cached.p1008) setFixedYearlyPlan(cached.p1008);
+                            if (cached.p1009) setCommFreePlan(cached.p1009);
+                            if (cached.p1010) setCommLitePlan(cached.p1010);
+                            if (cached.p1011) setCommPremiumPlan(cached.p1011);
+                            if (cached.addonsData) setAddOns(cached.addonsData);
+                            setLoading(false);
+                            hasCachedData = true;
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            if (!hasCachedData) {
+                setLoading(true);
+            }
+
+            try {
                 // Fetch IDs: 1 (Growth), 2 (POS Lite), 3 (POS Premium), 7 (Commission), 999 (Bundle),
                 // 1006, 1007, 1008 (Fixed), 1009, 1010, 1011 (Comm).
                 // Strictly exclude 4 and 5.
@@ -316,17 +347,17 @@ export default function PricingPlanPage() {
                     menuService.getAddOns(currency).catch(() => []),
                 ]);
 
-                setGrowthPlan(p1);
-                setPosLitePlan(p2);
-                setPosPremiumPlan(p3);
-                setOnlineCommissionPlan(p7);
-                setMarketplaceBundle(p999);
-                setFixedFreePlan(p1006);
-                setFixedMonthlyPlan(p1007);
-                setFixedYearlyPlan(p1008);
-                setCommFreePlan(p1009);
-                setCommLitePlan(p1010);
-                setCommPremiumPlan(p1011);
+                if (p1) setGrowthPlan(p1);
+                if (p2) setPosLitePlan(p2);
+                if (p3) setPosPremiumPlan(p3);
+                if (p7) setOnlineCommissionPlan(p7);
+                if (p999) setMarketplaceBundle(p999);
+                if (p1006) setFixedFreePlan(p1006);
+                if (p1007) setFixedMonthlyPlan(p1007);
+                if (p1008) setFixedYearlyPlan(p1008);
+                if (p1009) setCommFreePlan(p1009);
+                if (p1010) setCommLitePlan(p1010);
+                if (p1011) setCommPremiumPlan(p1011);
 
                 const addonsData = Array.isArray(addonResponse)
                     ? addonResponse
@@ -338,7 +369,30 @@ export default function PricingPlanPage() {
                                 ? addonResponse.AddOns
                                 : [];
 
-                setAddOns(addonsData);
+                if (addonsData.length > 0) setAddOns(addonsData);
+
+                // Cache the loaded plan bundle in storage so subsequent loads are instant
+                if (p1 && typeof window !== "undefined") {
+                    try {
+                        const bundleData = {
+                            p1,
+                            p2,
+                            p3,
+                            p7,
+                            p999,
+                            p1006,
+                            p1007,
+                            p1008,
+                            p1009,
+                            p1010,
+                            p1011,
+                            addonsData,
+                            timestamp: Date.now(),
+                        };
+                        sessionStorage.setItem(bundleKey, JSON.stringify(bundleData));
+                        localStorage.setItem(bundleKey, JSON.stringify(bundleData));
+                    } catch (e) {}
+                }
             } catch (error) {
                 console.error("PLAN API ERROR:", error);
             } finally {

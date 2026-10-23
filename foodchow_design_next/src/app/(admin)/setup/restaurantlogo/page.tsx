@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import Script from "next/script";
 import { restaurantService, setupService } from "@/api/services/setup.service";
 import { WizardFooter } from "@/components/shared/WizardFooter";
+import { toast } from "@/components/shared/Toast";
 import Swal from "sweetalert2";
 import "./page.css";
 
@@ -185,12 +186,7 @@ export default function RestaurantLogoPage() {
 
       const sessionShopId = sessionStorage.getItem("shop_id");
       if (!sessionShopId) {
-        Swal.fire({
-          icon: "error",
-          title: "Session Expired",
-          text: "Shop ID not found in session.",
-          confirmButtonColor: "#00a896",
-        });
+        toast.error("Shop ID not found in session.");
         return;
       }
 
@@ -212,30 +208,13 @@ export default function RestaurantLogoPage() {
         }
 
         handleCloseCrop();
-
-        Swal.fire({
-          icon: "success",
-          title: "Logo Uploaded!",
-          text: "Your restaurant logo has been saved and is now live.",
-          confirmButtonColor: "#00a896",
-          timer: 2000,
-        });
+        toast.success("Logo Saved", "Restaurant logo saved successfully.");
       } else {
-        Swal.fire({
-          icon: "error",
-          title: "Upload Failed",
-          text: response?.message || "Failed to save logo.",
-          confirmButtonColor: "#00a896",
-        });
+        toast.error("Save Failed", response?.message || "Failed to save logo.");
       }
     } catch (err: any) {
       console.error("Direct upload failed:", err);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: err?.response?.data?.message || "Failed to update restaurant logo.",
-        confirmButtonColor: "#00a896",
-      });
+      toast.error("Save Failed", err?.response?.data?.message || "Failed to update restaurant logo.");
     } finally {
       setIsSavingLogo(false);
     }
@@ -258,21 +237,10 @@ export default function RestaurantLogoPage() {
       logoRef.current = "";
       setIsDeleteOpen(false);
 
-      Swal.fire({
-        icon: "success",
-        title: "Logo Removed",
-        text: "The restaurant logo has been deleted successfully.",
-        confirmButtonColor: "#00a896",
-        timer: 2000,
-      });
+      toast.success("Logo Deleted", "The restaurant logo has been deleted successfully.");
     } catch (err: any) {
       console.error("Failed to delete logo:", err);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Failed to delete restaurant logo.",
-        confirmButtonColor: "#00a896",
-      });
+      toast.error("Delete Failed", "Failed to delete restaurant logo.");
     } finally {
       setIsSavingLogo(false);
     }
@@ -303,21 +271,10 @@ export default function RestaurantLogoPage() {
       sessionStorage.setItem("subdomain", websiteName.trim());
       sessionStorage.setItem("subdomain_for", String(sessionShopId));
 
-      Swal.fire({
-        icon: "success",
-        title: "Saved Successfully!",
-        text: "Website name has been updated.",
-        confirmButtonColor: "#00a896",
-        timer: 2000,
-      });
+      toast.success("Website Updated", "Website name has been updated successfully.");
     } catch (err: any) {
       console.error("Failed to save website name:", err);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: err?.response?.data?.message || "Failed to update website name.",
-        confirmButtonColor: "#00a896",
-      });
+      toast.error("Update Failed", err?.response?.data?.message || "Failed to update website name.");
     } finally {
       setIsSavingWebsite(false);
     }

@@ -786,6 +786,7 @@ import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import ReportTableState from "@/components/shared/ReportTableState";
 import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 
 interface RowData {
     date: string;
@@ -799,6 +800,8 @@ interface RowData {
 }
 
 export default function SalesByPosUserPage() {
+    const sessionCurrency = useSessionCurrency();
+    const currencySymbol = sessionCurrency.symbol || "₹";
     const shopId = useShopId();
     const activeShopId = shopId || (typeof window !== "undefined" ? parseInt(sessionStorage.getItem("shop_id") || "0", 10) : 0);
     const [users, setUsers] = useState<PosUser[]>([]);
@@ -1007,7 +1010,7 @@ export default function SalesByPosUserPage() {
             return;
         }
 
-        const headers = ["Date", "Order ID", "Customer Name", "Mobile No", "Payment Method", "Split Payment", "Order Type", "Total Amount (Rs.)"];
+        const headers = ["Date", "Order ID", "Customer Name", "Mobile No", "Payment Method", "Split Payment", "Order Type", `Total Amount (${currencySymbol})`];
         const rows = reportData.map((row) => [
             row.date || "-",
             row.order_id || "-",
@@ -1063,7 +1066,7 @@ export default function SalesByPosUserPage() {
                                 <th>Payment Method</th>
                                 <th>Split Payment</th>
                                 <th>Order Type</th>
-                                <th>Total Amount (Rs.)</th>
+                                <th>Total Amount ({currencySymbol})</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1096,7 +1099,7 @@ export default function SalesByPosUserPage() {
                                         </td>
                                         <td style={{ color: "var(--muted)" }}>{row.split}</td>
                                         <td><span className="type-pill">{row.type || "-"}</span></td>
-                                        <td className="amount-cell">₹{row.amount}</td>
+                                        <td className="amount-cell">{currencySymbol}{row.amount}</td>
                                     </tr>
                                 ))
                             )}

@@ -458,8 +458,11 @@ import { reportsService, PosUser } from "@/api/services/report.service";
 import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 
 export default function PosEndDayPage() {
+    const sessionCurrency = useSessionCurrency();
+    const currencySymbol = sessionCurrency.symbol || "₹";
     const shopId = useShopId();
     const activeShopId = shopId || (typeof window !== "undefined" ? parseInt(sessionStorage.getItem("shop_id") || "0", 10) : 0);
     const [users, setUsers] = useState<PosUser[]>([]);
@@ -586,7 +589,7 @@ export default function PosEndDayPage() {
                                     <th>Customer Name</th>
                                     <th>Payment Method</th>
                                     <th>Order Type</th>
-                                    <th>Amount (Rs.)</th>
+                                    <th>Amount ({currencySymbol})</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
@@ -662,7 +665,7 @@ export default function PosEndDayPage() {
                     <div className="summary-cards">
                         <div className="summary-card">
                             <div className="s-label">Total Sales</div>
-                            <div className="s-value">{s.total_sales || "₹0.00"}</div>
+                            <div className="s-value">{s.total_sales || `${currencySymbol}0.00`}</div>
                         </div>
                         <div className="summary-card">
                             <div className="s-label">Total Orders</div>
@@ -670,19 +673,19 @@ export default function PosEndDayPage() {
                         </div>
                         <div className="summary-card">
                             <div className="s-label">Cash</div>
-                            <div className="s-value">{s.cash || "₹0.00"}</div>
+                            <div className="s-value">{s.cash || `${currencySymbol}0.00`}</div>
                         </div>
                         <div className="summary-card">
                             <div className="s-label">Card</div>
-                            <div className="s-value">{s.card || "₹0.00"}</div>
+                            <div className="s-value">{s.card || `${currencySymbol}0.00`}</div>
                         </div>
                         <div className="summary-card">
                             <div className="s-label">Online</div>
-                            <div className="s-value">{s.online || "₹0.00"}</div>
+                            <div className="s-value">{s.online || `${currencySymbol}0.00`}</div>
                         </div>
                         <div className="summary-card">
                             <div className="s-label">Refund</div>
-                            <div className="s-value">{s.refund || "₹0.00"}</div>
+                            <div className="s-value">{s.refund || `${currencySymbol}0.00`}</div>
                         </div>
                     </div>
 
@@ -696,7 +699,7 @@ export default function PosEndDayPage() {
                                     <th>Customer Name</th>
                                     <th>Payment Method</th>
                                     <th>Order Type</th>
-                                    <th>Amount (Rs.)</th>
+                                    <th>Amount ({currencySymbol})</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
@@ -754,7 +757,7 @@ export default function PosEndDayPage() {
                         <div className="summary-cards">
                             <div className="summary-card">
                                 <div className="s-label">Total Sales</div>
-                                <div className="s-value">{reportData.summary.total_sales || reportData.totalAmount || "₹0.00"}</div>
+                                <div className="s-value">{reportData.summary.total_sales || reportData.totalAmount || `${currencySymbol}0.00`}</div>
                             </div>
                             <div className="summary-card">
                                 <div className="s-label">Total Orders</div>
@@ -762,19 +765,19 @@ export default function PosEndDayPage() {
                             </div>
                             <div className="summary-card">
                                 <div className="s-label">Cash</div>
-                                <div className="s-value">{reportData.summary.cash || "₹0.00"}</div>
+                                <div className="s-value">{reportData.summary.cash || `${currencySymbol}0.00`}</div>
                             </div>
                             <div className="summary-card">
                                 <div className="s-label">Card</div>
-                                <div className="s-value">{reportData.summary.card || "₹0.00"}</div>
+                                <div className="s-value">{reportData.summary.card || `${currencySymbol}0.00`}</div>
                             </div>
                             <div className="summary-card">
                                 <div className="s-label">Online</div>
-                                <div className="s-value">{reportData.summary.online || "₹0.00"}</div>
+                                <div className="s-value">{reportData.summary.online || `${currencySymbol}0.00`}</div>
                             </div>
                             <div className="summary-card">
                                 <div className="s-label">Refund</div>
-                                <div className="s-value">{reportData.summary.refund || "₹0.00"}</div>
+                                <div className="s-value">{reportData.summary.refund || `${currencySymbol}0.00`}</div>
                             </div>
                         </div>
                     )}

@@ -385,12 +385,7 @@ export const setupService = {
   },
 
   async uploadGalleryImage(payload: any) {
-
-    const { data } = await axios.post(
-      "https://www.foodchow.com/rms_phpservices/upload_image_flutter.php",
-      new URLSearchParams(payload)
-    );
-
+    const { data } = await axios.post("/api/gallery/upload", payload);
     return data;
   },
 

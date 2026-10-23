@@ -1522,6 +1522,19 @@ export const menuService = {
     return data;
   },
 
+  /** Upload an item image directly without altering item price or sizes */
+  async uploadItemImage(payload: { id: number; shop_id: number; base64Image: string }): Promise<any> {
+    const { data } = await foodchowClient.post(
+      ENDPOINTS.menu.itemImageUpload,
+      {
+        id: String(payload.id),
+        shop_id: String(payload.shop_id),
+        base64Image: payload.base64Image,
+      }
+    );
+    return data;
+  },
+
   /** Activate (status=1) or deactivate (status=0) a store item */
   async changeStoreItemStatus(itemId: number, status: number): Promise<any> {
     const { data } = await foodchowClient.get(
@@ -1655,6 +1668,23 @@ export const menuService = {
     planId: number,
     currency: string
   ): Promise<PlanDetails> {
+    const cacheKey = `fc_plan_details_${planId}_${currency}`;
+
+    // 1. Check in-memory cache (TTL: 1 hour)
+    if (typeof window !== "undefined") {
+      try {
+        const stored = sessionStorage.getItem(cacheKey);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && Date.now() - parsed.timestamp < 3600000) {
+            return parsed.data;
+          }
+        }
+      } catch (e) {
+        // Ignore sessionStorage errors
+      }
+    }
+
     const response = await axios.get<{
       Result: PlanDetails;
       Message: string | null;
@@ -1670,12 +1700,34 @@ export const menuService = {
       }
     );
 
-    console.log("PLAN DETAILS RESPONSE:", response.data);
+    const result = response.data.Result;
+    if (result && typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem(
+          cacheKey,
+          JSON.stringify({ data: result, timestamp: Date.now() })
+        );
+      } catch (e) {}
+    }
 
-    return response.data.Result;
+    return result;
   },
 
   async getAddOns(currency: string) {
+    const cacheKey = `fc_addons_${currency}`;
+
+    if (typeof window !== "undefined") {
+      try {
+        const stored = sessionStorage.getItem(cacheKey);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && Date.now() - parsed.timestamp < 3600000) {
+            return parsed.data;
+          }
+        }
+      } catch (e) {}
+    }
+
     const response = await axios.get(
       `/api/add-ons`,
       {
@@ -1685,9 +1737,17 @@ export const menuService = {
       }
     );
 
-    console.log("ADD ONS RESPONSE:", response.data);
+    const data = response.data;
+    if (data && typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem(
+          cacheKey,
+          JSON.stringify({ data, timestamp: Date.now() })
+        );
+      } catch (e) {}
+    }
 
-    return response.data;
+    return data;
   },
 
   async getMarketplaceData(currency: string = "INR") {

@@ -1,9 +1,11 @@
 "use client";
 import { WizardFooter } from "@/components/shared/WizardFooter";
+import { showToast } from "@/components/shared/Toast";
 import { menuService } from "@/api/services/menu.service";
 import { useState, useEffect, useRef } from "react";
 import "./page.css";
 import { useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 
 interface Deal {
   id: string;
@@ -20,6 +22,8 @@ interface Deal {
 
 export default function ItemDealsPage() {
   const shopId = useShopId();
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
 
   // Helper to get effective shopId
   const getEffectiveShopId = (): number => {
@@ -180,15 +184,6 @@ export default function ItemDealsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [draggedDealId, setDraggedDealId] = useState<string | null>(null);
   const [isReordering, setIsReordering] = useState(false);
-  // Helper Toast
-  const showToast = (message: string) => {
-    const toast = document.getElementById("toast");
-    const toastText = document.getElementById("toastText");
-    if (!toast || !toastText) return;
-    toastText.textContent = message;
-    toast.classList.add("show");
-    setTimeout(() => toast.classList.remove("show"), 2800);
-  };
 
   // --- Modal Open / Close Handlers ---
   const handleOpenAddModal = () => {
@@ -1752,7 +1747,7 @@ export default function ItemDealsPage() {
                               )}
                             </div>
                           </td>
-                          <td className="deal-price-cell">Rs. {deal.price}</td>
+                          <td className="deal-price-cell">{currencySymbol} {deal.price}</td>
                           <td style={{ textAlign: "center" }}>
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px" }}>
                               <button
@@ -2019,7 +2014,7 @@ export default function ItemDealsPage() {
 
                     <div className="form-grid">
                       <div className="form-row">
-                        <label className="input-label">Buy this deal only Rs.</label>
+                        <label className="input-label">Buy this deal only ({currencySymbol})</label>
                         <input
                           type="number"
                           min="0"
@@ -2043,7 +2038,7 @@ export default function ItemDealsPage() {
 
                           {appliedTaxes.length > 0 && (
                             <div className="calculated-net-price">
-                              Calculated Net Price: Rs. {netPrice.toFixed(2)}
+                              Calculated Net Price: {currencySymbol} {netPrice.toFixed(2)}
 
 
                             </div>
@@ -2053,7 +2048,7 @@ export default function ItemDealsPage() {
                       </div>
 
                       <div className="form-row">
-                        <label className="input-label">Deal MRP Rs.</label>
+                        <label className="input-label">Deal MRP ({currencySymbol})</label>
                         <input
                           type="number"
                           min="0"
@@ -2517,7 +2512,7 @@ export default function ItemDealsPage() {
                               <div className="summary-row">
 
                                 <span>
-                                  Net Price (Rs.)
+                                  Net Price ({currencySymbol})
                                 </span>
 
                                 <span>
@@ -2560,7 +2555,7 @@ export default function ItemDealsPage() {
                               <div className="summary-row total">
 
                                 <span>
-                                  Final Price (Rs.)
+                                  Final Price ({currencySymbol})
                                 </span>
 
                                 <span>

@@ -744,6 +744,34 @@
         padding: 4px 2px;
     }
 
+    .placeholder-img.has-image {
+        padding: 0;
+        background-color: transparent;
+        overflow: hidden;
+    }
+
+    .item-thumbnail-wrap {
+        width: 52px;
+        height: 52px;
+        border-radius: 4px;
+        overflow: hidden;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background-color: transparent;
+        padding: 0;
+        flex-shrink: 0;
+    }
+
+    .item-thumbnail-wrap img,
+    .placeholder-img.has-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 4px;
+        display: block;
+    }
+
     .placeholder-img i {
         font-size: var(--text-section-heading);
         line-height: var(--lh-section-heading);

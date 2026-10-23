@@ -5,6 +5,7 @@ import Script from "next/script";
 import "./page.css";
 import { reportsService, IncompletePayment } from "@/api/services/report.service";
 import { useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import ReportTableState from "@/components/shared/ReportTableState";
 import ReportStepFooter from "@/components/shared/ReportStepFooter";
@@ -38,6 +39,8 @@ type DataRow = {
 };
 
 export default function IncompletePaymentPage() {
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const shopId = useShopId();
 
   const [activeTab, setActiveTab] = useState<Tab>("today");
@@ -144,8 +147,8 @@ export default function IncompletePaymentPage() {
       "Customer Name",
       "Mobile No",
       "Payment Method",
-      "Total Amount (Rs.)",
-      "Payment Charge (Rs.)",
+      `Total Amount (${currencySymbol})`,
+      `Payment Charge (${currencySymbol})`,
       "Date",
     ];
     const wsData: unknown[][] = [
@@ -347,8 +350,8 @@ export default function IncompletePaymentPage() {
                             <th>Customer Name</th>
                             <th>Mobile No</th>
                             <th>Payment Method</th>
-                            <th>Total Amount (Rs.)</th>
-                            <th>Payment Charge (Rs.)</th>
+                            <th>Total Amount ({currencySymbol})</th>
+                            <th>Payment Charge ({currencySymbol})</th>
                             <th>Date</th>
                           </tr>
                         </thead>

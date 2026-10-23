@@ -1,396 +1,266 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Script from "next/script";
 import { setupService } from "@/api/services/setup.service";
 import { WizardFooter } from "@/components/shared/WizardFooter";
+import { toast } from "@/components/shared/Toast";
+import { getShopId } from "@/utils/shop";
 import Swal from "sweetalert2";
 import "./page.css";
 
-/**
- * setup/gallery.html → React.
- *
- * Static markup rendered; the inline <script> (open/close add panel, custom
- * crop-box drag/resize, zoom, apply crop → insert tile, delete tile) ported into
- * one useEffect. Per-item delete buttons (existing + dynamically created) use
- * event delegation on the grid. The external sidebar-loader.js is dropped.
- */
-interface CropState {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  imgW: number;
-  imgH: number;
-  ratio: number;
-  zoom: number;
-}
-
 export default function GalleryPage() {
   const [images, setImages] = useState<any[]>([]);
-  const hasLoaded = useRef(false);
-  const uploadImage = async (
-    base64img: string,
-    fileName: string
-  ) => {
-    try {
-      const shopId = sessionStorage.getItem("shop_id");
+  const [loading, setLoading] = useState<boolean>(true);
+  const [showAddPanel, setShowAddPanel] = useState<boolean>(false);
+  const [isCropModalOpen, setIsCropModalOpen] = useState<boolean>(false);
+  const [selectedImageSrc, setSelectedImageSrc] = useState<string>("");
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [zoomValue, setZoomValue] = useState<number>(1);
 
-      if (!shopId) {
-        console.error("Shop ID not found.");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const cropImageRef = useRef<HTMLImageElement | null>(null);
+  const cropperInstanceRef = useRef<any>(null);
+
+  const shopId = typeof window !== "undefined" ? getShopId() : null;
+
+  // 1. Load gallery images from live API
+  const loadGalleryImages = async () => {
+    try {
+      setLoading(true);
+      const currentShopId = getShopId();
+      if (!currentShopId) {
+        setLoading(false);
         return;
       }
 
-      const payload = {
-        shop_id: shopId,
-        device_type: "1",
-        imageflag: "2",
-        user_type: "4",
-        photo_count: "1",
-        photo_0: base64img,
-        user_type_id: shopId,
-        caption: fileName,
-      };
+      const response = await setupService.getGalleryImages(Number(currentShopId));
+      const rawData = response?.data;
+      let galleryImages: any[] = [];
+      if (typeof rawData === "string" && rawData.trim()) {
+        try {
+          galleryImages = JSON.parse(rawData);
+        } catch {
+          galleryImages = [];
+        }
+      } else if (Array.isArray(rawData)) {
+        galleryImages = rawData;
+      }
 
-      console.log("Upload Payload:", payload);
-      const response = await setupService.uploadGalleryImage(payload);
-      console.log("Upload Response:", response);
-
-    } catch (err) {
-      console.error("Upload Error:", err);
-    }
-  }
-  const loadGalleryImages = async () => {
-    try {
-      const shopId = sessionStorage.getItem("shop_id");
-      const response = await setupService.getGalleryImages(Number(shopId));
-
-      const galleryImages = JSON.parse(response.data);
-
-      setImages(galleryImages);
-
+      setImages(Array.isArray(galleryImages) ? galleryImages : []);
     } catch (error) {
       console.error("Error loading gallery images:", error);
+      setImages([]);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!hasLoaded.current) {
-      hasLoaded.current = true;
-      loadGalleryImages();
+    loadGalleryImages();
+  }, []);
+
+  // 2. Initialize Cropper when modal opens (600x400 aspect ratio matching live)
+  useEffect(() => {
+    const cropperClass = typeof window !== "undefined" ? (window as any).Cropper : null;
+    if (isCropModalOpen && selectedImageSrc && cropImageRef.current && cropperClass) {
+      if (cropperInstanceRef.current) {
+        cropperInstanceRef.current.destroy();
+      }
+
+      cropperInstanceRef.current = new cropperClass(cropImageRef.current, {
+        aspectRatio: 600 / 400, // 3:2 matching live Croppie viewport
+        viewMode: 1,
+        dragMode: "move",
+        autoCropArea: 0.95,
+        restore: false,
+        guides: true,
+        center: true,
+        highlight: false,
+        cropBoxMovable: true,
+        cropBoxResizable: true,
+        toggleDragModeOnDblclick: false,
+        ready() {
+          setZoomValue(1);
+        },
+      });
     }
-    const galleryCard = document.getElementById("galleryCard");
-    const addPanel = document.getElementById("addPanel");
-    const galleryGrid = document.getElementById("galleryGrid");
-    const fileInput = document.getElementById("fileInput") as HTMLInputElement | null;
-    const cropOverlay = document.getElementById("cropOverlay");
-    const cropImg = document.getElementById("cropImg") as HTMLImageElement | null;
-    const cropWrapper = document.getElementById("cropWrapper");
-    const zoomSlider = document.getElementById("zoomSlider") as HTMLInputElement | null;
-    const cropCanvas = document.getElementById("cropCanvas") as HTMLCanvasElement | null;
-
-    const cs: CropState = {
-      x: 40,
-      y: 30,
-      w: 200,
-      h: 133,
-      imgW: 0,
-      imgH: 0,
-      ratio: 1.5,
-      zoom: 1,
-    };
-    const cleanups: Array<() => void> = [];
-
-    const openAddPanel = (): void => {
-      if (galleryCard) galleryCard.style.display = "none";
-      if (addPanel) addPanel.style.display = "block";
-    };
-    const closeAddPanel = (): void => {
-      if (addPanel) addPanel.style.display = "none";
-      if (galleryCard) galleryCard.style.display = "block";
-    };
-
-    const closeCropModal = (): void => cropOverlay?.classList.remove("open");
-
-    const renderBox = (): void => {
-      const b = document.getElementById("cropBox");
-      if (b)
-        b.style.cssText = `left:${cs.x}px;top:${cs.y}px;width:${cs.w}px;height:${cs.h}px`;
-    };
-
-    const resetBox = (): void => {
-      const w = cs.imgW * 0.7;
-      const h = cs.ratio > 0 ? w / cs.ratio : cs.imgH * 0.7;
-      cs.x = (cs.imgW - w) / 2;
-      cs.y = (cs.imgH - h) / 2;
-      cs.w = w;
-      cs.h = h;
-      renderBox();
-    };
-
-    const initDrag = (): void => {
-      const box = document.getElementById("cropBox");
-      if (!box) return;
-      let drag = false;
-      let resize = false;
-      let dir = "";
-      let sx = 0;
-      let sy = 0;
-      let ox = 0;
-      let oy = 0;
-      let ow = 0;
-      let oh = 0;
-      const newBox = box.cloneNode(true) as HTMLElement;
-      box.parentNode?.replaceChild(newBox, box);
-      newBox.addEventListener("mousedown", (e: MouseEvent) => {
-        const target = e.target as HTMLElement;
-        if (target.classList.contains("ch")) {
-          resize = true;
-          dir = target.dataset.dir ?? "";
-        } else {
-          drag = true;
-        }
-        sx = e.clientX;
-        sy = e.clientY;
-        ox = cs.x;
-        oy = cs.y;
-        ow = cs.w;
-        oh = cs.h;
-        e.preventDefault();
-      });
-      const onMove = (e: MouseEvent): void => {
-        if (!drag && !resize) return;
-        const dx = e.clientX - sx;
-        const dy = e.clientY - sy;
-        if (drag) {
-          cs.x = Math.max(0, Math.min(ox + dx, cs.imgW - cs.w));
-          cs.y = Math.max(0, Math.min(oy + dy, cs.imgH - cs.h));
-        } else {
-          let w = ow;
-          let h = oh;
-          let x = ox;
-          let y = oy;
-          if (dir === "br") {
-            w = Math.max(60, ow + dx);
-            h = cs.ratio > 0 ? w / cs.ratio : Math.max(40, oh + dy);
-          } else if (dir === "tl") {
-            w = Math.max(60, ow - dx);
-            h = cs.ratio > 0 ? w / cs.ratio : Math.max(40, oh - dy);
-            x = ox + (ow - w);
-            y = oy + (oh - h);
-          } else if (dir === "tr") {
-            w = Math.max(60, ow + dx);
-            h = cs.ratio > 0 ? w / cs.ratio : Math.max(40, oh - dy);
-            y = oy + (oh - h);
-          } else if (dir === "bl") {
-            w = Math.max(60, ow - dx);
-            h = cs.ratio > 0 ? w / cs.ratio : Math.max(40, oh + dy);
-            x = ox + (ow - w);
-          }
-          cs.w = Math.min(w, cs.imgW - x);
-          cs.h = Math.min(h, cs.imgH - y);
-          cs.x = x;
-          cs.y = y;
-        }
-        renderBox();
-      };
-      const onUp = (): void => {
-        drag = false;
-        resize = false;
-      };
-      document.addEventListener("mousemove", onMove);
-      document.addEventListener("mouseup", onUp);
-      cleanups.push(() => {
-        document.removeEventListener("mousemove", onMove);
-        document.removeEventListener("mouseup", onUp);
-      });
-    };
-
-    const openCropModal = (src: string): void => {
-      if (!cropImg) return;
-      cropImg.src = src;
-      cropImg.onload = () => {
-        if (!cropWrapper) return;
-        cs.imgW = cropWrapper.offsetWidth;
-        cs.imgH = cropWrapper.offsetHeight;
-        resetBox();
-        initDrag();
-      };
-      cropOverlay?.classList.add("open");
-      if (zoomSlider) zoomSlider.value = "100";
-      if (cropImg) cropImg.style.transform = "scale(1)";
-    };
-
-    const setAspect = (btn: HTMLElement, r: number): void => {
-      document
-        .querySelectorAll("#pg-setup-gallery .asp-btn")
-        .forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      cs.ratio = r;
-      resetBox();
-    };
-
-    const applyZoom = (v: string): void => {
-      cs.zoom = Number(v) / 100;
-      if (cropImg) cropImg.style.transform = `scale(${cs.zoom})`;
-    };
-
-    const applyCrop = async (): Promise<void> => {
-      if (!cropImg || !cropWrapper || !cropCanvas || !galleryGrid) return;
-      const sx2 = cropImg.naturalWidth / cropWrapper.offsetWidth;
-      const sy2 = cropImg.naturalHeight / cropWrapper.offsetHeight;
-      cropCanvas.width = cs.w * sx2;
-      cropCanvas.height = cs.h * sy2;
-      cropCanvas
-        .getContext("2d")
-        ?.drawImage(
-          cropImg,
-          cs.x * sx2,
-          cs.y * sy2,
-          cs.w * sx2,
-          cs.h * sy2,
-          0,
-          0,
-          cropCanvas.width,
-          cropCanvas.height,
-        );
-      const src = cropCanvas.toDataURL("image/jpeg", 0.92);
-      await uploadImage(src.split(",")[1], "main.jpg");
-      await loadGalleryImages();
-      // const tile = galleryGrid.querySelector(".add-tile");
-      // const item = document.createElement("div");
-      // item.className = "gallery-item";
-      // item.innerHTML = `<img src="${src}" alt="gallery"><button class="del-btn">✕</button>`;
-      // galleryGrid.insertBefore(item, tile);
-      closeCropModal();
-      closeAddPanel();
-    };
-
-    const onFileSelected = async (e: Event): Promise<void> => {
-      const target = e.target as HTMLInputElement;
-      const f = target.files?.[0];
-      if (!f) return;
-
-      if (f.size > 3 * 1024 * 1024) {
-        alert("Max 3 MB");
-        return;
-      }
-      const r = new FileReader();
-      r.onload = (ev) => openCropModal(String(ev.target?.result ?? ""));
-      r.readAsDataURL(f);
-      target.value = "";
-    };
-
-    // ── Wire handlers ──
-    const addTile = document.querySelector<HTMLElement>("#pg-setup-gallery .add-tile");
-    addTile?.addEventListener("click", openAddPanel);
-
-    const closeAddBtn = document.getElementById("addPanelCloseBtn");
-    closeAddBtn?.addEventListener("click", closeAddPanel);
-
-    const uploadZone = document.querySelector<HTMLElement>(
-      "#pg-setup-gallery .upload-zone",
-    );
-    const onUploadZone = (): void => fileInput?.click();
-    uploadZone?.addEventListener("click", onUploadZone);
-
-    const clickToUpload = document.getElementById("clickToUploadBtn");
-    const onClickToUpload = (e: Event): void => {
-      e.stopPropagation();
-      fileInput?.click();
-    };
-    clickToUpload?.addEventListener("click", onClickToUpload);
-
-    fileInput?.addEventListener("change", onFileSelected);
-
-    // Delegate delete buttons (existing + dynamically added).
-    const onGridClick = async (e: Event): Promise<void> => {
-      const btn = (e.target as HTMLElement).closest(".del-btn");
-      if (btn) {
-        const idStr = btn.getAttribute("data-id");
-        if (!idStr) return;
-        const galleryId = parseInt(idStr, 10);
-
-        const { default: Swal } = await import("sweetalert2");
-
-        const result = await Swal.fire({
-          title: "Remove Image?",
-          text: "Are you sure you want to remove this gallery image?",
-          icon: "warning",
-          showCancelButton: true,
-          confirmButtonColor: "#e63946",
-          cancelButtonColor: "#8e9ba8",
-          confirmButtonText: "Yes, remove it",
-        });
-
-        if (result.isConfirmed) {
-          Swal.fire({
-            title: "Removing...",
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading(),
-          });
-          try {
-            await setupService.deleteGalleryPhoto(galleryId);
-            await loadGalleryImages();
-            Swal.fire({
-              icon: "success",
-              title: "Removed!",
-              text: "Image has been removed successfully.",
-              confirmButtonColor: "#00a896",
-            });
-          } catch (err) {
-            console.error(err);
-            Swal.fire("Error", "Failed to remove image.", "error");
-          }
-        }
-      }
-    };
-    galleryGrid?.addEventListener("click", onGridClick);
-
-    // Crop close buttons (head ✕ and Cancel).
-    const cropCloseButtons = Array.from(
-      document.querySelectorAll<HTMLButtonElement>(
-        "#pg-setup-gallery .crop-head button, #pg-setup-gallery .btn-cancel",
-      ),
-    );
-    cropCloseButtons.forEach((b) => b.addEventListener("click", closeCropModal));
-
-    // Aspect buttons (order: 3:2, 1:1, 16:9, Free).
-    const aspectRatios = [1.5, 1, 1.778, 0];
-    const aspBtns = Array.from(
-      document.querySelectorAll<HTMLButtonElement>("#pg-setup-gallery .asp-btn"),
-    );
-    const aspHandlers = aspBtns.map((btn, idx) => {
-      const fn = (): void => setAspect(btn, aspectRatios[idx]);
-      btn.addEventListener("click", fn);
-      return fn;
-    });
-
-    const onZoom = (e: Event): void => applyZoom((e.target as HTMLInputElement).value);
-    zoomSlider?.addEventListener("input", onZoom);
-
-    const applyBtn = document.querySelector<HTMLButtonElement>(
-      "#pg-setup-gallery .btn-apply",
-    );
-    applyBtn?.addEventListener("click", applyCrop);
 
     return () => {
-      addTile?.removeEventListener("click", openAddPanel);
-      closeAddBtn?.removeEventListener("click", closeAddPanel);
-      uploadZone?.removeEventListener("click", onUploadZone);
-      clickToUpload?.removeEventListener("click", onClickToUpload);
-      fileInput?.removeEventListener("change", onFileSelected);
-      galleryGrid?.removeEventListener("click", onGridClick);
-      cropCloseButtons.forEach((b) =>
-        b.removeEventListener("click", closeCropModal),
-      );
-      aspBtns.forEach((btn, idx) =>
-        btn.removeEventListener("click", aspHandlers[idx]),
-      );
-      zoomSlider?.removeEventListener("input", onZoom);
-      applyBtn?.removeEventListener("click", applyCrop);
-      cleanups.forEach((fn) => fn());
+      if (cropperInstanceRef.current) {
+        cropperInstanceRef.current.destroy();
+        cropperInstanceRef.current = null;
+      }
     };
-  }, []);
+  }, [isCropModalOpen, selectedImageSrc]);
+
+  // Handle file selection
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 3 * 1024 * 1024) {
+      Swal.fire({
+        title: "File Too Large",
+        text: "Please select an image file under 3MB.",
+        icon: "warning",
+        confirmButtonColor: "#0aa89e",
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSelectedImageSrc(reader.result as string);
+      setIsCropModalOpen(true);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  // Handle Zoom change
+  const handleZoomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newZoom = parseFloat(e.target.value);
+    setZoomValue(newZoom);
+    if (cropperInstanceRef.current) {
+      cropperInstanceRef.current.zoomTo(newZoom);
+    }
+  };
+
+  // 3. Crop & Upload Image (matches live workflow)
+  const handleCropAndUpload = async () => {
+    if (!cropperInstanceRef.current) return;
+
+    try {
+      setIsUploading(true);
+      const currentShopId = getShopId();
+      if (!currentShopId) {
+        toast.error("Shop ID not found in session.");
+        return;
+      }
+
+      const croppedCanvas = cropperInstanceRef.current.getCroppedCanvas({
+        width: 600,
+        height: 400,
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: "high",
+      });
+
+      const base64Data = croppedCanvas
+        .toDataURL("image/jpeg", 0.92)
+        .replace(/^data:image\/[a-z]+;base64,/, "");
+
+      const payload = {
+        shop_id: currentShopId,
+        device_type: "1",
+        imageflag: "2", // 2 = Gallery slider image
+        user_type: "1", // 1 = Restaurant Admin
+        photo_count: "1",
+        photo_0: base64Data,
+        user_type_id: currentShopId,
+        caption: `gallery_${Date.now()}.jpg`,
+      };
+
+      const res = await setupService.uploadGalleryImage(payload);
+      if (res && res.response_code === 0) {
+        throw new Error(res.message || "Failed to upload image");
+      }
+
+      await loadGalleryImages();
+      toast.success("Success", "Gallery Images have been uploaded successfully...!!!");
+      setIsCropModalOpen(false);
+      setShowAddPanel(false);
+    } catch (err: any) {
+      console.error("Gallery upload error:", err);
+      toast.error("Upload Failed", err?.message || "Failed to upload gallery image.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // 4. Delete Single Image with SweetAlert (matches live)
+  const handleDeleteImage = async (galleryId: number) => {
+    const result = await Swal.fire({
+      title: "Are you sure you want to delete this gallery Image?",
+      text: "",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#DD6B55",
+      cancelButtonColor: "#8e9ba8",
+      confirmButtonText: "Yes",
+      cancelButtonText: "Cancel",
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await setupService.deleteGalleryPhoto(galleryId);
+        toast.success("Deleted", "Your Gallery Image has been deleted Successfully...!!!");
+        setTimeout(() => {
+          window.location.reload();
+        }, 300);
+      } catch (err: any) {
+        console.error("Failed to delete gallery image:", err);
+        toast.error("Delete Failed", "Failed to delete gallery image.");
+      }
+    }
+  };
+
+  // 5. Delete All Images with SweetAlert (matches live)
+  const handleDeleteAllImages = async () => {
+    if (images.length === 0) return;
+
+    const result = await Swal.fire({
+      title: "Are you sure you want to delete all gallery Images?",
+      text: "This action cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#DD6B55",
+      cancelButtonColor: "#8e9ba8",
+      confirmButtonText: "Yes",
+      cancelButtonText: "Cancel",
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await Promise.all(
+          images.map((item) =>
+            setupService.deleteGalleryPhoto(Number(item.gallery_id || item.galleryid))
+          )
+        );
+        toast.success("Deleted All", "Your Gallery Images have been deleted Successfully...!!!");
+        setTimeout(() => {
+          window.location.reload();
+        }, 300);
+      } catch (err: any) {
+        console.error("Failed to delete all gallery images:", err);
+        toast.error("Delete Failed", "Failed to delete all images.");
+      }
+    }
+  };
+
+  // Video Help modal (matches live Vimeo link)
+  const handleHelpClick = () => {
+    Swal.fire({
+      title: "How to set up Photo Gallery",
+      html: `
+        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px;">
+          <iframe 
+            src="https://player.vimeo.com/video/1075943416?autoplay=1" 
+            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
+            frameborder="0" 
+            allow="autoplay; fullscreen; picture-in-picture" 
+            allowfullscreen>
+          </iframe>
+        </div>
+        <p style="margin-top: 15px; font-size: 14px; color: #475569;">
+          Follow these steps to upload and organize photo gallery slider images for your restaurant.
+        </p>
+      `,
+      width: 700,
+      showCloseButton: true,
+      showConfirmButton: false,
+    });
+  };
 
   return (
     <div id="pg-setup-gallery">
@@ -398,170 +268,251 @@ export default function GalleryPage() {
         rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
       />
-      {/* ══ APP CONTAINER (sidebar + main) ══ */}
+      <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css"
+      />
+      <Script
+        src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"
+        strategy="afterInteractive"
+      />
+
       <div className="app-container">
-        {/* ══ MAIN CONTENT (gallery + nav) ══ */}
         <div className="main">
-          {/* PAGE CONTENT */}
           <div className="page-content">
-            {/* Gallery card */}
-            <div className="page-card" id="galleryCard">
-              <div className="card-title-row">
-                <div className="typ-page-heading card-title">
-                  Slider Images{" "}
 
-                </div>
-                <button
-                  type="button"
-                  className="btn-help"
-                  onClick={() =>
-                    Swal.fire({
-                      title: "How to set up Gallery",
-                      html: `
-                        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px;">
-                          <iframe 
-                            src="https://player.vimeo.com/video/1075943416?autoplay=1" 
-                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
-                            frameborder="0" 
-                            allow="autoplay; fullscreen; picture-in-picture" 
-                            allowfullscreen>
-                          </iframe>
-                        </div>
-                        <p style="margin-top: 15px; font-size: 14px; color: #475569;">
-                          Follow these steps to upload and organize slider images for your restaurant app.
-                        </p>
-                      `,
-                      width: 700,
-                      showCloseButton: true,
-                      showConfirmButton: false,
-                    })
-                  }
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="14"
-                    height="14"
-                    stroke="currentColor"
-                    fill="none"
-                    strokeWidth="2.5"
-                  >
-                    <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                    <line x1="12" y1="17" x2="12.01" y2="17" />
-                  </svg>
-                  HELP
-                </button>
-              </div>
+            {/* ═══ VIEW 1: GALLERY LIST (DEFAULT) ═══ */}
+            {!showAddPanel && (
+              <div className="page-card" id="galleryCard">
+                <div className="card-head">
+                  <header>Photo Gallery</header>
+                  <div className="tools">
+                    <button
+                      type="button"
+                      className="btn btn-default-light add-new-facility btnaddgallery"
+                      onClick={() => setShowAddPanel(true)}
+                    >
+                      <i className="fa fa-plus"></i> <b>Add New Image</b>
+                    </button>
 
-              <div className="gallery-grid" id="galleryGrid">
-                {images.map((item: any) => (
-                  <div className="gallery-item" key={item.gallery_id}>
-                    <img
-                      src={`https://admin.foodchow.com/GalleryImages/${sessionStorage.getItem("shop_id")}/${item.gallery_image}`}
-                      alt="gallery"
-                      onError={(e) => console.log("Image failed:", e.currentTarget.src)}
-                    />
-                    <button className="del-btn" data-id={item.gallery_id}>✕</button>
+                    <button
+                      type="button"
+                      className="btn-help"
+                      onClick={handleHelpClick}
+                    >
+                      <svg
+                        width="15"
+                        height="15"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                      </svg>
+                      Help
+                    </button>
+
+
                   </div>
-                ))}
-                <div className="add-tile">
-                  <svg viewBox="0 0 24 24">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                  <span>Add Photo</span>
                 </div>
-              </div>
-            </div>
 
-            {/* Inline Add Panel */}
-            <div className="page-card" id="addPanel" style={{ display: "none" }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: "20px",
-                }}
-              >
-                <div style={{ fontSize: "16px", fontWeight: 700 }}>
-                  Add New Slider Images
+                <div className="card-body">
+                  {loading ? (
+                    <div className="loading-state">
+                      <i className="fa-solid fa-spinner fa-spin"></i>
+                      <span>Loading gallery images...</span>
+                    </div>
+                  ) : images.length > 0 ? (
+                    <div className="gallery-grid">
+                      {images.map((item: any) => {
+                        const imgId = item.gallery_id || item.galleryid;
+                        const imgName = item.gallery_image || item.gallery_Image;
+                        const imgSrc = `https://admin.foodchow.com/GalleryImages/${shopId}/${imgName}`;
+
+                        return (
+                          <div className="gallery-item-card" key={imgId}>
+                            <div
+                              className="gallery-item-img"
+                              style={{ backgroundImage: `url(${imgSrc})` }}
+                            >
+                              <img
+                                src={imgSrc}
+                                alt="Gallery photo"
+                                style={{ display: "none" }}
+                                onError={(e) => {
+                                  const parent = (e.currentTarget.parentElement) as HTMLElement;
+                                  if (parent) {
+                                    parent.style.backgroundImage = "none";
+                                    parent.style.backgroundColor = "#e2e8f0";
+                                  }
+                                }}
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              className="btndelete img-cross"
+                              title="Delete Image"
+                              onClick={() => handleDeleteImage(Number(imgId))}
+                            >
+                              <i className="fa fa-times-circle" aria-hidden="true"></i>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="empty-gallery-state">
+                      <div className="empty-icon-wrap">
+                        <i className="fa-regular fa-images"></i>
+                      </div>
+                      <h3>No Gallery Photo</h3>
+                      <p>Start adding photos to showcase your restaurant dishes and ambiance.</p>
+
+                    </div>
+                  )}
                 </div>
-                <button
-                  id="addPanelCloseBtn"
-                  style={{
-                    background: "none",
-                    border: "none",
-                    fontSize: "22px",
-                    cursor: "pointer",
-                    color: "#6b7280",
-                    lineHeight: 1,
-                  }}
-                >
-                  ✕
-                </button>
               </div>
-              <div className="upload-zone">
-                <svg viewBox="0 0 24 24">
-                  <polyline points="16 16 12 12 8 16" />
-                  <line x1="12" y1="12" x2="12" y2="21" />
-                  <path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3" />
-                </svg>
-                <button className="up-btn" id="clickToUploadBtn">
-                  CLICK TO UPLOAD
-                </button>
+            )}
+
+            {/* ═══ VIEW 2: ADD PHOTO GALLERY PANEL ═══ */}
+            {showAddPanel && (
+              <div className="page-card" id="addPanel">
+                <div className="card-head">
+                  <header>Add Photo Gallery</header>
+                  <div className="tools">
+                    <button
+                      type="button"
+                      className="btn-close-panel"
+                      onClick={() => setShowAddPanel(false)}
+                      title="Close"
+                    >
+                      <i className="fa fa-times"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="card-body">
+                  <div
+                    className="upload-area"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <div className="upload-icon-box">
+                      <i className="fa fa-cloud-arrow-up" aria-hidden="true"></i>
+                    </div>
+                    <label className="drop-img-btn" onClick={(e) => e.stopPropagation()}>
+                      Click To Upload
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        name="Upload_Image"
+                        id="Upload_Image"
+                        className="drop-img-input"
+                        accept=".png,.jpg,.jpeg,.gif,.PNG,.JPG,.JPEG,.GIF"
+                        onChange={handleFileChange}
+                      />
+                    </label>
+                  </div>
+
+                  <div className="upload-notice-box">
+                    <p className="notice-bold">**Images should be 600x400 for best view in web site..</p>
+                    <p className="notice-light">Can Select Only .png, .jpg, .jpeg, .gif, .PNG, .JPG, .JPEG, .GIF (Max: 3MB)</p>
+                  </div>
+                </div>
               </div>
-              <div className="file-note">
-                **Images should be 600x400 for best view in menu image..
-                <br />
-                You can select only (.gif, .png, .jpeg, .jpg) format files upto 3MB
-                file size..!!!
-              </div>
-              <input type="file" id="fileInput" accept=".gif,.png,.jpeg,.jpg" />
-            </div>
+            )}
 
             <WizardFooter />
           </div>
-          {/* end .page-content */}
         </div>
       </div>
 
-      {/* ══ CROP MODAL ══ */}
-      <div className="crop-overlay" id="cropOverlay">
-        <div className="crop-modal">
-          <div className="crop-head">
-            <h2>✂️ Crop &amp; Adjust Image</h2>
-            <button>✕</button>
-          </div>
-          <div className="crop-body">
-            <div className="crop-wrapper" id="cropWrapper">
-              <img id="cropImg" alt="crop" />
-              <div className="crop-box" id="cropBox">
-                <div className="ch tl" data-dir="tl" />
-                <div className="ch tr" data-dir="tr" />
-                <div className="ch bl" data-dir="bl" />
-                <div className="ch br" data-dir="br" />
+      {/* ═══ LIVE-STYLE CROP MODAL (600x400 Viewport) ═══ */}
+      {isCropModalOpen && (
+        <div className="crop-modal-overlay">
+          <div className="crop-modal-box">
+            <div className="crop-modal-header">
+              <h3 className="modal-title">Upload &amp; Crop Image</h3>
+              <button
+                type="button"
+                className="crop-modal-close"
+                onClick={() => !isUploading && setIsCropModalOpen(false)}
+                disabled={isUploading}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="crop-modal-body">
+              <div className="crop-container-wrapper">
+                <div className="crop-image-area">
+                  <img
+                    ref={cropImageRef}
+                    src={selectedImageSrc}
+                    alt="To Crop"
+                    style={{ maxWidth: "100%", maxHeight: "420px", display: "block" }}
+                  />
+                </div>
+
+                <div className="crop-zoom-bar">
+                  <i className="fa-solid fa-magnifying-glass-minus"></i>
+                  <input
+                    type="range"
+                    min="0.2"
+                    max="3"
+                    step="0.05"
+                    value={zoomValue}
+                    onChange={handleZoomChange}
+                    className="zoom-slider"
+                  />
+                  <i className="fa-solid fa-magnifying-glass-plus"></i>
+                </div>
+              </div>
+
+              <div className="crop-actions-sidebar">
+                <div className="crop-info-card">
+                  <h4>Crop Guidelines</h4>
+                  <p>Ratio: <strong>600 × 400</strong> (3:2)</p>
+                  <p>Move or drag the crop box to center your photo cleanly.</p>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn-crop-upload"
+                  id="text-change"
+                  onClick={handleCropAndUpload}
+                  disabled={isUploading}
+                >
+                  {isUploading ? (
+                    <>
+                      <i className="fa-solid fa-spinner fa-spin"></i>
+                      <span>Image Uploading.....</span>
+                    </>
+                  ) : (
+                    <>
+                      <i className="fa-solid fa-crop-simple"></i>
+                      <span>Crop &amp; Upload Image</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-crop-cancel"
+                  onClick={() => setIsCropModalOpen(false)}
+                  disabled={isUploading}
+                >
+                  Close
+                </button>
               </div>
             </div>
-            <div className="crop-ctrl">
-              <label>Aspect:</label>
-              <div className="aspect-btns">
-                <button className="asp-btn active">3:2</button>
-                <button className="asp-btn">1:1</button>
-                <button className="asp-btn">16:9</button>
-                <button className="asp-btn">Free</button>
-              </div>
-              <label style={{ marginLeft: "6px" }}>Zoom:</label>
-              <input type="range" id="zoomSlider" min="100" max="300" defaultValue="100" />
-            </div>
-          </div>
-          <div className="crop-foot">
-            <button className="btn-cancel">Cancel</button>
-            <button className="btn-apply">Apply Crop</button>
           </div>
         </div>
-      </div>
-      <canvas id="cropCanvas" />
+      )}
     </div>
   );
 }

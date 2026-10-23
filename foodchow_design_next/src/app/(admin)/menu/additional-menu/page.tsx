@@ -6,6 +6,7 @@ import Swal from "sweetalert2";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import { menuService, type AddShopMenuPayload, type ShopMenuType, type TimingPayload, type MenuItemPayload, type AdditionalMenuCategory } from "@/api/services/menu.service";
 import { useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 import "./page.css";
 
 const QR_SVG = (
@@ -46,6 +47,8 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function AdditionalMenuPage() {
   const SHOP_ID = useShopId();
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const [menus, setMenus] = useState<ShopMenuType[]>([]);
   const [categories, setCategories] = useState<AdditionalMenuCategory[]>([]);
   const [menuName, setMenuName] = useState("");
@@ -1775,7 +1778,7 @@ export default function AdditionalMenuPage() {
           <div className="tax-modal-footer">
             <div className="tax-pricing-summary">
               <div className="tax-price-row">
-                <span>Net Price (Rs.)</span>
+                <span>Net Price ({currencySymbol})</span>
                 <span>:</span>
                 <span
                   className="tax-price-value"
@@ -1785,7 +1788,7 @@ export default function AdditionalMenuPage() {
                 </span>
               </div>
               <div className="tax-price-row">
-                <span>Final Price (Rs.)</span>
+                <span>Final Price ({currencySymbol})</span>
                 <span>:</span>
                 <span
                   className="tax-price-value"

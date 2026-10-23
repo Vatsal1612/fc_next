@@ -305,8 +305,11 @@ import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import ReportStepFooter from "@/components/shared/ReportStepFooter";
 
 import { useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 
 export default function CustomerbyrevenuePage() {
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const shopId = useShopId();
   const [customers, setCustomers] = useState<CRMRevenueCustomer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -415,7 +418,7 @@ export default function CustomerbyrevenuePage() {
         return;
       }
 
-      const headers = ["Sr. No.", "Order ID", "Customer Name", "Mobile No.", "Revenue (Rs.)"];
+      const headers = ["Sr. No.", "Order ID", "Customer Name", "Mobile No.", `Revenue (${currencySymbol})`];
       const rows = exportList.map((d, index) => [
         index + 1,
         d.order_id,
@@ -509,7 +512,7 @@ export default function CustomerbyrevenuePage() {
                   <th>Sr. no.</th>
                   <th>Customer name</th>
                   <th>Mobile no.</th>
-                  <th style={{ textAlign: "right" }}>Revenue (₹)</th>
+                  <th style={{ textAlign: "right" }}>Revenue ({currencySymbol})</th>
                 </tr>
               </thead>
               <tbody>
@@ -549,7 +552,7 @@ export default function CustomerbyrevenuePage() {
                             <span className={`badge ${badgeClass}`}>
                               {badgeLabel}
                             </span>
-                            ₹{formatCurrency(revenue)}
+                            {currencySymbol}{formatCurrency(revenue)}
                           </div>
                         </td>
                       </tr>

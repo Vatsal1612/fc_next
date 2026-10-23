@@ -11,6 +11,7 @@ import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import ReportTableState from "@/components/shared/ReportTableState";
 import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 import { fetchWithCache, cacheKey } from "@/utils/reportCache";
 
 
@@ -19,6 +20,8 @@ import { fetchWithCache, cacheKey } from "@/utils/reportCache";
  * reports/salesby-category.html → React.
  */
 export default function SalesbyCategoryPage() {
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const shopId = useShopId();
 
   const [categorySales, setCategorySales] = useState<SalesByCategory[]>([]);
@@ -211,7 +214,7 @@ export default function SalesbyCategoryPage() {
         0
       );
 
-      const headers = ["Date", "Category Name", "Quantity", "Total Amount (Rs.)"];
+      const headers = ["Date", "Category Name", "Quantity", `Total Amount (${currencySymbol})`];
       const rows = exportItems.map((item) => [
         item.trans_date ? `${item.trans_date.Day}/${item.trans_date.Month}/${item.trans_date.Year}` : "-",
         item.cate_name || "-",
@@ -491,7 +494,7 @@ export default function SalesbyCategoryPage() {
                               <th style={{ width: "20%" }}>Date</th>
                               <th style={{ width: "30%" }}>Category Name</th>
                               <th style={{ width: "25%" }}>Quantity</th>
-                              <th style={{ width: "25%" }}>Total Amount (Rs.)</th>
+                              <th style={{ width: "25%" }}>Total Amount ({currencySymbol})</th>
                             </tr>
                           </thead>
                           <tbody>

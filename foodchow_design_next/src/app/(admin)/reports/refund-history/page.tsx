@@ -10,6 +10,7 @@ import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import ReportTableState from "@/components/shared/ReportTableState";
 import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 import "./page.css";
 
 interface XlsxLike {
@@ -22,6 +23,8 @@ interface XlsxLike {
 }
 
 export default function RefundHistoryPage() {
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const shopId = useShopId();
   const [activeTab, setActiveTab] = useState<"today" | "thisweek" | "monthwise" | "yearwise" | "custom">("today");
   const [records, setRecords] = useState<RefundRecord[]>([]);
@@ -178,7 +181,7 @@ export default function RefundHistoryPage() {
     if (activeTab === "monthwise") tabLabel = `Month_${monthNames[parseInt(selectedMonth) - 1]}_${selectedMonthYear}`;
     else if (activeTab === "yearwise") tabLabel = `Year_${selectedYear}`;
     else if (activeTab === "custom") tabLabel = `${fromDate}_to_${toDate}`;
-    const headers = ["Date", "Order ID", "Customer Name", "Mobile No", "Payment Method", "Order Type", "Refund Amount (Rs.)", "Reason"];
+    const headers = ["Date", "Order ID", "Customer Name", "Mobile No", "Payment Method", "Order Type", `Refund Amount (${currencySymbol})`, "Reason"];
     const wsData: unknown[][] = [
       ["Refund History Report"],
       [],
@@ -194,7 +197,7 @@ export default function RefundHistoryPage() {
         r.reason ?? "",
       ]),
       [],
-      ["", "", "", "", "", "", `Total: Rs.${totalRefundAmount}`, ""],
+      ["", "", "", "", "", "", `Total: ${currencySymbol}${totalRefundAmount}`, ""],
     ];
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(wsData);
@@ -385,7 +388,7 @@ export default function RefundHistoryPage() {
                 </div>
               <div className="summary-stats" style={{ margin: "16px 0" }}>
                 <div>
-                  <p className="stat-line">Total Refund = ₹{totalRefundAmount}</p>
+                  <p className="stat-line">Total Refund = {currencySymbol}{totalRefundAmount}</p>
                   <p className="stat-line">Total Order Count = {totalRecords}</p>
                 </div>
               </div>
@@ -401,7 +404,7 @@ export default function RefundHistoryPage() {
                         <th>Mobile No</th>
                         <th>Payment Method</th>
                         <th>Order Type</th>
-                        <th>Refund Amount</th>
+                        <th>Refund Amount ({currencySymbol})</th>
                         <th>Reason</th>
                       </tr>
                     </thead>
@@ -434,7 +437,7 @@ export default function RefundHistoryPage() {
                               <span className="type-pill">{r.delivery_method_name}</span>
                             </td>
                             <td className="amount-cell">
-                              ₹{Number(r.refund_amount).toFixed(2)}
+                              {currencySymbol}{Number(r.refund_amount).toFixed(2)}
                             </td>
                             <td>{r.reason ?? ""}</td>
                           </tr>

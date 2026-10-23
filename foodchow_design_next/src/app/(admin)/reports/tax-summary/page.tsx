@@ -8,6 +8,7 @@ import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import ReportTableState from "@/components/shared/ReportTableState";
 import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 
 interface XlsxWorkSheet {
   "!cols"?: Array<{ wch: number }>;
@@ -34,6 +35,8 @@ type TaxRow = { taxName: string; amount: number };
 
 export default function TaxSummaryPage() {
   const shopId = useShopId();
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const [activeTab, setActiveTab] = useState<Tab>("today");
   const [data, setData] = useState<TaxRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -203,7 +206,7 @@ export default function TaxSummaryPage() {
     }
 
     const tabToExport = tab || activeTab;
-    const headers = ["Tax Name", "Total Sales Tax Amount (Rs.)"];
+    const headers = ["Tax Name", `Total Sales Tax Amount (${currencySymbol})`];
     const wsData: SheetCell[][] = [
       ["Tax Summary Report"],
       [],
@@ -250,7 +253,7 @@ export default function TaxSummaryPage() {
       <ReportTableState loading={loading} hasData={data.length > 0} columns={2}>
         <div className="total-tax-bar">
           <span className="total-tax-label">Total Tax Amount:</span>
-          <span className="total-tax-amount">Rs. {total.toFixed(2)}</span>
+          <span className="total-tax-amount">{currencySymbol} {total.toFixed(2)}</span>
         </div>
         <div className="table-card">
           <div className="table-card-header">
@@ -261,7 +264,7 @@ export default function TaxSummaryPage() {
               <thead>
                 <tr>
                   <th>Tax Name</th>
-                  <th>Total Sales Tax Amount(Rs.)</th>
+                  <th>Total Sales Tax Amount ({currencySymbol})</th>
                 </tr>
               </thead>
               <tbody>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Swal from "sweetalert2";
+import { toast } from "@/components/shared/Toast";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import { setupService } from "@/api/services/setup.service";
 import "./page.css";
@@ -46,12 +47,17 @@ export default function AmbiencePage() {
       
       const res = await setupService.getGalleryImages(Number(sessionShopId), 4);
       if (res && res.data) {
-        const parsedImages = JSON.parse(res.data);
-        if (parsedImages && Array.isArray(parsedImages)) {
-          setImages(parsedImages);
-        } else {
-          setImages([]);
+        let parsedImages: any[] = [];
+        if (typeof res.data === "string" && res.data.trim()) {
+          try {
+            parsedImages = JSON.parse(res.data);
+          } catch {
+            parsedImages = [];
+          }
+        } else if (Array.isArray(res.data)) {
+          parsedImages = res.data;
         }
+        setImages(Array.isArray(parsedImages) ? parsedImages : []);
       } else {
         setImages([]);
       }
@@ -254,7 +260,7 @@ export default function AmbiencePage() {
           shop_id: shopId,
           device_type: "1",
           imageflag: "4", // 4 = Ambience Image
-          user_type: "4",
+          user_type: "1", // 1 = Restaurant Admin
           photo_count: "1",
           photo_0: base64Data,
           user_type_id: shopId,
@@ -265,16 +271,10 @@ export default function AmbiencePage() {
 
         // Refetch the updated gallery list
         await fetchImages();
-
-        Swal.fire({
-          icon: "success",
-          title: "Saved Successfully!",
-          text: "Ambience image added successfully.",
-          confirmButtonColor: "#00a896",
-        });
+        toast.success("Saved Successfully!", "Ambience image added successfully.");
       } catch (err) {
         console.error(err);
-        Swal.fire("Error", "Failed to upload image", "error");
+        toast.error("Error", "Failed to upload image.");
       }
     };
 
@@ -283,7 +283,7 @@ export default function AmbiencePage() {
       const f = target.files?.[0];
       if (!f) return;
       if (f.size > 3 * 1024 * 1024) {
-        Swal.fire("Error", "Maximum file size is 3 MB", "error");
+        toast.warning("Warning", "Maximum file size is 3 MB.");
         return;
       }
       const r = new FileReader();
@@ -325,16 +325,13 @@ export default function AmbiencePage() {
           });
           try {
             await setupService.deleteGalleryPhoto(galleryId);
-            await fetchImages();
-            Swal.fire({
-              icon: "success",
-              title: "Removed!",
-              text: "Image has been removed successfully.",
-              confirmButtonColor: "#00a896",
-            });
+            toast.success("Removed!", "Image has been removed successfully.");
+            setTimeout(() => {
+              window.location.reload();
+            }, 300);
           } catch (err) {
             console.error(err);
-            Swal.fire("Error", "Failed to remove image.", "error");
+            toast.error("Error", "Failed to remove image.");
           }
         }
       }

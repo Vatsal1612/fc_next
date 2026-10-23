@@ -10,6 +10,7 @@ import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import ReportTableState from "@/components/shared/ReportTableState";
 import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 import "./page.css";
 
 type Order = {
@@ -27,6 +28,8 @@ type Order = {
 };
 
 export default function OnlineOrderReportPage() {
+  const sessionCurrency = useSessionCurrency();
+  const currencySymbol = sessionCurrency.symbol || "₹";
   const shopId = useShopId();
   const [activeTab, setActiveTab] = useState<"today" | "weekly" | "monthly" | "yearly" | "datewise">("today");
   const [records, setRecords] = useState<Order[]>([]);
@@ -198,10 +201,10 @@ export default function OnlineOrderReportPage() {
       "Order Type",
       "Payment Method",
       "Order Status",
-      "Total Amount (Rs.)",
-      "Tax (Rs.)",
-      "Charge (Rs.)",
-      "Delivery Charge (Rs.)"
+      `Total Amount (${currencySymbol})`,
+      `Tax (${currencySymbol})`,
+      `Charge (${currencySymbol})`,
+      `Delivery Charge (${currencySymbol})`
     ];
 
     const rows = records.map((r) => [
@@ -442,10 +445,10 @@ export default function OnlineOrderReportPage() {
                         <th>Order Type</th>
                         <th>Payment Method</th>
                         <th>Order Status</th>
-                        <th>Total Amount (Rs.)</th>
-                        <th>Tax (Rs.)</th>
-                        <th>Charge (Rs.)</th>
-                        <th>Delivery Charge (Rs.)</th>
+                        <th>Total Amount ({currencySymbol})</th>
+                        <th>Tax ({currencySymbol})</th>
+                        <th>Charge ({currencySymbol})</th>
+                        <th>Delivery Charge ({currencySymbol})</th>
                       </tr>
                     </thead>
                     <tbody>

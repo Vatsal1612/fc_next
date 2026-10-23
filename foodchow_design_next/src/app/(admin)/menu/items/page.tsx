@@ -12,6 +12,7 @@ import {
   type ExtraCategory,
 } from "@/api/services/menu.service";
 import Swal from "sweetalert2";
+import { toast } from "@/components/shared/Toast";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import { useShopId } from "@/utils/shop";
 import ReportTableFooter from "@/components/shared/ReportTableFooter";
@@ -48,10 +49,29 @@ function ItemThumbnail({
   }
 
   return (
-    <div className="placeholder-img">
+    <div
+      className="item-thumbnail-wrap"
+      style={{
+        width: 52,
+        height: 52,
+        borderRadius: 4,
+        overflow: "hidden",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "transparent",
+        padding: 0,
+      }}
+    >
       <img
         src={currentSrc}
-        style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 4 }}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          borderRadius: 4,
+          display: "block",
+        }}
         alt={alt}
         onError={() => {
           const cleanName = String(rawImg || "")
@@ -66,6 +86,76 @@ function ItemThumbnail({
         }}
       />
     </div>
+  );
+}
+
+function EditImagePreview({
+  imageName,
+  base64Image,
+}: {
+  imageName: string;
+  base64Image?: string;
+}) {
+  const cleanName = String(imageName || "")
+    .replace(/^https?:\/\/[^\/]+\/(FoodItemImages\/)?/, "")
+    .replace(/^\//, "")
+    .trim();
+
+  const [currentSrc, setCurrentSrc] = useState<string>("");
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    if (base64Image) {
+      setCurrentSrc(
+        base64Image.startsWith("data:")
+          ? base64Image
+          : `data:image/jpeg;base64,${base64Image}`
+      );
+      setHasError(false);
+      return;
+    }
+
+    if (cleanName && cleanName !== "null" && cleanName !== "undefined") {
+      setCurrentSrc(`https://admin.foodchow.com/FoodItemImages/${cleanName}`);
+      setHasError(false);
+    } else {
+      setCurrentSrc("");
+      setHasError(false);
+    }
+  }, [base64Image, cleanName]);
+
+  if (base64Image && currentSrc) {
+    return (
+      <img
+        src={currentSrc}
+        style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "8px" }}
+        alt="Preview"
+      />
+    );
+  }
+
+  if (!cleanName || cleanName === "null" || cleanName === "undefined" || hasError || !currentSrc) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", height: "100%", color: "#ffffff" }}>
+        <i className="fa-solid fa-concierge-bell" style={{ fontSize: "32px", marginBottom: "4px" }}></i>
+        <span style={{ fontSize: "9px", fontWeight: 600 }}>No Image</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={currentSrc}
+      style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "8px" }}
+      alt="Item"
+      onError={() => {
+        if (currentSrc.includes("admin.foodchow.com") && cleanName) {
+          setCurrentSrc(`https://www.foodchow.com/FoodItemImages/${cleanName}`);
+        } else {
+          setHasError(true);
+        }
+      }}
+    />
   );
 }
 
@@ -468,15 +558,7 @@ export default function ItemsPage() {
 
     try {
       await menuService.changeItemPosition(itemIds, posIds);
-      Swal.fire({
-        icon: "success",
-        title: "Position Updated",
-        text: "Item position reordered successfully.",
-        timer: 1500,
-        showConfirmButton: false,
-        toast: true,
-        position: "top-end",
-      });
+      toast.success("Position Updated", "Item position reordered successfully.");
     } catch (err) {
       console.error("Failed to update item position:", err);
       // Reload on failure
@@ -810,9 +892,13 @@ export default function ItemsPage() {
 
     setUpdatingItem(true);
     try {
+      const cleanExistingImage = String(editItemImage || "")
+        .replace(/^https?:\/\/[^\/]+\/(FoodItemImages\/)?/, "")
+        .replace(/^\//, "");
+
       const generatedImageName = editBase64Image
         ? `${SHOP_ID}_${Date.now()}_item.jpg`
-        : editItemImage;
+        : cleanExistingImage;
 
       const editAddCustomization =
         (document.getElementById("editAddCustomization") as HTMLInputElement | null)?.checked ?? false;
@@ -1183,19 +1269,54 @@ export default function ItemsPage() {
           const generatedName = `${SHOP_ID}_${Date.now()}_item.jpg`;
 
           if (rowItemId) {
-            menuService.editStoreItem({
-              Item_Id: rowItemId,
-              Cate_Id: rowCateId,
-              Item_Name: rowItemName,
-              Description: "",
-              Is_Veg: 1,
-              barcode: "",
+            menuService.uploadItemImage({
+              id: rowItemId,
+              shop_id: Number(SHOP_ID),
               base64Image: pureBase64,
-              Item_Image: generatedName,
             }).then(() => {
+              toast.success("Image Updated", "Item image uploaded successfully.");
               loadItemsRef.current();
-            }).catch((err) => {
-              console.error("Failed to upload item image:", err);
+            }).catch(async (err) => {
+              console.error("Failed to upload item image via uploadItemImage, trying fallback:", err);
+              // Find existing item to preserve full details and prevent price being wiped to 0
+              let foundItem: any = null;
+              for (const cat of itemsRef.current) {
+                const it = ((cat as any).items || (cat as any).food_item || []).find(
+                  (x: any) => Number(x.item_Id ?? x.Item_Id ?? x.item_id ?? x.id) === rowItemId
+                );
+                if (it) {
+                  foundItem = it;
+                  break;
+                }
+              }
+
+              const existingPrice = String(foundItem?.price ?? foundItem?.Price ?? foundItem?.net_price ?? foundItem?.Net_Price ?? "0");
+              const hasVariants = Number(foundItem?.is_size_available) === 1 || (foundItem?.FoodItemSizeList && foundItem.FoodItemSizeList.length > 0);
+
+              try {
+                await menuService.editStoreItem({
+                  Item_Id: rowItemId,
+                  Cate_Id: rowCateId,
+                  Item_Name: rowItemName,
+                  Description: foundItem?.description ?? foundItem?.Description ?? "",
+                  Is_Veg: Number(foundItem?.is_veg ?? foundItem?.Is_Veg ?? 1),
+                  barcode: foundItem?.barcode ?? "",
+                  base64Image: pureBase64,
+                  Item_Image: generatedName,
+                  price: existingPrice,
+                  is_size_available: hasVariants ? 1 : 0,
+                  FoodItemSizeList: foundItem?.FoodItemSizeList ?? [],
+                  is_choice: Number(foundItem?.is_choice ?? 0),
+                  ChoiceList: foundItem?.foodItemChoicesList ?? foundItem?.FoodItemChoicesList ?? [],
+                  is_extra: Number(foundItem?.is_extra ?? 0),
+                  ExtraList: foundItem?.foodItemExtraList ?? foundItem?.FoodItemExtraList ?? [],
+                });
+                toast.success("Image Updated", "Item image uploaded successfully.");
+                loadItemsRef.current();
+              } catch (fallbackErr) {
+                console.error("Failed to update item image via editStoreItem fallback:", fallbackErr);
+                toast.error("Upload Failed", "Failed to update item image.");
+              }
             });
           }
         }
@@ -1642,7 +1763,6 @@ export default function ItemsPage() {
       // Capture data attributes for React state
       const itemId = Number(currentEditRow.dataset.itemId ?? "0");
       const cateId = Number(currentEditRow.dataset.cateId ?? "0");
-      const itemImage = currentEditRow.dataset.itemImage ?? "";
 
       const itemToEdit = itemsRef.current
         .flatMap((c) => c.item_list || [])
@@ -1650,6 +1770,19 @@ export default function ItemsPage() {
           const id = i?.item_Id ?? i?.Item_Id ?? i?.item_id ?? i?.id;
           return String(id) === String(itemId);
         });
+
+      const rawImg = String(
+        itemToEdit?.item_Image ??
+        itemToEdit?.Item_Image ??
+        itemToEdit?.image ??
+        itemToEdit?.item_image ??
+        currentEditRow.dataset.itemImage ??
+        ""
+      ).trim();
+
+      const cleanItemImage = rawImg
+        .replace(/^https?:\/\/[^\/]+\/(FoodItemImages\/)?/, "")
+        .replace(/^\//, "");
 
       const rawItemName = String(
         itemToEdit?.item_Name ?? itemToEdit?.Item_Name ?? ""
@@ -1672,7 +1805,7 @@ export default function ItemsPage() {
 
       setEditItemId(itemId);
       setEditCateId(cateId);
-      setEditItemImage(itemImage);
+      setEditItemImage(cleanItemImage);
       setEditBase64Image(""); // clear any previous crop
 
       const editItemNameInput = document.getElementById(
@@ -2446,7 +2579,7 @@ export default function ItemsPage() {
                               key={stableKey}
                               data-item-id={item.item_Id}
                               data-cate-id={category.id}
-                              data-item-image={getImageUrl(item.item_Image ?? item.Item_Image)}
+                              data-item-image={String(item.item_Image ?? item.Item_Image ?? item.image ?? item.item_image ?? "").replace(/^https?:\/\/[^\/]+\/(FoodItemImages\/)?/, "").replace(/^\//, "")}
                               data-category={String(category.id)}
                               draggable={true}
                               onDragStart={(e) => handleDragStart(e, item.item_Id)}
@@ -3204,29 +3337,9 @@ export default function ItemsPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: "100%", maxWidth: "420px" }}>
                   <div style={{ border: "1.5px dashed #ccc", borderRadius: "8px", padding: "20px", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", background: "#fafafa" }}>
                     <div className="uploader-thumbnail-frame edit-thumb" id="editThumbFrame" style={{ width: "80px", height: "80px", borderRadius: "8px" }}>
-                      {editBase64Image ? (
-                        <img
-                          src={`data:image/jpeg;base64,${editBase64Image}`}
-                          style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "8px" }}
-                          alt="Preview"
-                        />
-                      ) : editItemImage ? (
-                        <img
-                          src={`https://www.foodchow.com/ItemImages/${editItemImage}`}
-                          onError={(e) => {
-                            (e.target as HTMLElement).style.display = "none";
-                          }}
-                          style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "8px" }}
-                          alt="Item"
-                        />
-                      ) : (
-                        <>
-                          <i className="fa-solid fa-concierge-bell" style={{ fontSize: "32px" }}></i>
-                          <span style={{ fontSize: "9px" }}>No Image</span>
-                        </>
-                      )}
+                      <EditImagePreview imageName={editItemImage} base64Image={editBase64Image} />
                     </div>
-                    <button className="btn-upload-action" id="editUploadImageBtn">
+                    <button className="btn-upload-action" id="editUploadImageBtn" type="button">
                       Upload Image
                     </button>
                   </div>

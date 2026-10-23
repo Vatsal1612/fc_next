@@ -384,6 +384,7 @@ import ReportTableFooter from "@/components/shared/ReportTableFooter";
 import ReportTableState from "@/components/shared/ReportTableState";
 import ReportStepFooter from "@/components/shared/ReportStepFooter";
 import { useShopId } from "@/utils/shop";
+import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 
 type TabKey = "today" | "weekly" | "monthly" | "yearly" | "datewise";
 
@@ -394,6 +395,8 @@ interface ReportRow {
 }
 
 export default function SalesByItemSizeReportsPage() {
+    const sessionCurrency = useSessionCurrency();
+    const currencySymbol = sessionCurrency.symbol || "₹";
     const shopId = useShopId();
     const [activeTab, setActiveTab] = useState<TabKey>("today");
     const [data, setData] = useState<ReportRow[]>([]);
@@ -548,7 +551,7 @@ export default function SalesByItemSizeReportsPage() {
         }
 
         const tabLabel = activeTab.charAt(0).toUpperCase() + activeTab.slice(1);
-        const headers = ["Item Name", "Quantity", "Total Amount (Rs.)"];
+        const headers = ["Item Name", "Quantity", `Total Amount (${currencySymbol})`];
         const wsData: any[][] = [
             [`Sales By Item Size Report — ${tabLabel}`],
             [`Exported On: ${new Date().toLocaleString()}`],
@@ -807,7 +810,7 @@ export default function SalesByItemSizeReportsPage() {
                                                 <tr>
                                                     <th style={{ textAlign: "left" }}>Item Name</th>
                                                     <th>Quantity</th>
-                                                    <th>Total Amount (Rs.)</th>
+                                                    <th>Total Amount ({currencySymbol})</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="reportTableBody">
