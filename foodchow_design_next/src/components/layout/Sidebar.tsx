@@ -182,17 +182,16 @@ export function Sidebar() {
           <span>Language</span>
         </button>
 
-        {/* Logout Button pinned to bottom */}
-        <div className={styles.logoutWrapper}>
-          <button
-            className={styles.logoutBtn}
-            onClick={handleLogout}
-            title="Log Out"
-          >
-            <i className="fas fa-sign-out-alt" />
-            <span>Log Out</span>
-          </button>
-        </div>
+        {/* Logout Button directly below Language */}
+        <button
+          type="button"
+          className={cn(styles.menuItem, styles.logoutBtn)}
+          onClick={handleLogout}
+          title="Log Out"
+        >
+          <i className="fas fa-sign-out-alt" />
+          <span>Log Out</span>
+        </button>
       </div>
 
       {/* Global Supported Languages Modal */}

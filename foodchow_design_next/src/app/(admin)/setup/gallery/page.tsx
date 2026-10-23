@@ -317,7 +317,16 @@ export default function GalleryPage() {
                       Help
                     </button>
 
-
+                    {images.length > 0 && (
+                      <button
+                        type="button"
+                        title="Delete All Images"
+                        className="btn-delete-all"
+                        onClick={handleDeleteAllImages}
+                      >
+                        <i className="fa fa-trash"></i>
+                      </button>
+                    )}
                   </div>
                 </div>
 
