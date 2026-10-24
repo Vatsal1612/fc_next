@@ -114,7 +114,7 @@ export default function ItemDealsPage() {
     if (!file) return;
 
     if (file.size > 3 * 1024 * 1024) {
-      showToast("File size must be under 3MB");
+      toast.error("File Too Large", "File size must be under 3MB");
       return;
     }
 
@@ -129,7 +129,7 @@ export default function ItemDealsPage() {
 
   const handleCropAndUpload = () => {
     if (!tempCropSrc) {
-      showToast("Please choose an image first");
+      toast.warning("Validation Error", "Please choose an image first");
       return;
     }
 
@@ -227,7 +227,7 @@ export default function ItemDealsPage() {
     const deal = deals.find((d) => d.id === id);
 
     if (!deal) {
-      showToast("Deal not found");
+      toast.error("Error", "Deal not found");
       return;
     }
 
@@ -274,11 +274,11 @@ export default function ItemDealsPage() {
   // --- Step 1 Next Button Action ---
   const handleNextStep1 = () => {
     if (!dealName.trim()) {
-      showToast("Please enter a Deal Name");
+      toast.warning("Validation Error", "Please enter a Deal Name");
       return;
     }
     if (!description.trim()) {
-      showToast("Please enter a Description");
+      toast.warning("Validation Error", "Please enter a Description");
       return;
     }
 
@@ -300,7 +300,7 @@ export default function ItemDealsPage() {
     const deal = deals.find((d) => d.id === id);
 
     if (!deal) {
-      showToast("Deal not found");
+      toast.error("Error", "Deal not found");
       return;
     }
 
@@ -310,36 +310,13 @@ export default function ItemDealsPage() {
     console.log("NEW STATUS:", newStatus);
 
     try {
-      const statusResponse = await fetch(
-        `https://www.foodchow.com/api/FoodChowRMS/UpdateDealStatusWD?dealId=${id}&status=${newStatus}`,
-        {
-          method: "GET",
-        }
-      );
+      const statusResult = await menuService.updateDealStatus(id, newStatus);
 
-      console.log(
-        "STATUS UPDATE API STATUS:",
-        statusResponse.status
-      );
+      console.log("STATUS UPDATE API RESPONSE:", statusResult);
 
-      if (!statusResponse.ok) {
-        throw new Error(
-          `Status API failed with status ${statusResponse.status}`
-        );
-      }
-
-      const statusResult = await statusResponse.json();
-
-      console.log(
-        "STATUS UPDATE API RESPONSE:",
-        statusResult
-      );
-
-      if (statusResult.response_code !== "1") {
-        throw new Error(
-          statusResult.message ||
-          "Failed to update deal status"
-        );
+      const resCode = String(statusResult?.response_code ?? statusResult?.status ?? "");
+      if (resCode !== "1" && resCode !== "200") {
+        throw new Error(statusResult?.message || "Failed to update deal status");
       }
 
       // Update UI only after API success
@@ -354,21 +331,15 @@ export default function ItemDealsPage() {
         )
       );
 
-      showToast(
+      toast.success(
+        "Status Updated",
         newStatus === 1
           ? "Deal activated successfully"
           : "Deal deactivated successfully"
       );
-
-    } catch (error) {
-      console.error(
-        "STATUS UPDATE ERROR:",
-        error
-      );
-
-      showToast(
-        "Failed to update deal status"
-      );
+    } catch (error: any) {
+      console.error("STATUS UPDATE ERROR:", error);
+      toast.error("Status Update Failed", error?.message || "Failed to update deal status");
     }
   };
 
@@ -389,15 +360,25 @@ export default function ItemDealsPage() {
 
     if (result.isConfirmed) {
       try {
-        await fetch(
-          `https://www.foodchow.com/api/FoodChowRMS/DeleteDealWD?dealId=${id}`,
-          { method: "GET" }
-        );
-      } catch (err) {
+        const response = await menuService.deleteDeal(id);
+        console.log("DELETE DEAL RESPONSE:", response);
+
+        const resCode = String(response?.response_code ?? response?.status ?? "");
+        const message = response?.message || "";
+
+        if (resCode === "1" || resCode === "200") {
+          setDeals((prev) => prev.filter((d) => d.id !== id));
+          toast.success("Deal Deleted", message || `Deal "${deal.name}" deleted successfully.`);
+          await fetchDeals();
+        } else {
+          toast.error("Cannot Delete Deal", message || "Failed to delete deal.");
+        }
+      } catch (err: any) {
         console.error("Failed to delete deal via API:", err);
+        const errorMessage =
+          err?.response?.data?.message || err?.message || "Failed to delete deal.";
+        toast.error("Delete Failed", errorMessage);
       }
-      setDeals((prev) => prev.filter((d) => d.id !== id));
-      toast.success("Deal Deleted", `Deal "${deal.name}" deleted successfully.`);
     }
   };
 
@@ -1005,29 +986,27 @@ export default function ItemDealsPage() {
 
     // Deal Price validation
     if (!dealPrice.trim() || price <= 0) {
-      showToast("Please enter a valid Deal Price");
+      toast.warning("Validation Error", "Please enter a valid Deal Price");
       return;
     }
 
     // MRP validation
     if (!dealMrp.trim() || mrp <= 0) {
-      showToast("Please enter a valid Deal MRP");
+      toast.warning("Validation Error", "Please enter a valid Deal MRP");
       return;
     }
 
     // Deal Price cannot be greater than MRP
     if (price >= mrp) {
-      showToast("Deal Price cannot be greater than Deal MRP");
+      toast.error("Validation Error", "Deal Price cannot be greater than Deal MRP");
       return;
     }
 
     // Minimum Order Quantity validation
     if (!minQty.trim() || quantity <= 0) {
-      showToast("Minimum Order Quantity must be at least 1");
+      toast.warning("Validation Error", "Minimum Order Quantity must be at least 1");
       return;
     }
-
-
 
     // At least one item should be selected
     const hasSelectedItems = itemGroups.some(
@@ -1035,7 +1014,7 @@ export default function ItemDealsPage() {
     );
 
     if (!hasSelectedItems) {
-      showToast("Please select at least one item group");
+      toast.warning("Validation Error", "Please select at least one item group");
       return;
     }
 
@@ -1047,17 +1026,18 @@ export default function ItemDealsPage() {
   const [allowDiscount, setAllowDiscount] = useState<string>("");
   const handleNextStep3 = () => {
     if (!orderType) {
-      showToast("Please select any allowed order type.");
+      toast.warning("Validation Error", "Please select any allowed order type.");
       return;
     }
 
     if (!paymentMethod) {
-      showToast("Please select any allowed payment method.");
+      toast.warning("Validation Error", "Please select any allowed payment method.");
       return;
     }
 
     if (!allowDiscount) {
-      showToast(
+      toast.warning(
+        "Validation Error",
         "Please select Apply Discount and Offer with this Deal option."
       );
       return;
@@ -1225,94 +1205,26 @@ export default function ItemDealsPage() {
       // ==========================================
       // MAIN UPDATE API
       // ==========================================
-      const response = await fetch(
-        "https://www.foodchow.com/api/FoodChowRMS/UpdateDealWD",
-        {
-          method: "POST",
+      const updateResult = await menuService.updateDeal(payload);
+      console.log("UPDATE API RESPONSE:", updateResult);
 
-          headers: {
-            "Content-Type": "application/json",
-          },
-
-          body: JSON.stringify(payload),
-        }
-      );
-
-      console.log(
-        "UPDATE API STATUS:",
-        response.status
-      );
-
-      const responseText = await response.text();
-
-      console.log(
-        "UPDATE API RAW RESPONSE:",
-        responseText
-      );
-
-      let result;
-
-      try {
-        result = JSON.parse(responseText);
-      } catch {
-        result = responseText;
-      }
-
-      console.log(
-        "UPDATE API RESPONSE:",
-        result
-      );
-
-      if (!response.ok) {
-        throw new Error(
-          `Update API failed with status ${response.status}`
-        );
+      const updateCode = String(updateResult?.response_code ?? updateResult?.status ?? "");
+      if (updateCode !== "1" && updateCode !== "200" && updateResult?.response_code !== undefined) {
+        throw new Error(updateResult?.message || "Failed to update deal");
       }
 
       // ==========================================
       // UPDATE ACTIVE / INACTIVE STATUS
       // ==========================================
-      const newStatus =
-        status === "active" ? 1 : 0;
+      const newStatus = status === "active" ? 1 : 0;
+      console.log("SELECTED STATUS:", newStatus);
 
-      console.log(
-        "SELECTED STATUS:",
-        newStatus
-      );
+      const statusResult = await menuService.updateDealStatus(dealId, newStatus);
+      console.log("STATUS UPDATE API RESPONSE:", statusResult);
 
-      const statusResponse = await fetch(
-        `https://www.foodchow.com/api/FoodChowRMS/UpdateDealStatusWD?dealId=${dealId}&status=${newStatus}`,
-        {
-          method: "GET",
-        }
-      );
-
-      console.log(
-        "STATUS UPDATE API STATUS:",
-        statusResponse.status
-      );
-
-      if (!statusResponse.ok) {
-        throw new Error(
-          `Status API failed with status ${statusResponse.status}`
-        );
-      }
-
-      const statusResult =
-        await statusResponse.json();
-
-      console.log(
-        "STATUS UPDATE API RESPONSE:",
-        statusResult
-      );
-
-      if (
-        statusResult.response_code !== "1"
-      ) {
-        throw new Error(
-          statusResult.message ||
-          "Failed to update deal status"
-        );
+      const statusCode = String(statusResult?.response_code ?? statusResult?.status ?? "");
+      if (statusCode !== "1" && statusCode !== "200") {
+        throw new Error(statusResult?.message || "Failed to update deal status");
       }
 
       // ==========================================
@@ -1361,9 +1273,7 @@ export default function ItemDealsPage() {
 
       setIsModalOpen(false);
 
-      showToast(
-        "Deal updated successfully"
-      );
+      toast.success("Deal Updated", "Deal updated successfully");
 
     } catch (error) {
 
@@ -1372,9 +1282,7 @@ export default function ItemDealsPage() {
         error
       );
 
-      showToast(
-        "Something went wrong while updating the deal."
-      );
+      toast.error("Update Failed", "Something went wrong while updating the deal.");
     }
   };
 
@@ -1385,7 +1293,7 @@ export default function ItemDealsPage() {
     if (dealMode === "update") {
 
       if (!selectedDealId) {
-        showToast("Deal ID not found");
+        toast.error("Error", "Deal ID not found");
         return;
       }
 
@@ -1396,7 +1304,7 @@ export default function ItemDealsPage() {
       const shopId = sessionStorage.getItem("shop_id");
 
       if (!shopId) {
-        showToast("Shop ID not found in session");
+        toast.error("Error", "Shop ID not found in session");
         return;
       }
 
@@ -1459,16 +1367,16 @@ export default function ItemDealsPage() {
       // Refresh deals list immediately
       await fetchDeals();
 
-      showToast("Deal added successfully");
+      toast.success("Deal Added", "Deal added successfully");
 
       handleCloseModal();
 
     } catch (error: any) {
       console.error("ADD DEAL ERROR:", error);
 
-      showToast(
-        error?.response?.data?.message ||
-        "Failed to add deal"
+      toast.error(
+        "Failed to Add Deal",
+        error?.response?.data?.message || "Failed to add deal"
       );
     }
   };

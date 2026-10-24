@@ -149,8 +149,14 @@ export function showToast(
 
   // Style 3: showToast("Title", "Text description")
   if (second) {
+    const combined = `${first} ${second}`;
+    const isErr = /fail|error|invalid|wrong|cannot|can't|unable|not found|not allowed|exceed|greater than|less than/i.test(combined);
+    const isWarn = /warning|required|please|must|at least|choose|select/i.test(combined);
+    const isSuccess = /success|updated|saved|created|deleted|added|reordered|mapped|uploaded/i.test(combined);
+    const icon: SweetAlertIcon = isErr ? "error" : isWarn ? "warning" : isSuccess ? "success" : "info";
+
     return Toast.fire({
-      icon: "success",
+      icon,
       title: first,
       text: second,
       ...options,
@@ -158,10 +164,12 @@ export function showToast(
   }
 
   // Style 4: showToast("Simple message")
-  const isErr = /fail|error|invalid|wrong/i.test(first);
-  const isWarn = /warning|required|please/i.test(first);
-  const icon: SweetAlertIcon = isErr ? "error" : isWarn ? "warning" : "success";
-  const defaultTitle = isErr ? "Error" : isWarn ? "Warning" : "Success";
+  const isErr = /fail|error|invalid|wrong|cannot|can't|unable|not found|not allowed|exceed|greater than|less than/i.test(first);
+  const isWarn = /warning|required|please|must|at least|choose|select/i.test(first);
+  const isSuccess = /success|updated|saved|created|deleted|added|reordered|mapped|uploaded/i.test(first);
+
+  const icon: SweetAlertIcon = isErr ? "error" : isWarn ? "warning" : isSuccess ? "success" : "info";
+  const defaultTitle = isErr ? "Error" : isWarn ? "Warning" : isSuccess ? "Success" : "Notice";
 
   return Toast.fire({
     icon,

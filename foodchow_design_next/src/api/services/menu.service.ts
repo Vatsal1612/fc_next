@@ -1808,6 +1808,46 @@ export const menuService = {
     return data;
   },
 
+  async updateDeal(payload: any) {
+    console.log("UPDATE DEAL PAYLOAD:", payload);
+
+    const { data } = await foodchowWDClient.post(
+      ENDPOINTS.menu.updateItemDeal,
+      payload
+    );
+
+    console.log("UPDATE DEAL RESPONSE:", data);
+
+    return data;
+  },
+
+  async deleteDeal(dealId: string | number) {
+    const response = await foodchowWDClient.get(
+      ENDPOINTS.menu.deleteItemDeal,
+      {
+        params: {
+          dealId,
+        },
+      }
+    );
+
+    return response.data;
+  },
+
+  async updateDealStatus(dealId: string | number, status: number) {
+    const response = await foodchowWDClient.get(
+      ENDPOINTS.menu.updateDealStatus,
+      {
+        params: {
+          dealId,
+          status,
+        },
+      }
+    );
+
+    return response.data;
+  },
+
 
 
   async getAllDeals(shopId: number) {

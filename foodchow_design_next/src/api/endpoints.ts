@@ -107,6 +107,9 @@ export const ENDPOINTS = {
 
     // Item Deal
     addItemDeal: "/FoodChowRMS/AddDealWD",
+    updateItemDeal: "/FoodChowRMS/UpdateDealWD",
+    deleteItemDeal: "/FoodChowRMS/DeleteDealWD",
+    updateDealStatus: "/FoodChowRMS/UpdateDealStatusWD",
     getAllItemDeal: "/FoodChowRMS/GetAllDealsByShopIDWD",
 
     // Menu Language
