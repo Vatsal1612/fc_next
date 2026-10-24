@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import { orderService, MenuType, OrderingMethod, PaymentMethod, SelectedPaymentMethod, OrderMethodStatus, UserOptionDetails, OnlineOrderStatus, MissedOrderTiming, } from "@/api/services/order.service";
 import { useShopId } from "@/utils/shop";
+import { toast } from "@/components/shared/Toast";
 import "./page.css";
 
 /**
@@ -407,13 +408,7 @@ export default function OrderSettingPage() {
   };
   // Toast helper function
   const showToast = () => {
-    const toast = document.getElementById("successToast");
-    if (toast) {
-      toast.classList.add("show");
-      setTimeout(() => {
-        toast.classList.remove("show");
-      }, 2000);
-    }
+    toast.success("Settings Saved", "Settings saved successfully!");
   };
 
   const handlePaymentMethodToggle = async (
@@ -1150,14 +1145,6 @@ export default function OrderSettingPage() {
             <WizardFooter />
           </div>
         </main>
-      </div>
-
-      <div id="successToast" className="toast-alert">
-        <svg viewBox="0 0 24 24">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-          <polyline points="22 4 12 14.01 9 11.01" />
-        </svg>
-        <span>Settings saved successfully!</span>
       </div>
 
       {showHelpVideo && (

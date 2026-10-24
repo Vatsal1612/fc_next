@@ -205,38 +205,6 @@ export default function GalleryPage() {
     }
   };
 
-  // 5. Delete All Images with SweetAlert (matches live)
-  const handleDeleteAllImages = async () => {
-    if (images.length === 0) return;
-
-    const result = await Swal.fire({
-      title: "Are you sure you want to delete all gallery Images?",
-      text: "This action cannot be undone.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#DD6B55",
-      cancelButtonColor: "#8e9ba8",
-      confirmButtonText: "Yes",
-      cancelButtonText: "Cancel",
-    });
-
-    if (result.isConfirmed) {
-      try {
-        await Promise.all(
-          images.map((item) =>
-            setupService.deleteGalleryPhoto(Number(item.gallery_id || item.galleryid))
-          )
-        );
-        toast.success("Deleted All", "Your Gallery Images have been deleted Successfully...!!!");
-        setTimeout(() => {
-          window.location.reload();
-        }, 300);
-      } catch (err: any) {
-        console.error("Failed to delete all gallery images:", err);
-        toast.error("Delete Failed", "Failed to delete all images.");
-      }
-    }
-  };
 
   // Video Help modal (matches live Vimeo link)
   const handleHelpClick = () => {
@@ -317,16 +285,6 @@ export default function GalleryPage() {
                       Help
                     </button>
 
-                    {images.length > 0 && (
-                      <button
-                        type="button"
-                        title="Delete All Images"
-                        className="btn-delete-all"
-                        onClick={handleDeleteAllImages}
-                      >
-                        <i className="fa fa-trash"></i>
-                      </button>
-                    )}
                   </div>
                 </div>
 

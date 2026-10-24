@@ -1023,6 +1023,7 @@ import { getShopId, useShopId } from "@/utils/shop";
 import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 import ReportPagination from "@/components/shared/ReportPagination";
 import Swal from "sweetalert2";
+import { toast } from "@/components/shared/Toast";
 
 // Types
 interface Tax {
@@ -1060,8 +1061,6 @@ export default function TaxPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [, setIsHelpModalOpen] = useState(false);
   const [editingTax, setEditingTax] = useState<Tax | null>(null);
-  const [toastMessage, setToastMessage] = useState("");
-  const [showToast, setShowToast] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     name: "",
     rate: 10,
@@ -1071,9 +1070,7 @@ export default function TaxPage() {
 
   // Toast helper
   const showToastMessage = useCallback((message: string) => {
-    setToastMessage(message);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 2800);
+    toast.success("Tax Settings", message);
   }, []);
 
   // Fetch taxes
@@ -2207,26 +2204,6 @@ export default function TaxPage() {
               </div>
             </form>
           </div>
-        </div>
-      )}
-
-
-      {/* Toast Box */}
-      {showToast && (
-        <div className="toast-box show">
-          <svg
-            viewBox="0 0 24 24"
-            style={{
-              width: "16px",
-              height: "16px",
-              fill: "none",
-              stroke: "currentColor",
-              strokeWidth: 2.5,
-            }}
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-          <span>{toastMessage}</span>
         </div>
       )}
     </div>

@@ -33,66 +33,75 @@
   .app-container {
     display: flex;
     width: 100%;
+    flex: 1;
     min-height: calc(100vh - 60px);
   }
 
   /* ── MAIN CONTENT WORKSPACE ── */
+  .main,
   .main-content {
-    flex-grow: 1;
+    flex: 1;
     display: flex;
     flex-direction: column;
+    min-width: 0;
     overflow-y: auto;
+    width: 100%;
   }
 
+  .page-content,
   .content-area {
     flex: 1;
-    padding: 24px 32px;
+    padding: 24px 28px;
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
-    max-width: 1200px;
     width: 100%;
-    margin: 0 auto;
+    max-width: none !important;
+    margin: 0 !important;
   }
 
   /* ── MAIN CARD STYLING ── */
+  .page-card,
   .content-card {
-    background: var(--surface);
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    padding: 28px 32px;
+    background: #ffffff;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+    margin-bottom: 24px;
+    overflow: hidden;
     width: 100%;
     box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.03);
-    margin-bottom: 24px;
     position: relative;
   }
 
+  /* Card Header */
+  .card-head,
   .report-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid #edf2f7;
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid var(--border);
+    justify-content: space-between;
+    background-color: #ffffff;
     flex-wrap: wrap;
     gap: 16px;
+    margin: 0;
   }
 
+  .card-head header,
   .report-title {
-    color: var(--text-dark);
-    font-size: 22px;
+    font-size: 18px;
     font-weight: 700;
+    color: #1e293b;
     letter-spacing: -0.2px;
     margin: 0;
   }
 
+  .card-head .tools,
   .report-header-actions {
     display: flex;
-    gap: 10px;
     align-items: center;
+    gap: 12px;
   }
 
   /* HELP BUTTON */
@@ -101,10 +110,10 @@
     align-items: center;
     gap: 8px;
     padding: 8px 18px;
-    background: #ffffff;
-    border: 1.5px solid var(--border);
+    background-color: #ffffff;
+    border: 1.5px solid #e2e8f0;
     border-radius: 6px;
-    color: var(--text-light);
+    color: #475569;
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
@@ -128,6 +137,11 @@
     stroke-width: 2.2;
     stroke-linecap: round;
     stroke-linejoin: round;
+  }
+
+  /* Card Body */
+  .card-body {
+    padding: 24px 28px;
   }
 
   /* ── RESTAURANT IMAGE WRAPPER ── */
@@ -557,14 +571,21 @@
   }
 
   @media (max-width: 576px) {
+    .page-content,
     .content-area {
       padding: 16px;
     }
 
+    .page-card,
     .content-card {
-      padding: 20px;
+      padding: 0;
     }
 
+    .card-body {
+      padding: 16px;
+    }
+
+    .card-head,
     .report-header {
       flex-direction: column;
       align-items: flex-start;

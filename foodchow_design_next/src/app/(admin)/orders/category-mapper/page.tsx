@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import { menuService } from "@/api/services/menu.service";
 import { getShopId } from "@/utils/shop";
+import { toast } from "@/components/shared/Toast";
+import Swal from "sweetalert2";
 import "./page.css";
 
 interface Category {
@@ -75,19 +77,7 @@ export default function CategoryMapperPage() {
         });
     }
 
-    // ── Toast Controller ──
-    let toastTimeout: ReturnType<typeof setTimeout> | undefined;
-    const showToast = (message: string): void => {
-      const toast = document.getElementById("toast");
-      const toastText = document.getElementById("toastText");
-      if (!toast || !toastText) return;
-      toastText.textContent = message;
-      toast.classList.add("show");
-      if (toastTimeout) clearTimeout(toastTimeout);
-      toastTimeout = setTimeout(() => {
-        toast.classList.remove("show");
-      }, 2800);
-    };
+
 
     // ── Modal Helpers ──
     const openSectionModal = (): void => {
@@ -277,12 +267,12 @@ export default function CategoryMapperPage() {
       const category = categories.find((c) => c.id === catId);
       if (section && category) {
         if (section.mappedCategoryIds.includes(catId)) {
-          showToast(`Category "${category.name}" is already mapped inside "${section.name}"`);
+          toast.warning("Already Mapped", `Category "${category.name}" is already mapped inside "${section.name}"`);
           return;
         }
         section.mappedCategoryIds.push(catId);
         saveSections();
-        showToast(`"${category.name}" successfully mapped to "${section.name}"`);
+        toast.success("Category Mapped", `"${category.name}" successfully mapped to "${section.name}"`);
         renderSectionsList();
       }
     }
@@ -293,20 +283,33 @@ export default function CategoryMapperPage() {
       if (section && category) {
         section.mappedCategoryIds = section.mappedCategoryIds.filter((id) => id !== catId);
         saveSections();
-        showToast(`Un-mapped "${category.name}" from "${section.name}"`);
+        toast.success("Category Unmapped", `Un-mapped "${category.name}" from "${section.name}"`);
         renderSectionsList();
       }
     }
 
-    function deleteSection(sectionId: string): void {
+    const deleteSection = async (sectionId: string): Promise<void> => {
       const section = sections.find((s) => s.id === sectionId);
-      if (section && confirm(`Are you sure you want to delete the section "${section.name}"?`)) {
+      if (!section) return;
+
+      const result = await Swal.fire({
+        title: "Are you sure?",
+        text: `Are you sure you want to delete the section "${section.name}"?`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#DD6B55",
+        cancelButtonColor: "#8e9ba8",
+        confirmButtonText: "Yes, delete it!",
+        cancelButtonText: "Cancel",
+      });
+
+      if (result.isConfirmed) {
         sections = sections.filter((s) => s.id !== sectionId);
         saveSections();
-        showToast(`Section "${section.name}" deleted`);
+        toast.success("Section Deleted", `Section "${section.name}" deleted successfully.`);
         renderSectionsList();
       }
-    }
+    };
 
     const filterCategories = (): void => renderCategoriesList();
 
@@ -318,7 +321,7 @@ export default function CategoryMapperPage() {
       const name = (nameField?.value ?? "").trim();
 
       if (!name) {
-        showToast("Please specify a valid section name");
+        toast.warning("Validation Error", "Please specify a valid section name");
         return;
       }
 
@@ -327,13 +330,13 @@ export default function CategoryMapperPage() {
         if (idx > -1) {
           sections[idx].name = name;
           saveSections();
-          showToast(`Section renamed to "${name}"`);
+          toast.success("Section Renamed", `Section renamed to "${name}"`);
         }
       } else {
         const newId = `sec-${Date.now()}`;
         sections.push({ id: newId, name, mappedCategoryIds: [] });
         saveSections();
-        showToast(`Section "${name}" created successfully!`);
+        toast.success("Section Created", `Section "${name}" created successfully!`);
       }
 
       closeSectionModal();
@@ -343,7 +346,7 @@ export default function CategoryMapperPage() {
     const handleNextStep = (e: Event): void => {
       e.preventDefault();
       saveSections();
-      showToast("Category Mapping configuration saved! Next Step...");
+      toast.success("Configuration Saved", "Category Mapping configuration saved!");
     };
 
     // ── Wire static (non-generated) handlers ──
@@ -376,7 +379,6 @@ export default function CategoryMapperPage() {
       nextBtn?.removeEventListener("click", handleNextStep);
       sectionForm?.removeEventListener("submit", handleSectionFormSubmit);
       sectionCancelBtns.forEach((b) => b.removeEventListener("click", closeSectionModal));
-      if (toastTimeout) clearTimeout(toastTimeout);
     };
   }, []);
 
@@ -530,14 +532,6 @@ export default function CategoryMapperPage() {
           </div>
         </div>
       )}
-
-      {/* Toast Box */}
-      <div className="toast-box" id="toast">
-        <svg viewBox="0 0 24 24">
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
-        <span id="toastText">Changes saved successfully</span>
-      </div>
     </div>
   );
 }

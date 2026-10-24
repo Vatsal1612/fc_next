@@ -294,12 +294,12 @@ export default function RestaurantImgaePage() {
       />
 
       <div className="app-container">
-        <div className="main-content">
-          <div className="content-area">
-            <div className="content-card">
-              <div className="report-header">
-                <h1 className="report-title">Restaurant Image</h1>
-                <div className="report-header-actions">
+        <div className="main">
+          <div className="page-content">
+            <div className="page-card">
+              <div className="card-head">
+                <header>Restaurant Image</header>
+                <div className="tools">
                   <button
                     type="button"
                     className="btn-help"
@@ -315,7 +315,8 @@ export default function RestaurantImgaePage() {
                 </div>
               </div>
 
-              <div className="image-upload-wrapper">
+              <div className="card-body">
+                <div className="image-upload-wrapper">
                 {/* Image Display Box */}
                 <div
                   className={`overview-image-box ${!imageUrl ? "placeholder-mode" : ""}`}
@@ -393,8 +394,9 @@ export default function RestaurantImgaePage() {
                 </div>
               </div>
             </div>
+          </div>
 
-            <WizardFooter />
+          <WizardFooter />
           </div>
         </div>
       </div>

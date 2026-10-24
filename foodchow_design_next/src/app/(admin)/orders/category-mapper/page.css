@@ -150,44 +150,6 @@
     margin: 6px 0;
   }
 
-  /* ── Toast Notification ── */
-  .toast-box,
-  .toast {
-    position: fixed;
-    bottom: 2.5rem;
-    right: 2.5rem;
-    background: #0f172a;
-    color: #fff;
-    padding: 14px 24px;
-    border-radius: var(--radius-md);
-  font-size: var(--text-label); line-height: var(--lh-label);
-  font-weight: var(--weight-semibold);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    opacity: 0;
-    transform: translateY(12px) scale(0.95);
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-    pointer-events: none;
-    z-index: 1100;
-    box-shadow: var(--shadow-xl);
-  }
-
-  .toast-box.show,
-  .toast.show {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-
-  .toast-box svg,
-  .toast svg {
-    width: 20px;
-    height: 20px;
-    flex-shrink: 0;
-    fill: none;
-    stroke: var(--teal);
-    stroke-width: 2.8;
-  }
 
   /* ── Reusable Unified Button System ── */
   .btn-action {

@@ -586,7 +586,7 @@ export default function MarketingMaterialPage() {
               </div>
             </div>
 
-            <WizardFooter currentStepOverride={31} totalStepsOverride={35} />
+            <WizardFooter />
           </div>
         </div>
       </div>

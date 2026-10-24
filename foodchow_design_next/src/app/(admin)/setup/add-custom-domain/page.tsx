@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import { setupService } from "@/api/services/setup.service";
 import { useShopId, isApiSuccess } from "@/utils/shop";
+import { toast as fcToast } from "@/components/shared/Toast";
 import "./page.css";
 
 /**
@@ -17,14 +18,11 @@ export default function AddCustomDomainPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const toast = (msg: string, isErr = false): void => {
-    const t = document.getElementById("toast");
-    if (!t) return;
-    t.textContent = msg;
-    t.style.background = isErr ? "#ef4444" : "#0AA89E";
-    t.className = "toast show";
-    setTimeout(() => {
-      t.className = "toast";
-    }, 3000);
+    if (isErr) {
+      fcToast.error("Domain Settings", msg);
+    } else {
+      fcToast.success("Domain Settings", msg);
+    }
   };
 
   useEffect(() => {
@@ -345,9 +343,6 @@ export default function AddCustomDomainPage() {
           </div>
         </div>
       </div>
-
-      {/* Toast */}
-      <div className="toast" id="toast" />
 
       {/* CNAME Configuration Guide Modal */}
       <div className="modal-overlay" id="cnameGuideModal">

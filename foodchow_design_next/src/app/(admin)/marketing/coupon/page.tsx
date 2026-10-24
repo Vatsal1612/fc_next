@@ -877,7 +877,6 @@ export default function CouponPage() {
           </div>
         </div>
       </div>
-      <div className="toast" id="toast" />
       {showHelpVideo && (
         <div style={{
           position: 'fixed',

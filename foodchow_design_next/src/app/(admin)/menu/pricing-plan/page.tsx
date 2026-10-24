@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { menuService } from "@/api/services/menu.service";
 import { setupService } from "@/api/services/setup.service";
 import { getCurrencySymbol } from "@/hooks/useSessionCurrency";
+import { WizardFooter } from "@/components/shared/WizardFooter";
 // @ts-ignore
 import "./page.css";
 
@@ -1442,6 +1443,7 @@ export default function PricingPlanPage() {
                         </div>
                     </div>
                 )}
+                <WizardFooter />
             </div>
         </div>
     );

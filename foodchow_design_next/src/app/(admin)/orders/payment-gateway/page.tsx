@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { WizardFooter } from "@/components/shared/WizardFooter";
 import { getShopId } from "@/utils/shop";
+import { toast } from "@/components/shared/Toast";
 import "./page.css";
 
 /**
@@ -17,16 +18,12 @@ export default function PaymentGatewayPage() {
     const root = document.getElementById("pg-orders-payment-gateway");
     if (!root) return;
 
-    let toastTimer: ReturnType<typeof setTimeout> | undefined;
     const showToast = (msg: string, isErr = false): void => {
-      const t = document.getElementById("toast");
-      if (!t) return;
-      t.textContent = msg;
-      t.className = "toast show" + (isErr ? " err" : "");
-      if (toastTimer) clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => {
-        t.className = "toast";
-      }, 2800);
+      if (isErr) {
+        toast.error("Validation Error", msg);
+      } else {
+        toast.success("Payment Gateway", msg);
+      }
     };
 
     const selectGateway = (gw: string): void => {
@@ -194,7 +191,6 @@ export default function PaymentGatewayPage() {
       payOverlay?.removeEventListener("click", onPayOverlay);
       prevBtn?.removeEventListener("click", onPrev);
       nextBtn?.removeEventListener("click", onNext);
-      if (toastTimer) clearTimeout(toastTimer);
     };
   }, []);
 
@@ -797,9 +793,6 @@ export default function PaymentGatewayPage() {
 
         <WizardFooter />
       </div>
-
-      {/* TOAST */}
-      <div className="toast" id="toast" />
 
       {/* STRIPE CONNECT POPUP */}
       <div className="overlay" id="scOverlay">

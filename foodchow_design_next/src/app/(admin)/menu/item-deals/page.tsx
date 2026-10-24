@@ -1,8 +1,9 @@
 "use client";
 import { WizardFooter } from "@/components/shared/WizardFooter";
-import { showToast } from "@/components/shared/Toast";
+import { showToast, toast } from "@/components/shared/Toast";
 import { menuService } from "@/api/services/menu.service";
 import { useState, useEffect, useRef } from "react";
+import Swal from "sweetalert2";
 import "./page.css";
 import { useShopId } from "@/utils/shop";
 import { useSessionCurrency } from "@/hooks/useSessionCurrency";
@@ -371,11 +372,32 @@ export default function ItemDealsPage() {
     }
   };
 
-  const deleteDeal = (id: string) => {
+  const deleteDeal = async (id: string) => {
     const deal = deals.find((d) => d.id === id);
-    if (deal && confirm(`Are you sure you want to delete "${deal.name}"?`)) {
+    if (!deal) return;
+
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: `Are you sure you want to delete "${deal.name}"?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#DD6B55",
+      cancelButtonColor: "#8e9ba8",
+      confirmButtonText: "Yes, delete it!",
+      cancelButtonText: "Cancel",
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await fetch(
+          `https://www.foodchow.com/api/FoodChowRMS/DeleteDealWD?dealId=${id}`,
+          { method: "GET" }
+        );
+      } catch (err) {
+        console.error("Failed to delete deal via API:", err);
+      }
       setDeals((prev) => prev.filter((d) => d.id !== id));
-      showToast("Deal deleted successfully");
+      toast.success("Deal Deleted", `Deal "${deal.name}" deleted successfully.`);
     }
   };
 
@@ -2730,14 +2752,6 @@ export default function ItemDealsPage() {
           </div>
         </div>
       )}
-
-      {/* Toast Notification */}
-      <div className="toast-box" id="toast">
-        <svg viewBox="0 0 24 24">
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
-        <span id="toastText">Changes saved successfully</span>
-      </div>
     </div>
   );
 

@@ -13,7 +13,7 @@ export const Toast = Swal.mixin({
   position: "top-end",
   showConfirmButton: false,
   timer: 3000,
-  timerProgressBar: true,
+  timerProgressBar: false,
   customClass: {
     popup: "fc-swal-toast",
     title: "fc-swal-toast-title",
@@ -33,34 +33,70 @@ export const Toast = Swal.mixin({
  * toast.info("Note", "...")
  */
 export const toast = {
-  success: (title: string, text?: string, options?: SweetAlertOptions) =>
-    Toast.fire({
+  success: (title: string, text?: string, options?: SweetAlertOptions) => {
+    if (!text) {
+      return Toast.fire({
+        icon: "success",
+        title: "Success",
+        text: title,
+        ...options,
+      });
+    }
+    return Toast.fire({
       icon: "success",
       title,
       text,
       ...options,
-    }),
-  error: (title: string, text?: string, options?: SweetAlertOptions) =>
-    Toast.fire({
+    });
+  },
+  error: (title: string, text?: string, options?: SweetAlertOptions) => {
+    if (!text) {
+      return Toast.fire({
+        icon: "error",
+        title: "Error",
+        text: title,
+        ...options,
+      });
+    }
+    return Toast.fire({
       icon: "error",
       title,
       text,
       ...options,
-    }),
-  warning: (title: string, text?: string, options?: SweetAlertOptions) =>
-    Toast.fire({
+    });
+  },
+  warning: (title: string, text?: string, options?: SweetAlertOptions) => {
+    if (!text) {
+      return Toast.fire({
+        icon: "warning",
+        title: "Warning",
+        text: title,
+        ...options,
+      });
+    }
+    return Toast.fire({
       icon: "warning",
       title,
       text,
       ...options,
-    }),
-  info: (title: string, text?: string, options?: SweetAlertOptions) =>
-    Toast.fire({
+    });
+  },
+  info: (title: string, text?: string, options?: SweetAlertOptions) => {
+    if (!text) {
+      return Toast.fire({
+        icon: "info",
+        title: "Information",
+        text: title,
+        ...options,
+      });
+    }
+    return Toast.fire({
       icon: "info",
       title,
       text,
       ...options,
-    }),
+    });
+  },
   fire: (options: SweetAlertOptions) => Toast.fire(options),
 };
 
@@ -79,20 +115,32 @@ export function showToast(
   third?: string,
   options?: SweetAlertOptions
 ) {
-  // Style 1: showToast("success", "Title", "Text")
-  if (ICON_TYPES.includes(first)) {
+  const firstLower = first ? first.toLowerCase() : "";
+
+  // Style 1: showToast("success", "Message") or showToast("success", "Title", "Text")
+  if (ICON_TYPES.includes(firstLower)) {
+    const icon = firstLower as SweetAlertIcon;
+    const defaultTitle = icon.charAt(0).toUpperCase() + icon.slice(1);
+    if (!third) {
+      return Toast.fire({
+        icon,
+        title: defaultTitle,
+        text: second || "",
+        ...options,
+      });
+    }
     return Toast.fire({
-      icon: first as SweetAlertIcon,
-      title: second || "",
+      icon,
+      title: second || defaultTitle,
       text: third,
       ...options,
     });
   }
 
   // Style 2: showToast("Title", "success", "Text")
-  if (second && ICON_TYPES.includes(second)) {
+  if (second && ICON_TYPES.includes(second.toLowerCase())) {
     return Toast.fire({
-      icon: second as SweetAlertIcon,
+      icon: second.toLowerCase() as SweetAlertIcon,
       title: first,
       text: third,
       ...options,
@@ -110,9 +158,15 @@ export function showToast(
   }
 
   // Style 4: showToast("Simple message")
+  const isErr = /fail|error|invalid|wrong/i.test(first);
+  const isWarn = /warning|required|please/i.test(first);
+  const icon: SweetAlertIcon = isErr ? "error" : isWarn ? "warning" : "success";
+  const defaultTitle = isErr ? "Error" : isWarn ? "Warning" : "Success";
+
   return Toast.fire({
-    icon: "success",
-    title: first,
+    icon,
+    title: defaultTitle,
+    text: first,
     ...options,
   });
 }

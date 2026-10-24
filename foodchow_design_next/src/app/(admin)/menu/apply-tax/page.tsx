@@ -937,6 +937,7 @@ import { menuService } from "@/api/services/menu.service";
 import { getShopId, useShopId, isApiSuccess } from "@/utils/shop";
 import { useSessionCurrency } from "@/hooks/useSessionCurrency";
 import ReportPagination from "@/components/shared/ReportPagination";
+import { toast } from "@/components/shared/Toast";
 import "./page.css";
 
 interface Product {
@@ -1015,7 +1016,6 @@ export default function ApplyTaxPage() {
 
     let sampleProducts: Product[] = [];
     let productSearchQuery = "";
-    let toastTimeout: ReturnType<typeof setTimeout>;
 
     function escapeHtml(str: string): string {
       return str
@@ -1319,15 +1319,7 @@ export default function ApplyTaxPage() {
     }
 
     function showToast(message: string) {
-      const toast = document.getElementById("toast");
-      const toastText = document.getElementById("toastText");
-      if (!toast || !toastText) return;
-      toastText.textContent = message;
-      toast.classList.add("show");
-      clearTimeout(toastTimeout);
-      toastTimeout = setTimeout(() => {
-        toast.classList.remove("show");
-      }, 2800);
+      toast.success("Tax Settings", message);
     }
 
     // ── Wire listeners ──
@@ -1390,7 +1382,6 @@ export default function ApplyTaxPage() {
 
     return () => {
       renderProductListRef.current = null;
-      clearTimeout(toastTimeout);
       searchInput?.removeEventListener("input", filterProducts);
       selectAllCb?.removeEventListener("change", onSelectAllChange);
       applyAllBtn?.removeEventListener("click", applyAllProducts);
@@ -1916,13 +1907,6 @@ export default function ApplyTaxPage() {
             </button>
           </div>
         </div>
-      </div>
-
-      <div className="toast-box" id="toast" style={{ display: "none" }}>
-        <svg viewBox="0 0 24 24" style={{ width: "20px", height: "20px", fill: "none", stroke: "currentColor", strokeWidth: 2.5 }}>
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
-        <span id="toastText">Changes saved successfully</span>
       </div>
     </div>
   );
